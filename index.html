@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>539 數據預測模擬器</title>
+    <title>539 數據分析預測器</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -14,7 +14,6 @@
             --border-color: #333333;
         }
 
-        /* iOS 全螢幕適配與防誤觸 */
         body {
             background-color: var(--bg-color);
             color: var(--text-white);
@@ -27,15 +26,14 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* 1. Logbox: 系統日誌 */
         #logbox {
             background: #0a0a0a;
             border: 1px solid var(--border-color);
             border-left: 4px solid var(--primary-orange);
             padding: 12px;
-            font-size: 12px;
+            font-size: 11px;
             color: var(--primary-orange);
-            height: 50px;
+            height: 55px;
             overflow-y: auto;
             border-radius: 8px;
             font-family: monospace;
@@ -52,67 +50,40 @@
         h2 {
             margin: 0 0 12px 0;
             font-size: 17px;
-            font-weight: 600;
             color: var(--primary-orange);
             display: flex;
             justify-content: space-between;
-            align-items: center;
         }
 
-        /* 2. Panel 1: 回測資料表格 */
         .table-wrapper { overflow-x: auto; }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-        }
-        th {
-            color: var(--text-gray);
-            text-align: left;
-            padding: 10px 4px;
-            border-bottom: 1px solid var(--border-color);
-        }
-        td {
-            padding: 12px 4px;
-            border-bottom: 1px solid #262626;
-        }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { color: var(--text-gray); text-align: left; padding: 10px 4px; border-bottom: 1px solid var(--border-color); }
+        td { padding: 12px 4px; border-bottom: 1px solid #262626; }
 
         .hit { 
             color: var(--primary-orange); 
-            font-weight: 800;
-            transition: all 0.2s;
+            font-weight: 900;
+            text-decoration: underline;
         }
-        /* Hover 特效 */
+        
         .pred-cell:hover .hit {
             background: var(--primary-orange);
             color: #000;
-            padding: 2px 4px;
             border-radius: 4px;
+            text-decoration: none;
         }
 
-        /* 3. Panel 2: 下期預測球體 */
-        .next-date { font-size: 13px; color: var(--text-gray); font-weight: normal; }
-        .ball-container {
-            display: flex;
-            justify-content: space-around;
-            margin-top: 10px;
-        }
+        .ball-container { display: flex; justify-content: space-around; margin-top: 10px; }
         .ball {
-            width: 42px;
-            height: 42px;
+            width: 42px; height: 42px;
             background: linear-gradient(145deg, #ff9d26, #d97700);
             border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            color: #000;
-            font-size: 18px;
-            box-shadow: 0 4px 10px rgba(255, 140, 0, 0.3);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; color: #000; font-size: 18px;
         }
 
-        .stars-label { color: var(--primary-orange); font-weight: bold; }
-        .loading-text { color: var(--text-gray); text-align: center; padding: 20px; }
+        .stars-label { color: var(--primary-orange); font-weight: bold; font-family: serif; }
+        .loading { color: var(--text-gray); text-align: center; padding: 20px; }
     </style>
 </head>
 <body>
@@ -120,35 +91,33 @@
     <div id="logbox">系統啟動中...</div>
 
     <div class="panel">
-        <h2>下期預測 <span id="next-date-label" class="next-date">---</span></h2>
+        <h2>下期預測 <span id="next-date-label" style="font-size: 13px; color: var(--text-gray);">---</span></h2>
         <div id="next-prediction" class="ball-container">
-            <div class="loading-text">計算中...</div>
+            <div class="loading">等待數據運算...</div>
         </div>
     </div>
 
     <div class="panel">
-        <h2>近 10 筆回測</h2>
+        <h2>近 10 筆回測 (固定邏輯)</h2>
         <div class="table-wrapper">
             <table>
                 <thead>
                     <tr>
                         <th>日期</th>
-                        <th>開獎</th>
-                        <th>預測</th>
+                        <th>開獎號碼</th>
+                        <th>AI預測</th>
                         <th>命中</th>
                     </tr>
                 </thead>
                 <tbody id="backtest-body">
-                    <tr><td colspan="4" class="loading-text">資料載入中...</td></tr>
+                    <tr><td colspan="4" class="loading">載入 Google Sheet 中...</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
 
     <script>
-        /** * ==========================================
-         * ⚠️ 注意：在此替換你的 Google Apps Script URL
-         * ==========================================
+        /** * ⚠️ 請在此替換你的 Google Apps Script URL 
          */
         const API_URL = 'https://script.google.com/macros/s/AKfycbyJRV2ot2w_NPl652dKaZAS5E9wM4u7mlJ59Wurp-CAj2Pf22NOFARxRYSnfAJctQZa/exec';
 
@@ -156,63 +125,66 @@
         const backtestBody = document.getElementById('backtest-body');
         const nextPredContainer = document.getElementById('next-prediction');
 
-        // 更新日誌
         function updateLog(msg) {
-            const now = new Date();
-            const time = now.getHours() + ":" + now.getMinutes() + ":" + now.getSeconds();
+            const time = new Date().toLocaleTimeString('zh-TW', { hour12: false });
             logbox.innerHTML += `<div>[${time}] ${msg}</div>`;
             logbox.scrollTop = logbox.scrollHeight;
         }
 
-        // 計算下一個開獎日期 (排除週日)
-        function calculateNextDate(lastDateStr) {
-            let date = new Date(lastDateStr);
-            date.setDate(date.getDate() + 1);
-            if (date.getDay() === 0) { // 如果是週日
-                date.setDate(date.getDate() + 1);
-                updateLog("跳過週日開獎");
-            }
-            return date.toISOString().split('T')[0];
+        // 核心邏輯：根據歷史資料計算最高頻率的 5 個號碼
+        function getFixedPrediction(historicalData) {
+            if (historicalData.length === 0) return [1, 2, 3, 4, 5];
+            
+            const freqMap = {};
+            // 統計頻率
+            historicalData.forEach(item => {
+                item.nums.forEach(n => {
+                    freqMap[n] = (freqMap[n] || 0) + 1;
+                });
+            });
+
+            // 排序並取前 5 名
+            return Object.keys(freqMap)
+                .map(Number)
+                .sort((a, b) => (freqMap[b] - freqMap[a]) || (a - b))
+                .slice(0, 5)
+                .sort((a, b) => a - b);
         }
 
-        // 簡單預測演算法 (此處可根據需求更換為複雜逻辑)
-        function generatePrediction() {
-            let res = [];
-            while(res.length < 5) {
-                let r = Math.floor(Math.random() * 39) + 1;
-                if(!res.includes(r)) res.push(r);
-            }
-            return res;
-        }
-
-        // 初始化資料
         async function init() {
             try {
-                updateLog("開始連線 API...");
+                updateLog("連線至雲端資料庫...");
                 const response = await fetch(API_URL);
+                if (!response.ok) throw new Error("網路連線異常");
                 
-                if (!response.ok) throw new Error("API 連線失敗");
-                
-                const data = await response.json();
-                updateLog(`成功讀取數據：共 ${data.length} 筆`);
+                const allData = await response.json();
+                updateLog(`讀取成功！總筆數：${allData.length}`);
 
-                // 渲染回測 (最後 10 筆)
-                renderBacktest(data.slice(-10));
+                // 1. 執行回測：從最後一筆開始往前跑 10 筆
+                renderBacktest(allData);
 
-                // 渲染下期
-                renderNextDraw(data[data.length - 1].date);
+                // 2. 執行下期預測：基於全部現有數據
+                renderNextDraw(allData);
 
             } catch (err) {
-                updateLog(`錯誤：${err.message}`);
-                console.error(err);
+                updateLog(`發生錯誤：${err.message}`);
             }
         }
 
-        function renderBacktest(history) {
+        function renderBacktest(allData) {
             backtestBody.innerHTML = '';
-            // 反向排列，讓最新的在上面
-            [...history].reverse().forEach(item => {
-                const pred = generatePrediction();
+            // 只取最後 10 筆顯示
+            const displayLimit = 10;
+            const startIndex = Math.max(0, allData.length - displayLimit);
+            const testSlice = allData.slice(startIndex);
+
+            // 為了讓使用者看到最新的在上面
+            [...testSlice].reverse().forEach((item, index) => {
+                // 找出該日期之前的數據來進行預測 (模擬真實預測情境)
+                const actualIndex = allData.findIndex(d => d.date === item.date);
+                const historyBefore = allData.slice(0, actualIndex);
+                
+                const pred = getFixedPrediction(historyBefore);
                 const hits = pred.filter(n => item.nums.includes(n));
                 
                 const tr = document.createElement('tr');
@@ -226,13 +198,22 @@
                 `;
                 backtestBody.appendChild(tr);
             });
+            updateLog("回測數據計算完成");
         }
 
-        function renderNextDraw(lastDate) {
-            const nextDate = calculateNextDate(lastDate);
-            document.getElementById('next-date-label').innerText = `(${nextDate})`;
+        function renderNextDraw(allData) {
+            const lastEntry = allData[allData.length - 1];
             
-            const nextPred = generatePrediction().sort((a,b) => a-b);
+            // 計算日期
+            let d = new Date(lastEntry.date);
+            d.setDate(d.getDate() + 1);
+            if(d.getDay() === 0) d.setDate(d.getDate() + 1);
+            const nextDateStr = d.toISOString().split('T')[0];
+            document.getElementById('next-date-label').innerText = `(${nextDateStr})`;
+
+            // 基於所有數據產出固定預測
+            const nextPred = getFixedPrediction(allData);
+            
             nextPredContainer.innerHTML = '';
             nextPred.forEach(num => {
                 const ball = document.createElement('div');
@@ -240,10 +221,9 @@
                 ball.innerText = num.toString().padStart(2, '0');
                 nextPredContainer.appendChild(ball);
             });
-            updateLog(`下期預測產出完成 (${nextDate})`);
+            updateLog(`下期分析完畢：${nextPred.join(', ')}`);
         }
 
-        // 啟動程式
         init();
     </script>
 </body>
