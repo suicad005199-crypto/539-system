@@ -3,227 +3,237 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>539 動態回測系統</title>
+    <title>539 動態混合預測器 (純淨連線版)</title>
     <style>
         :root {
             --bg-color: #000000;
-            --panel-bg: rgba(28, 28, 30, 0.85); /* iOS 深色面板色 */
+            --panel-bg: rgba(28, 28, 30, 0.85);
             --primary-orange: #ff8c00;
+            --light-orange: #ff9d26;
+            --gold: #ffd700;
             --text-white: #ffffff;
             --text-gray: #8e8e93;
             --ios-blur: saturate(180%) blur(20px);
+            --ios-radius: 20px;
         }
 
         body {
             background-color: var(--bg-color);
             color: var(--text-white);
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+            font-family: -apple-system, system-ui, sans-serif;
             margin: 0;
-            padding: env(safe-area-inset-top) 16px 40px 16px;
+            padding: env(safe-area-inset-top) 16px 30px 16px;
             display: flex;
             flex-direction: column;
             gap: 16px;
+            -webkit-tap-highlight-color: transparent;
             line-height: 1.4;
         }
 
-        /* 系統狀態列 */
-        #status-bar {
+        #system-status {
             background: rgba(44, 44, 46, 0.6);
             border-left: 3px solid var(--primary-orange);
-            padding: 10px 14px;
+            padding: 8px 12px;
             font-size: 11px;
             color: var(--primary-orange);
             border-radius: 10px;
-            font-family: ui-monospace, SFMono-Regular, monospace;
+            font-family: monospace;
             backdrop-filter: var(--ios-blur);
         }
 
         .panel {
             background: var(--panel-bg);
-            border-radius: 20px;
+            border-radius: var(--ios-radius);
             padding: 20px;
-            backdrop-filter: var(--ios-blur);
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            backdrop-filter: var(--ios-blur);
         }
 
-        h2 {
-            margin: 0 0 15px 0;
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--primary-orange);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        /* 下期預測球體 */
-        .ball-row {
-            display: flex;
-            justify-content: space-between;
-            margin: 10px 0;
-        }
+        h2 { margin: 0 0 15px 0; font-size: 18px; font-weight: 600; color: var(--primary-orange); display: flex; justify-content: space-between; align-items: center; }
+        #next-date-label { font-size: 13px; color: var(--text-gray); font-weight: 400; }
+        
+        .ball-container { display: flex; justify-content: space-around; margin-top: 10px; }
         .ball {
-            width: 46px; height: 46px;
-            background: linear-gradient(145deg, #ff9d26, #d97700);
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
+            width: 50px; height: 50px;
+            background: linear-gradient(145deg, var(--light-orange), var(--primary-orange));
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
             font-weight: 700; color: #000; font-size: 20px;
             box-shadow: 0 4px 12px rgba(255,140,0,0.3);
         }
 
-        /* 表格設計 */
-        .table-container { overflow-x: auto; }
+        .strategy-card, .performance-insights-card {
+            background: rgba(44, 44, 46, 0.4); border-radius: 12px; padding: 12px;
+            margin-bottom: 15px; display: flex; gap: 12px; align-items: center;
+        }
+        .strategy-icon { width: 30px; height: 30px; }
+        .performance-insights-card { margin-top: 15px; margin-bottom: 0; display: block; }
+        .insight-stat { font-weight: bold; }
+        .insight-improved { color: #30d158; }
+
+        .table-wrapper { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th { color: var(--text-gray); text-align: left; padding: 10px 4px; border-bottom: 0.5px solid #38383a; }
+        tr:nth-child(even) { background-color: rgba(255,255,255,0.01); }
+        tr:hover { background-color: rgba(255,255,255,0.03); }
         td { padding: 14px 4px; border-bottom: 0.5px solid #2c2c2e; }
 
-        /* 命中高亮 */
-        .hit-num {
-            background: var(--primary-orange);
-            color: #000;
-            font-weight: 800;
-            padding: 2px 5px;
-            border-radius: 4px;
-            margin: 0 1px;
+        .hit { 
+            background: radial-gradient(circle, rgba(255,215,0,0.5) 0%, rgba(255,215,0,0) 70%);
+            border-radius: 50%; box-shadow: 0 0 10px rgba(255,215,0,0.6);
+            color: var(--gold); font-weight: bold; display: inline-block; padding: 1px 4px;
         }
         
-        /* 星等顏色 */
-        .stars { font-weight: bold; }
-        .s-0 { color: #444; }
-        .s-1, .s-2 { color: var(--primary-orange); }
-        .s-3, .s-4, .s-5 { color: #ffd700; text-shadow: 0 0 8px rgba(255,215,0,0.5); }
-
-        .loading { text-align: center; color: var(--text-gray); padding: 30px; }
+        .stars-label { font-weight: bold; }
+        .stars-0 { color: #444; }
+        .stars-1, .stars-2 { color: var(--primary-orange); }
+        .stars-3, .stars-4, .stars-5 { color: var(--gold); text-shadow: 0 0 8px rgba(255,215,0,0.5); }
+        .loading { text-align: center; color: var(--text-gray); padding: 30px; font-size: 13px; }
     </style>
 </head>
 <body>
 
-    <div id="status-bar">正在從雲端同步數據...</div>
+    <div id="system-status">
+        <span id="api-status">API: 連線中...</span>
+        <span id="algo-status" style="margin-left: 10px;"></span>
+    </div>
 
     <div class="panel">
-        <h2>下期預測 <span id="next-date" style="font-size:13px; color:var(--text-gray); font-weight:400;"></span></h2>
-        <div id="next-box" class="ball-row">
-            <div class="loading">運算中...</div>
+        <h2>下期預測 <span id="next-date-label"></span></h2>
+        <div id="next-prediction" class="ball-container">
+            <div class="loading">等待數據...</div>
         </div>
-        <div style="font-size:10px; color:var(--text-gray); text-align:center; margin-top:8px;">
-            策略：動態熱門補償法 (分析區間：前30-60期)
+        
+        <div class="strategy-card">
+            <svg class="strategy-icon" viewBox="0 0 24 24" fill="var(--primary-orange)"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"></path></svg>
+            <div>
+                <div style="color:var(--primary-orange); font-weight:bold;">Active Strategy:</div>
+                <div style="font-size:11px; color:var(--text-gray);">AI Dynamic-Balanced Mix V3.1 (分析區間: 前30-60期)</div>
+                <div style="font-size:11px; color:var(--text-gray);">3 Hot, 2 Overdue</div>
+            </div>
         </div>
     </div>
 
     <div class="panel">
-        <h2>近 10 筆滾動回測</h2>
-        <div class="table-container">
+        <h2>近 10 筆滾動回測 <span style="font-size: 11px; color: var(--text-gray);"> (動態驗證)</span></h2>
+        <div class="table-wrapper">
             <table>
                 <thead>
                     <tr>
                         <th>日期</th>
                         <th>開獎號</th>
-                        <th>AI 預測</th>
+                        <th>混合預測</th>
                         <th>命中</th>
                     </tr>
                 </thead>
                 <tbody id="backtest-body">
-                    <tr><td colspan="4" class="loading">等待數據傳輸...</td></tr>
+                    <tr><td colspan="4" class="loading">正在向雲端請求數據...</td></tr>
                 </tbody>
             </table>
+        </div>
+        
+        <div class="performance-insights-card">
+            <div style="color:var(--primary-orange); font-weight:bold; margin-bottom:5px;">Performance Insights:</div>
+            <div style="font-size:12px; color:var(--text-gray);">• 驗證區間: <span class="insight-stat">最新 10 期真實表現</span></div>
+            <div style="font-size:12px; color:var(--text-gray);">• 數據來源: <span class="insight-stat insight-improved">Google Sheets API</span></div>
         </div>
     </div>
 
     <script>
-        /**
-         * ⚠️ 請在此替換你的 Google Apps Script URL
+        /** * ⚠️ 請在此替換你的 Google Apps Script URL 
          */
         const API_URL = 'https://script.google.com/macros/s/AKfycbyJRV2ot2w_NPl652dKaZAS5E9wM4u7mlJ59Wurp-CAj2Pf22NOFARxRYSnfAJctQZa/exec';
 
-        const statusBox = document.getElementById('status-bar');
+        const apiStatus = document.getElementById('api-status');
+        const algoStatus = document.getElementById('algo-status');
         const backtestBody = document.getElementById('backtest-body');
-        const nextBox = document.getElementById('next-box');
+        const nextPredContainer = document.getElementById('next-prediction');
 
-        function updateStatus(msg) {
-            statusBox.innerText = `> ${msg}`;
-        }
+        function updateApiStatus(msg) { apiStatus.innerText = `API: ${msg}`; }
+        function updateAlgoStatus(msg) { algoStatus.innerText = `分析: ${msg}`; }
 
-        // --- 強化運算邏輯 (全自動) ---
-        function getAdvancedPrediction(history) {
-            if (history.length < 10) return [1, 2, 3, 4, 5];
+        // 核心運算邏輯: 3熱門 + 2冷門
+        function getEnhancedRollingPrediction(historyBefore) {
+            if (historyBefore.length < 30) return [1, 2, 3, 4, 5]; 
 
-            // 1. 熱門分析 (近30期取3碼)
-            const hotRange = history.slice(-30);
-            const freq = {};
-            hotRange.forEach(d => d.nums.forEach(n => freq[n] = (freq[n] || 0) + 1));
-            const hotPicks = Object.keys(freq).map(Number)
-                .sort((a, b) => freq[b] - freq[a] || a - b)
+            const hotData = historyBefore.slice(-30);
+            const hotFreq = {};
+            hotData.forEach(draw => draw.nums.forEach(n => hotFreq[n] = (hotFreq[n] || 0) + 1));
+            const hotPick = Object.keys(hotFreq)
+                .map(Number)
+                .sort((a, b) => (hotFreq[b] - hotFreq[a]) || (a - b))
                 .slice(0, 3);
 
-            // 2. 遺漏補償 (分析全部歷史，找最久沒出的2碼)
-            const lastSeen = {};
-            history.forEach((draw, idx) => {
-                draw.nums.forEach(n => lastSeen[n] = idx);
+            const omission = {};
+            for (let i = 1; i <= 39; i++) omission[i] = historyBefore.length;
+
+            historyBefore.forEach((draw, index) => {
+                draw.nums.forEach(n => { omission[n] = historyBefore.length - 1 - index; });
             });
-            const coldPicks = Object.keys(lastSeen).map(Number)
-                .sort((a, b) => lastSeen[a] - lastSeen[b]) // 越早看到的(index小)越冷
+            const coldPick = Object.keys(omission)
+                .map(Number)
+                .sort((a, b) => omission[b] - omission[a])
                 .slice(0, 2);
 
-            return [...hotPicks, ...coldPicks].sort((a, b) => a - b);
+            return [...hotPick, ...coldPick].sort((a, b) => a - b);
         }
 
-        // --- 異步初始化 ---
         async function init() {
             try {
-                const res = await fetch(API_URL);
-                if (!res.ok) throw new Error("API 響應錯誤");
-                const data = await res.json();
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error("API 連線異常");
                 
-                updateStatus(`連線成功：讀取 ${data.length} 筆數據`);
+                const allData = await response.json();
                 
-                // 1. 渲染回測
-                renderBacktest(data);
-                // 2. 渲染下期
-                renderNext(data);
+                updateApiStatus(`成功讀取 ${allData.length} 筆`);
+                updateAlgoStatus("演算完成");
+                renderAll(allData);
 
-            } catch (e) {
-                updateStatus(`連線失敗: ${e.message}`);
-                console.error(e);
+            } catch (err) {
+                updateApiStatus(`錯誤: ${err.message}`);
+                console.error(err);
             }
         }
 
-        function renderBacktest(allData) {
-            backtestBody.innerHTML = '';
-            const testTarget = allData.slice(-10); // 取最後 10 筆來測試
+        function renderAll(allData) {
+            if(!allData || allData.length === 0) return;
 
-            [...testTarget].reverse().forEach(current => {
-                const idx = allData.findIndex(d => d.date === current.date);
-                const historyBefore = allData.slice(0, idx); // 只用該日期之前的資料
+            // 1. 回測表格
+            backtestBody.innerHTML = '';
+            const last10 = allData.slice(-10);
+            
+            [...last10].reverse().forEach(currentDraw => {
+                const idx = allData.findIndex(d => d.date === currentDraw.date);
+                const historyBefore = allData.slice(0, idx);
                 
-                const pred = getAdvancedPrediction(historyBefore);
-                const hits = pred.filter(n => current.nums.includes(n));
+                const pred = getEnhancedRollingPrediction(historyBefore);
+                const hits = pred.filter(n => currentDraw.nums.includes(n));
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>${current.date.slice(5)}</td>
-                    <td style="color:#eee">${current.nums.map(n => n.toString().padStart(2,'0')).join(' ')}</td>
-                    <td>${pred.map(n => 
-                        current.nums.includes(n) ? `<span class="hit-num">${n.toString().padStart(2,'0')}</span>` : n.toString().padStart(2,'0')
+                    <td>${currentDraw.date.slice(5)}</td>
+                    <td style="color:#eee; letter-spacing:1px">${currentDraw.nums.map(n => n.toString().padStart(2,'0')).join(' ')}</td>
+                    <td class="pred-num">${pred.map(n => 
+                        currentDraw.nums.includes(n) ? `<span class="hit">${n.toString().padStart(2,'0')}</span>` : n.toString().padStart(2,'0')
                     ).join(' ')}</td>
-                    <td class="stars s-${hits.length}">${hits.length} ★</td>
+                    <td class="stars-label stars-${hits.length}">${hits.length} ★</td>
                 `;
                 backtestBody.appendChild(tr);
             });
-        }
 
-        function renderNext(allData) {
-            const last = allData[allData.length - 1];
-            const nextD = new Date(last.date);
-            nextD.setDate(nextD.getDate() + (nextD.getDay() === 6 ? 2 : 1));
-            document.getElementById('next-date').innerText = `(${nextD.toISOString().split('T')[0]})`;
+            // 2. 下期預測
+            const lastEntry = allData[allData.length - 1];
+            const nextDate = new Date(lastEntry.date);
+            nextDate.setDate(nextDate.getDate() + (nextDate.getDay() === 6 ? 2 : 1));
+            document.getElementById('next-date-label').innerText = `(${nextDate.toISOString().split('T')[0]})`;
 
-            const nextPred = getAdvancedPrediction(allData);
-            nextBox.innerHTML = '';
-            nextPred.forEach(n => {
-                const b = document.createElement('div');
-                b.className = 'ball';
-                b.innerText = n.toString().padStart(2, '0');
-                nextBox.appendChild(b);
+            const nextPred = getEnhancedRollingPrediction(allData);
+            
+            nextPredContainer.innerHTML = '';
+            nextPred.forEach(num => {
+                const ball = document.createElement('div');
+                ball.className = 'ball';
+                ball.innerText = num.toString().padStart(2, '0');
+                nextPredContainer.appendChild(ball);
             });
         }
 
