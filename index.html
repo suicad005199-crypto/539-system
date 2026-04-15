@@ -96,7 +96,8 @@
 
     <script>
         const API_URL = "https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec";
-        const SLOT_COUNT = 5, WINDOW_SIZE = 18, MAX_BACKTEST = 25;
+        const SLOT_COUNT = 5, DEFAULT_WINDOW_SIZE = 18, MAX_BACKTEST = 25;
+        let activeConfig = null;
 
         function addLog(msg, color = "gray-500") {
             const logBox = document.getElementById("logBox");
@@ -148,7 +149,7 @@
             return omit;
         }
 
-        function buildPrediction(history, fullHistory) {
+        function buildPrediction(history, fullHistory, config) {
             const pred = [];
             const used = new Set();
             const omitMap = getOmissions(history);
@@ -158,14 +159,14 @@
                 for (let n = 1; n <= 39; n++) scores[n] = 0;
 
                 // 1. 位置與時序權重
-                history.slice(0, 20).forEach((d, idx) => {
-                    const weight = (20 - idx) / 20;
-                    scores[d.nums[s]] += 3.5 * weight;
+                history.slice(0, config.historyDepth).forEach((d, idx) => {
+                    const weight = (config.historyDepth - idx) / config.historyDepth;
+                    scores[d.nums[s]] += config.recencyWeight * weight;
                 });
 
                 // 2. 遺漏補償
                 Object.keys(omitMap).forEach(n => {
-                    if (omitMap[n] > 8) scores[n] += (omitMap[n] * 0.15);
+                    if (omitMap[n] > config.omissionThreshold) scores[n] += (omitMap[n] * config.omissionWeight);
                 });
 
                 // 3. 波段與奇偶修正
@@ -173,8 +174,8 @@
                 let consecutiveOdd = 0;
                 for(let d of history) { if(d.nums[s] % 2 !== 0) consecutiveOdd++; else break; }
                 for (let n = 1; n <= 39; n++) {
-                    if (consecutiveOdd >= 3 && n % 2 === 0) scores[n] += 2.0;
-                    if (Math.abs(n - lastVal) <= 3) scores[n] += 1.5;
+                    if (consecutiveOdd >= config.oddTrigger && n % 2 === 0) scores[n] += config.evenRecoveryWeight;
+                    if (Math.abs(n - lastVal) <= config.nearRange) scores[n] += config.nearWeight;
                 }
 
                 // 4. 深度路徑搜尋
@@ -182,7 +183,7 @@
                 for (let i = 1; i < fullHistory.length - 2; i++) {
                     if (fullHistory[i].nums[s] === anchor) {
                         const potential = fullHistory[i-1].nums[s];
-                        scores[potential] += 4.5;
+                        scores[potential] += config.anchorWeight;
                     }
                 }
 
@@ -197,22 +198,103 @@
             return pred.sort((a, b) => a - b);
         }
 
-        function runBacktest(history) {
-            const results = [];
+        function evaluateConfig(history, config) {
             let hits3 = 0;
-            const testCount = Math.min(history.length - WINDOW_SIZE, MAX_BACKTEST);
+            const testCount = Math.min(history.length - config.windowSize, MAX_BACKTEST);
+
+            if (testCount <= 0) {
+                return { rate: 0, testCount: 0 };
+            }
 
             for (let i = 0; i < testCount; i++) {
                 const actual = history[i];
                 const train = history.slice(i + 1);
-                const prediction = buildPrediction(train.slice(0, WINDOW_SIZE), history);
+                const prediction = buildPrediction(train.slice(0, config.windowSize), history, config);
+                const count = prediction.filter(p => actual.nums.includes(p)).length;
+                if (count >= 3) hits3++;
+            }
+
+            return {
+                rate: (hits3 / testCount) * 100,
+                testCount,
+                hit3: hits3
+            };
+        }
+
+        function findBestConfig(history) {
+            const configs = [];
+            const windowSizes = [12, 15, 18, 21];
+            const recencyWeights = [2.8, 3.5, 4.2];
+            const omissionWeights = [0.1, 0.15, 0.22];
+            const anchorWeights = [3.5, 4.5, 5.5];
+            const nearWeights = [1.0, 1.5, 2.0];
+
+            windowSizes.forEach(windowSize => {
+                recencyWeights.forEach(recencyWeight => {
+                    omissionWeights.forEach(omissionWeight => {
+                        anchorWeights.forEach(anchorWeight => {
+                            nearWeights.forEach(nearWeight => {
+                                configs.push({
+                                    windowSize,
+                                    historyDepth: Math.min(20, windowSize),
+                                    recencyWeight,
+                                    omissionThreshold: 8,
+                                    omissionWeight,
+                                    oddTrigger: 3,
+                                    evenRecoveryWeight: 2.0,
+                                    nearRange: 3,
+                                    nearWeight,
+                                    anchorWeight
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+
+            let best = null;
+            configs.forEach(config => {
+                const result = evaluateConfig(history, config);
+                if (!best || result.rate > best.result.rate || (result.rate === best.result.rate && config.windowSize > best.config.windowSize)) {
+                    best = { config, result };
+                }
+            });
+
+            return best || {
+                config: {
+                    windowSize: DEFAULT_WINDOW_SIZE,
+                    historyDepth: DEFAULT_WINDOW_SIZE,
+                    recencyWeight: 3.5,
+                    omissionThreshold: 8,
+                    omissionWeight: 0.15,
+                    oddTrigger: 3,
+                    evenRecoveryWeight: 2.0,
+                    nearRange: 3,
+                    nearWeight: 1.5,
+                    anchorWeight: 4.5
+                },
+                result: { rate: 0, testCount: 0, hit3: 0 }
+            };
+        }
+
+        function runBacktest(history) {
+            const best = findBestConfig(history);
+            activeConfig = best.config;
+            const results = [];
+            let hits3 = 0;
+            const testCount = Math.min(history.length - activeConfig.windowSize, MAX_BACKTEST);
+
+            for (let i = 0; i < testCount; i++) {
+                const actual = history[i];
+                const train = history.slice(i + 1);
+                const prediction = buildPrediction(train.slice(0, activeConfig.windowSize), history, activeConfig);
                 const slotHits = prediction.map(p => actual.nums.includes(p));
                 const count = slotHits.filter(Boolean).length;
                 if (count >= 3) hits3++;
                 results.push({ label: actual.label, actual: actual.nums, prediction, slotHits, hits: count });
             }
 
-            const nextPred = buildPrediction(history.slice(0, WINDOW_SIZE), history);
+            const nextPred = buildPrediction(history.slice(0, activeConfig.windowSize), history, activeConfig);
             updateUI(results, nextPred, (hits3 / testCount * 100).toFixed(1));
         }
 
@@ -235,8 +317,10 @@
                 </tr>
             `).join("");
 
-            document.getElementById("modelMeta").innerText = `Model: v8.95 Hybrid Path | Window: ${WINDOW_SIZE} | Samples: ${results.length}`;
+            document.getElementById("modelMeta").innerText =
+                `Model: v8.95 Auto-Tuned | Window: ${activeConfig.windowSize} | Recency: ${activeConfig.recencyWeight.toFixed(1)} | Omit: ${activeConfig.omissionWeight.toFixed(2)} | Anchor: ${activeConfig.anchorWeight.toFixed(1)} | Samples: ${results.length}`;
             addLog(`預測更新: ${nextPred.map(formatNumber).join(", ")}`, "orange-400");
+            addLog(`最佳參數: W${activeConfig.windowSize} / R${activeConfig.recencyWeight.toFixed(1)} / O${activeConfig.omissionWeight.toFixed(2)} / A${activeConfig.anchorWeight.toFixed(1)}`, "green-500");
         }
     </script>
 </body>
