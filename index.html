@@ -2,242 +2,647 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>539 動態混合預測器 (純淨連線版)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>539 Google Sheet 回測工具</title>
     <style>
         :root {
-            --bg-color: #000000;
-            --panel-bg: rgba(28, 28, 30, 0.85);
-            --primary-orange: #ff8c00;
-            --light-orange: #ff9d26;
-            --gold: #ffd700;
-            --text-white: #ffffff;
-            --text-gray: #8e8e93;
-            --ios-blur: saturate(180%) blur(20px);
-            --ios-radius: 20px;
+            --bg: #f2f5fb;
+            --card: #ffffff;
+            --blue: #007aff;
+            --green: #34c759;
+            --red: #ff3b30;
+            --gray: #8e8e93;
+            --text: #1c1c1e;
+            --border: #e5e7eb;
+        }
+
+        * {
+            box-sizing: border-box;
         }
 
         body {
-            background-color: var(--bg-color);
-            color: var(--text-white);
-            font-family: -apple-system, system-ui, sans-serif;
             margin: 0;
-            padding: env(safe-area-inset-top) 16px 30px 16px;
-            display: flex;
-            flex-direction: column;
+            padding: 18px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(0, 122, 255, 0.12), transparent 28%),
+                linear-gradient(180deg, #f9fbff 0%, var(--bg) 100%);
+            color: var(--text);
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+        }
+
+        .header {
+            padding: 10px 0 18px;
+        }
+
+        .header h1 {
+            margin: 0 0 8px;
+            font-size: clamp(1.8rem, 2.8vw, 2.6rem);
+        }
+
+        .header p {
+            margin: 0;
+            color: var(--gray);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
             gap: 16px;
-            -webkit-tap-highlight-color: transparent;
-            line-height: 1.4;
         }
 
-        #system-status {
-            background: rgba(44, 44, 46, 0.6);
-            border-left: 3px solid var(--primary-orange);
-            padding: 8px 12px;
-            font-size: 11px;
-            color: var(--primary-orange);
-            border-radius: 10px;
-            font-family: monospace;
-            backdrop-filter: var(--ios-blur);
-        }
-
-        .panel {
-            background: var(--panel-bg);
-            border-radius: var(--ios-radius);
+        .card {
+            background: var(--card);
+            border-radius: 18px;
             padding: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            backdrop-filter: var(--ios-blur);
+            margin-bottom: 16px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.07);
+            border: 1px solid rgba(229, 231, 235, 0.9);
         }
 
-        h2 { margin: 0 0 15px 0; font-size: 18px; font-weight: 600; color: var(--primary-orange); display: flex; justify-content: space-between; align-items: center; }
-        #next-date-label { font-size: 13px; color: var(--text-gray); font-weight: 400; }
-        
-        .ball-container { display: flex; justify-content: space-around; margin-top: 10px; }
+        .section-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin: 0 0 10px;
+        }
+
+        .section-desc {
+            margin: 0 0 12px;
+            color: var(--gray);
+            font-size: 0.93rem;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 280px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 14px;
+            background: #fafcff;
+            resize: vertical;
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        button {
+            border: none;
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        button:hover {
+            opacity: 0.92;
+        }
+
+        .btn-sync {
+            background: var(--green);
+            color: white;
+        }
+
+        .btn-calc {
+            background: var(--blue);
+            color: white;
+        }
+
+        .btn-clear {
+            background: #eceef3;
+            color: var(--text);
+        }
+
+        #status-msg {
+            margin-top: 12px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: #f3f8ff;
+            color: var(--blue);
+            font-size: 0.93rem;
+        }
+
+        .ball-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 16px 0;
+        }
+
         .ball {
-            width: 50px; height: 50px;
-            background: linear-gradient(145deg, var(--light-orange), var(--primary-orange));
-            border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            font-weight: 700; color: #000; font-size: 20px;
-            box-shadow: 0 4px 12px rgba(255,140,0,0.3);
+            width: 52px;
+            height: 52px;
+            background: linear-gradient(145deg, var(--blue), #0056b3);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 18px;
+            box-shadow: 0 8px 18px rgba(0, 122, 255, 0.24);
         }
 
-        .strategy-card, .performance-insights-card {
-            background: rgba(44, 44, 46, 0.4); border-radius: 12px; padding: 12px;
-            margin-bottom: 15px; display: flex; gap: 12px; align-items: center;
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
         }
-        .strategy-icon { width: 30px; height: 30px; }
-        .performance-insights-card { margin-top: 15px; margin-bottom: 0; display: block; }
-        .insight-stat { font-weight: bold; }
-        .insight-improved { color: #30d158; }
 
-        .table-wrapper { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th { color: var(--text-gray); text-align: left; padding: 10px 4px; border-bottom: 0.5px solid #38383a; }
-        tr:nth-child(even) { background-color: rgba(255,255,255,0.01); }
-        tr:hover { background-color: rgba(255,255,255,0.03); }
-        td { padding: 14px 4px; border-bottom: 0.5px solid #2c2c2e; }
-
-        .hit { 
-            background: radial-gradient(circle, rgba(255,215,0,0.5) 0%, rgba(255,215,0,0) 70%);
-            border-radius: 50%; box-shadow: 0 0 10px rgba(255,215,0,0.6);
-            color: var(--gold); font-weight: bold; display: inline-block; padding: 1px 4px;
+        .stat-item {
+            background: #f8fafc;
+            padding: 14px;
+            border-radius: 14px;
+            text-align: center;
+            border: 1px solid var(--border);
         }
-        
-        .stars-label { font-weight: bold; }
-        .stars-0 { color: #444; }
-        .stars-1, .stars-2 { color: var(--primary-orange); }
-        .stars-3, .stars-4, .stars-5 { color: var(--gold); text-shadow: 0 0 8px rgba(255,215,0,0.5); }
-        .loading { text-align: center; color: var(--text-gray); padding: 30px; font-size: 13px; }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--gray);
+            display: block;
+        }
+
+        .stat-value {
+            font-size: 22px;
+            font-weight: 800;
+            margin-top: 4px;
+            display: block;
+        }
+
+        .text-green {
+            color: var(--green);
+        }
+
+        .text-red {
+            color: var(--red);
+        }
+
+        .list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .list-item {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 12px;
+            background: #fcfdff;
+        }
+
+        .list-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .list-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+        }
+
+        .list-sub {
+            color: var(--gray);
+            font-size: 0.86rem;
+        }
+
+        .mini-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 6px;
+        }
+
+        .mini-ball {
+            min-width: 38px;
+            height: 32px;
+            padding: 0 8px;
+            border-radius: 999px;
+            background: #edf4ff;
+            color: #0b4dcc;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        .hit-badge {
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .bg-hit {
+            background: rgba(52, 199, 89, 0.12);
+            color: var(--green);
+        }
+
+        .bg-miss {
+            background: rgba(255, 59, 48, 0.1);
+            color: var(--red);
+        }
+
+        .hint {
+            color: var(--gray);
+            font-size: 0.92rem;
+        }
+
+        @media (max-width: 900px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-group {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
-
-    <div id="system-status">
-        <span id="api-status">API: 連線中...</span>
-        <span id="algo-status" style="margin-left: 10px;"></span>
+<div class="container">
+    <div class="header">
+        <h1>539 Google Sheet 回測工具</h1>
+        <p>支援 `Date N1 N2 N3 N4 N5` 格式，自動同步、解析、推薦與滾動回測。</p>
     </div>
 
-    <div class="panel">
-        <h2>下期預測 <span id="next-date-label"></span></h2>
-        <div id="next-prediction" class="ball-container">
-            <div class="loading">等待數據...</div>
+    <div class="grid">
+        <div>
+            <div class="card">
+                <h2 class="section-title">歷史資料</h2>
+                <p class="section-desc">可直接貼上 Google Sheet 匯出的文字，或按按鈕從 Apps Script API 同步。</p>
+                <textarea id="history-input" placeholder="Date N1 N2 N3 N4 N5&#10;2026-01-01 18 29 15 16 36"></textarea>
+                <div id="status-msg">尚未同步資料。</div>
+                <div class="btn-group">
+                    <button class="btn-sync" type="button" onclick="fetchSheetData()">同步 Google Sheet</button>
+                    <button class="btn-calc" type="button" onclick="analyzeData()">重新分析</button>
+                    <button class="btn-clear" type="button" onclick="clearAll()">清空</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="section-title">最近 10 期開獎</h2>
+                <p class="section-desc">最新一期會顯示在最上面，方便和推薦號碼一起比對。</p>
+                <div id="recent-list" class="list">
+                    <div class="hint">還沒有資料。</div>
+                </div>
+            </div>
         </div>
-        
-        <div class="strategy-card">
-            <svg class="strategy-icon" viewBox="0 0 24 24" fill="var(--primary-orange)"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"></path></svg>
-            <div>
-                <div style="color:var(--primary-orange); font-weight:bold;">Active Strategy:</div>
-                <div style="font-size:11px; color:var(--text-gray);">AI Dynamic-Balanced Mix V3.1 (分析區間: 前30-60期)</div>
-                <div style="font-size:11px; color:var(--text-gray);">3 Hot, 2 Overdue</div>
+
+        <div>
+            <div class="card">
+                <h2 class="section-title">下一期推薦號碼</h2>
+                <p class="section-desc">目前規則綜合最近 10 期頻率、最近 3 期熱度與遺漏期數。</p>
+                <div class="ball-row" id="predict-row">
+                    <div class="ball">--</div>
+                    <div class="ball">--</div>
+                    <div class="ball">--</div>
+                    <div class="ball">--</div>
+                    <div class="ball">--</div>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-label">中 3 碼以上命中率</span>
+                        <span class="stat-value text-red" id="stat-rate">0.0%</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">回測次數</span>
+                        <span class="stat-value" id="stat-count">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">中 3 碼以上次數</span>
+                        <span class="stat-value" id="stat-hit3">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">最近一次回測命中</span>
+                        <span class="stat-value" id="stat-last-hit">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="section-title">滾動回測明細</h2>
+                <p class="section-desc">每次使用前 10 期去預測下一期，並同時列出預測與實際開獎號碼。</p>
+                <div id="backtest-list" class="list">
+                    <div class="hint">至少需要 11 期資料才會出現回測結果。</div>
+                </div>
             </div>
         </div>
     </div>
+</div>
 
-    <div class="panel">
-        <h2>近 10 筆滾動回測 <span style="font-size: 11px; color: var(--text-gray);"> (動態驗證)</span></h2>
-        <div class="table-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th>日期</th>
-                        <th>開獎號</th>
-                        <th>混合預測</th>
-                        <th>命中</th>
-                    </tr>
-                </thead>
-                <tbody id="backtest-body">
-                    <tr><td colspan="4" class="loading">正在向雲端請求數據...</td></tr>
-                </tbody>
-            </table>
-        </div>
-        
-        <div class="performance-insights-card">
-            <div style="color:var(--primary-orange); font-weight:bold; margin-bottom:5px;">Performance Insights:</div>
-            <div style="font-size:12px; color:var(--text-gray);">• 驗證區間: <span class="insight-stat">最新 10 期真實表現</span></div>
-            <div style="font-size:12px; color:var(--text-gray);">• 數據來源: <span class="insight-stat insight-improved">Google Sheets API</span></div>
-        </div>
-    </div>
+<script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec";
 
-    <script>
-        /** * ⚠️ 請在此替換你的 Google Apps Script URL 
-         */
-        const API_URL = 'https://script.google.com/macros/s/AKfycbyJRV2ot2w_NPl652dKaZAS5E9wM4u7mlJ59Wurp-CAj2Pf22NOFARxRYSnfAJctQZa/exec';
+    function formatNumber(num) {
+        return String(num).padStart(2, "0");
+    }
 
-        const apiStatus = document.getElementById('api-status');
-        const algoStatus = document.getElementById('algo-status');
-        const backtestBody = document.getElementById('backtest-body');
-        const nextPredContainer = document.getElementById('next-prediction');
+    function updateStatus(message, isError) {
+        const el = document.getElementById("status-msg");
+        el.textContent = message;
+        el.style.background = isError ? "#fff1f0" : "#f3f8ff";
+        el.style.color = isError ? "var(--red)" : "var(--blue)";
+    }
 
-        function updateApiStatus(msg) { apiStatus.innerText = `API: ${msg}`; }
-        function updateAlgoStatus(msg) { algoStatus.innerText = `分析: ${msg}`; }
+    function setPlaceholderBalls() {
+        renderBalls(["--", "--", "--", "--", "--"]);
+    }
 
-        // 核心運算邏輯: 3熱門 + 2冷門
-        function getEnhancedRollingPrediction(historyBefore) {
-            if (historyBefore.length < 30) return [1, 2, 3, 4, 5]; 
-
-            const hotData = historyBefore.slice(-30);
-            const hotFreq = {};
-            hotData.forEach(draw => draw.nums.forEach(n => hotFreq[n] = (hotFreq[n] || 0) + 1));
-            const hotPick = Object.keys(hotFreq)
-                .map(Number)
-                .sort((a, b) => (hotFreq[b] - hotFreq[a]) || (a - b))
-                .slice(0, 3);
-
-            const omission = {};
-            for (let i = 1; i <= 39; i++) omission[i] = historyBefore.length;
-
-            historyBefore.forEach((draw, index) => {
-                draw.nums.forEach(n => { omission[n] = historyBefore.length - 1 - index; });
-            });
-            const coldPick = Object.keys(omission)
-                .map(Number)
-                .sort((a, b) => omission[b] - omission[a])
-                .slice(0, 2);
-
-            return [...hotPick, ...coldPick].sort((a, b) => a - b);
+    async function fetchSheetData() {
+        if (!API_URL || API_URL.includes("YOUR_")) {
+            updateStatus("尚未設定有效的 Google Apps Script API。", true);
+            return;
         }
 
-        async function init() {
-            try {
-                const response = await fetch(API_URL);
-                if (!response.ok) throw new Error("API 連線異常");
-                
-                const allData = await response.json();
-                
-                updateApiStatus(`成功讀取 ${allData.length} 筆`);
-                updateAlgoStatus("演算完成");
-                renderAll(allData);
+        updateStatus("正在同步 Google Sheet 資料...", false);
 
-            } catch (err) {
-                updateApiStatus(`錯誤: ${err.message}`);
-                console.error(err);
+        try {
+            const response = await fetch(API_URL, { method: "GET" });
+            if (!response.ok) {
+                throw new Error("API 回應失敗，HTTP 狀態碼: " + response.status);
             }
+
+            const result = await response.json();
+            const rawData =
+                typeof result === "string" ? result :
+                typeof result.data === "string" ? result.data :
+                typeof result.values === "string" ? result.values :
+                "";
+
+            if (!rawData.trim()) {
+                const message = result.message || "API 有回應，但沒有可用資料。";
+                throw new Error(message);
+            }
+
+            document.getElementById("history-input").value = rawData;
+            updateStatus("Google Sheet 同步成功，已自動重新分析。", false);
+            analyzeData();
+        } catch (error) {
+            updateStatus("同步失敗: " + error.message, true);
+        }
+    }
+
+    function parseHistory(raw) {
+        const lines = raw
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter(Boolean);
+
+        const parsed = [];
+
+        lines.forEach((line, index) => {
+            if (/^date\b/i.test(line)) {
+                return;
+            }
+
+            const tokens = line.split(/\s+/);
+            if (tokens.length < 6) {
+                throw new Error("第 " + (index + 1) + " 行格式不足，至少需要日期加 5 個號碼。");
+            }
+
+            const dateToken = tokens[0];
+            const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+            if (!datePattern.test(dateToken)) {
+                throw new Error("第 " + (index + 1) + " 行日期格式錯誤，需為 YYYY-MM-DD。");
+            }
+
+            const numberTokens = tokens.slice(-5);
+            const numbers = numberTokens.map((token) => Number(token));
+
+            const isValid = numbers.every((num) => Number.isInteger(num) && num >= 1 && num <= 39);
+            if (!isValid) {
+                throw new Error("第 " + (index + 1) + " 行號碼需為 1 到 39 的整數。");
+            }
+
+            if (new Set(numbers).size !== 5) {
+                throw new Error("第 " + (index + 1) + " 行有重複號碼。");
+            }
+
+            parsed.push({
+                date: dateToken,
+                numbers: numbers.slice().sort((a, b) => a - b)
+            });
+        });
+
+        return parsed;
+    }
+
+    function getPrediction(windowDraws) {
+        const scores = Array(40).fill(0);
+        const lastSeen = Array(40).fill(-1);
+
+        windowDraws.forEach((draw, index) => {
+            draw.numbers.forEach((num) => {
+                scores[num] += 3;
+                lastSeen[num] = index;
+                if (index >= windowDraws.length - 3) {
+                    scores[num] += 2;
+                }
+            });
+        });
+
+        const ranked = [];
+        for (let num = 1; num <= 39; num += 1) {
+            const gap = lastSeen[num] === -1 ? windowDraws.length : windowDraws.length - 1 - lastSeen[num];
+            const score = scores[num] + gap * 0.5 + (scores[num] === 0 ? 1 : 0);
+            ranked.push({ num, score });
         }
 
-        function renderAll(allData) {
-            if(!allData || allData.length === 0) return;
+        return ranked
+            .sort((a, b) => {
+                if (b.score !== a.score) {
+                    return b.score - a.score;
+                }
+                return a.num - b.num;
+            })
+            .slice(0, 5)
+            .map((item) => item.num)
+            .sort((a, b) => a - b);
+    }
 
-            // 1. 回測表格
-            backtestBody.innerHTML = '';
-            const last10 = allData.slice(-10);
-            
-            [...last10].reverse().forEach(currentDraw => {
-                const idx = allData.findIndex(d => d.date === currentDraw.date);
-                const historyBefore = allData.slice(0, idx);
-                
-                const pred = getEnhancedRollingPrediction(historyBefore);
-                const hits = pred.filter(n => currentDraw.nums.includes(n));
+    function countHits(prediction, actualNumbers) {
+        const actualSet = new Set(actualNumbers);
+        return prediction.filter((num) => actualSet.has(num)).length;
+    }
 
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${currentDraw.date.slice(5)}</td>
-                    <td style="color:#eee; letter-spacing:1px">${currentDraw.nums.map(n => n.toString().padStart(2,'0')).join(' ')}</td>
-                    <td class="pred-num">${pred.map(n => 
-                        currentDraw.nums.includes(n) ? `<span class="hit">${n.toString().padStart(2,'0')}</span>` : n.toString().padStart(2,'0')
-                    ).join(' ')}</td>
-                    <td class="stars-label stars-${hits.length}">${hits.length} ★</td>
-                `;
-                backtestBody.appendChild(tr);
-            });
+    function renderBalls(nums) {
+        const row = document.getElementById("predict-row");
+        row.innerHTML = nums
+            .map((num) => "<div class=\"ball\">" + (typeof num === "number" ? formatNumber(num) : num) + "</div>")
+            .join("");
+    }
 
-            // 2. 下期預測
-            const lastEntry = allData[allData.length - 1];
-            const nextDate = new Date(lastEntry.date);
-            nextDate.setDate(nextDate.getDate() + (nextDate.getDay() === 6 ? 2 : 1));
-            document.getElementById('next-date-label').innerText = `(${nextDate.toISOString().split('T')[0]})`;
+    function renderRecent(draws) {
+        const list = document.getElementById("recent-list");
 
-            const nextPred = getEnhancedRollingPrediction(allData);
-            
-            nextPredContainer.innerHTML = '';
-            nextPred.forEach(num => {
-                const ball = document.createElement('div');
-                ball.className = 'ball';
-                ball.innerText = num.toString().padStart(2, '0');
-                nextPredContainer.appendChild(ball);
-            });
+        if (!draws.length) {
+            list.innerHTML = "<div class=\"hint\">還沒有資料。</div>";
+            return;
         }
 
-        init();
-    </script>
+        list.innerHTML = draws
+            .slice(-10)
+            .reverse()
+            .map((draw) => {
+                const balls = draw.numbers
+                    .map((num) => "<span class=\"mini-ball\">" + formatNumber(num) + "</span>")
+                    .join("");
+
+                return (
+                    "<div class=\"list-item\">" +
+                        "<div class=\"list-top\">" +
+                            "<div>" +
+                                "<div class=\"list-title\">" + draw.date + "</div>" +
+                                "<div class=\"list-sub\">最近 10 期中獎號碼</div>" +
+                            "</div>" +
+                        "</div>" +
+                        "<div class=\"mini-row\">" + balls + "</div>" +
+                    "</div>"
+                );
+            })
+            .join("");
+    }
+
+    function renderBacktest(results) {
+        const list = document.getElementById("backtest-list");
+
+        if (!results.length) {
+            list.innerHTML = "<div class=\"hint\">至少需要 11 期資料才會出現回測結果。</div>";
+            return;
+        }
+
+        list.innerHTML = results
+            .slice()
+            .reverse()
+            .map((item) => {
+                const predBalls = item.prediction
+                    .map((num) => "<span class=\"mini-ball\">預 " + formatNumber(num) + "</span>")
+                    .join("");
+                const actualBalls = item.actual
+                    .map((num) => "<span class=\"mini-ball\">開 " + formatNumber(num) + "</span>")
+                    .join("");
+                const badgeClass = item.hits >= 3 ? "bg-hit" : "bg-miss";
+
+                return (
+                    "<div class=\"list-item\">" +
+                        "<div class=\"list-top\">" +
+                            "<div>" +
+                                "<div class=\"list-title\">" + item.date + "</div>" +
+                                "<div class=\"list-sub\">第 " + item.index + " 期回測</div>" +
+                            "</div>" +
+                            "<span class=\"hit-badge " + badgeClass + "\">命中 " + item.hits + " 碼</span>" +
+                        "</div>" +
+                        "<div class=\"mini-row\">" + predBalls + "</div>" +
+                        "<div class=\"mini-row\">" + actualBalls + "</div>" +
+                    "</div>"
+                );
+            })
+            .join("");
+    }
+
+    function analyzeData() {
+        const raw = document.getElementById("history-input").value.trim();
+
+        if (!raw) {
+            setPlaceholderBalls();
+            renderRecent([]);
+            renderBacktest([]);
+            document.getElementById("stat-rate").textContent = "0.0%";
+            document.getElementById("stat-count").textContent = "0";
+            document.getElementById("stat-hit3").textContent = "0";
+            document.getElementById("stat-last-hit").textContent = "0";
+            updateStatus("請先貼上或同步歷史資料。", true);
+            return;
+        }
+
+        try {
+            const draws = parseHistory(raw);
+            renderRecent(draws);
+
+            if (draws.length < 10) {
+                setPlaceholderBalls();
+                renderBacktest([]);
+                updateStatus("至少需要 10 期資料才能產生下一期推薦。", true);
+                return;
+            }
+
+            const nextPrediction = getPrediction(draws.slice(-10));
+            renderBalls(nextPrediction);
+
+            const results = [];
+            let hit3Count = 0;
+
+            for (let index = 10; index < draws.length; index += 1) {
+                const windowDraws = draws.slice(index - 10, index);
+                const actualDraw = draws[index];
+                const prediction = getPrediction(windowDraws);
+                const hits = countHits(prediction, actualDraw.numbers);
+
+                if (hits >= 3) {
+                    hit3Count += 1;
+                }
+
+                results.push({
+                    index: index + 1,
+                    date: actualDraw.date,
+                    prediction,
+                    actual: actualDraw.numbers,
+                    hits
+                });
+            }
+
+            renderBacktest(results);
+
+            const testTotal = results.length;
+            const rate = testTotal ? ((hit3Count / testTotal) * 100).toFixed(1) : "0.0";
+            const lastHit = testTotal ? results[results.length - 1].hits : 0;
+
+            const rateEl = document.getElementById("stat-rate");
+            rateEl.textContent = rate + "%";
+            rateEl.className = "stat-value " + (Number(rate) >= 80 ? "text-green" : "text-red");
+
+            document.getElementById("stat-count").textContent = String(testTotal);
+            document.getElementById("stat-hit3").textContent = String(hit3Count);
+            document.getElementById("stat-last-hit").textContent = String(lastHit);
+
+            updateStatus(
+                "分析完成。已支援 Date 欄、表頭與空白列，並顯示最近 10 期與完整回測明細。",
+                false
+            );
+        } catch (error) {
+            setPlaceholderBalls();
+            renderBacktest([]);
+            updateStatus(error.message, true);
+        }
+    }
+
+    function clearAll() {
+        document.getElementById("history-input").value = "";
+        setPlaceholderBalls();
+        renderRecent([]);
+        renderBacktest([]);
+        document.getElementById("stat-rate").textContent = "0.0%";
+        document.getElementById("stat-count").textContent = "0";
+        document.getElementById("stat-hit3").textContent = "0";
+        document.getElementById("stat-last-hit").textContent = "0";
+        updateStatus("已清空資料。", false);
+    }
+</script>
 </body>
 </html>
