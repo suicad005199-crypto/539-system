@@ -96,7 +96,7 @@
 
     <script>
         const API_URL = "https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec";
-        const worker = new Worker("./8.worker.js");
+        let worker = null;
 
         function addLog(msg, color = "gray-500") {
             const logBox = document.getElementById("logBox");
@@ -116,23 +116,51 @@
             document.getElementById("statusDot").className = `w-2 h-2 ${dotClass} rounded-full mr-1`;
         }
 
-        worker.onmessage = (event) => {
-            const { type, payload } = event.data;
-            if (type === "log") {
-                addLog(payload.message, payload.color);
-                return;
+        function ensureWorker() {
+            if (worker) {
+                return worker;
             }
 
-            if (type === "analysis") {
-                updateUI(payload);
+            try {
+                worker = new Worker("./8.worker.js");
+            } catch (error) {
+                addLog(`Worker init failed: ${error.message}`, "red-500");
+                setStatus("ERROR", "bg-red-500");
+                throw error;
             }
-        };
+
+            worker.onmessage = (event) => {
+                const { type, payload } = event.data;
+                if (type === "log") {
+                    addLog(payload.message, payload.color);
+                    return;
+                }
+
+                if (type === "analysis") {
+                    updateUI(payload);
+                }
+            };
+
+            worker.onerror = (event) => {
+                addLog(`Worker runtime error: ${event.message || "unknown error"}`, "red-500");
+                setStatus("ERROR", "bg-red-500");
+            };
+
+            worker.onmessageerror = () => {
+                addLog("Worker message error", "red-500");
+                setStatus("ERROR", "bg-red-500");
+            };
+
+            addLog("Worker initialized", "gray-400");
+            return worker;
+        }
 
         async function fetchSheetData() {
             addLog("Connecting to Google Sheet API...", "orange-500");
             setStatus("SYNC", "bg-orange-500 animate-pulse");
 
             try {
+                const activeWorker = ensureWorker();
                 const response = await fetch(API_URL);
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);
@@ -168,7 +196,7 @@
                     .reverse();
 
                 addLog(`Loaded ${draws.length} draws, dispatching worker`, "green-500");
-                worker.postMessage({ type: "analyze", payload: { draws } });
+                activeWorker.postMessage({ type: "analyze", payload: { draws } });
             } catch (error) {
                 addLog(`Sync failed: ${error.message}`, "red-500");
                 setStatus("ERROR", "bg-red-500");
