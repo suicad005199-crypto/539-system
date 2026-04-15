@@ -1,328 +1,362 @@
-這版如何
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE EVO v8.95 SLOT ENGINE</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        :root { --ios-orange: #f97316; --ios-bg: #000000; --ios-panel: #1c1c1e; }
-        body { background-color: var(--ios-bg); color: #fff; font-family: -apple-system, system-ui, sans-serif; overflow-x: hidden; }
-        .ios-panel { background: var(--ios-panel); border-radius: 12px; }
-        .orange-glow { box-shadow: 0 0 35px rgba(249, 115, 22, 0.3); }
-        .btn-active { background: var(--ios-orange); color: #000; font-weight: 700; }
-        #logBox { font-variant-numeric: tabular-nums; scrollbar-width: none; }
-        #logBox::-webkit-scrollbar { display: none; }
-        .hit-num { color: #fff; font-weight: 900; background: var(--ios-orange); padding: 1px 4px; border-radius: 4px; }
-        .grid-val { text-shadow: 0 0 10px rgba(249, 115, 22, 0.5); }
-        .slot-dot { display: inline-flex; width: 18px; height: 18px; align-items: center; justify-content: center; border-radius: 999px; font-size: 10px; font-weight: 800; margin-right: 4px; }
-        .slot-hit { background: rgba(34, 197, 94, 0.18); color: #4ade80; }
-        .slot-miss { background: rgba(255, 255, 255, 0.08); color: #6b7280; }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ULTIMATE EVO v8.95 SLOT ENGINE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --ios-orange: #f97316; --ios-bg: #000000; --ios-panel: #1c1c1e; }
+        body { background-color: var(--ios-bg); color: #fff; font-family: -apple-system, system-ui, sans-serif; overflow-x: hidden; }
+        .ios-panel { background: var(--ios-panel); border-radius: 12px; }
+        .orange-glow { box-shadow: 0 0 35px rgba(249, 115, 22, 0.3); }
+        .btn-active { background: var(--ios-orange); color: #000; font-weight: 700; }
+        #logBox { font-variant-numeric: tabular-nums; scrollbar-width: none; }
+        #logBox::-webkit-scrollbar { display: none; }
+        .hit-num { color: #fff; font-weight: 900; background: var(--ios-orange); padding: 1px 4px; border-radius: 4px; }
+        .grid-val { text-shadow: 0 0 10px rgba(249, 115, 22, 0.5); }
+        .slot-dot { display: inline-flex; width: 18px; height: 18px; align-items: center; justify-content: center; border-radius: 999px; font-size: 10px; font-weight: 800; margin-right: 4px; }
+        .slot-hit { background: rgba(34, 197, 94, 0.18); color: #4ade80; }
+        .slot-miss { background: rgba(255, 255, 255, 0.08); color: #6b7280; }
+    </style>
 </head>
 <body class="min-h-screen flex flex-col p-4">
-    <div class="flex justify-between items-center mb-5">
-        <h1 class="text-2xl font-black italic tracking-tighter text-orange-500">
-            ULTIMATE <span class="text-white">EVO 8.95</span>
-        </h1>
-        <div class="flex bg-[#2c2c2e] p-1 rounded-xl flex-nowrap shrink-0">
-            <button id="btnSync" onclick="fetchSheetData()" class="px-4 py-1.5 rounded-lg text-sm btn-active whitespace-nowrap">同步資料</button>
-        </div>
-    </div>
+    <div class="flex justify-between items-center mb-5">
+        <h1 class="text-2xl font-black italic tracking-tighter text-orange-500">
+            ULTIMATE <span class="text-white">EVO 8.95</span>
+        </h1>
+        <div class="flex bg-[#2c2c2e] p-1 rounded-xl flex-nowrap shrink-0">
+            <button id="btnSync" onclick="fetchSheetData()" class="px-4 py-1.5 rounded-lg text-sm btn-active whitespace-nowrap">同步資料</button>
+        </div>
+    </div>
 
-    <div class="ios-panel p-4 mb-4 orange-glow border border-orange-500/50">
-        <div class="flex justify-between items-end mb-2">
-            <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">Panel 1: Engine Status</label>
-            <div class="flex items-center text-[10px] text-orange-500 font-bold uppercase">
-                <span id="statusDot" class="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></span>
-                v8.95 <span id="strategyMode" class="ml-1 text-white">READY</span>
-            </div>
-        </div>
-        <div id="logBox" class="bg-black/50 p-3 rounded-lg text-[11px] h-24 overflow-y-auto font-mono border border-white/5 leading-relaxed">
-            <span class="text-gray-500">&gt; 初始化運算引擎...</span><br>
-            <span class="text-gray-500">&gt; 模式：遺漏補償與時序加權分析</span>
-        </div>
-    </div>
+    <div class="ios-panel p-4 mb-4 orange-glow border border-orange-500/50">
+        <div class="flex justify-between items-end mb-2">
+            <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">Panel 1: Engine Status</label>
+            <div class="flex items-center text-[10px] text-orange-500 font-bold uppercase">
+                <span id="statusDot" class="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></span>
+                v8.95 <span id="strategyMode" class="ml-1 text-white">READY</span>
+            </div>
+        </div>
+        <div id="logBox" class="bg-black/50 p-3 rounded-lg text-[11px] h-24 overflow-y-auto font-mono border border-white/5 leading-relaxed">
+            <span class="text-gray-500">&gt; 初始化運算引擎...</span><br>
+            <span class="text-gray-500">&gt; 模式：遺漏補償與時序加權分析</span>
+        </div>
+    </div>
 
-    <div class="ios-panel p-4 mb-4 border-t-2 border-orange-600">
-        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-3">Panel 2: Prediction Grid (混合路徑分析)</label>
-        <div class="grid grid-cols-5 gap-2" id="predictionGrid">
-            <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
-                <div class="text-[9px] text-orange-500 font-bold">Slot 1</div>
-                <div class="text-lg font-black text-white grid-val" id="p1">--</div>
-            </div>
-            <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
-                <div class="text-[9px] text-orange-500 font-bold">Slot 2</div>
-                <div class="text-lg font-black text-white grid-val" id="p2">--</div>
-            </div>
-            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
-                <div class="text-[9px] text-gray-400 font-bold">Slot 3</div>
-                <div class="text-lg font-black text-white" id="p3">--</div>
-            </div>
-            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
-                <div class="text-[9px] text-gray-400 font-bold">Slot 4</div>
-                <div class="text-lg font-black text-white" id="p4">--</div>
-            </div>
-            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
-                <div class="text-[9px] text-gray-400 font-bold">Slot 5</div>
-                <div class="text-lg font-black text-white" id="p5">--</div>
-            </div>
-        </div>
-        <div id="modelMeta" class="mt-3 text-[11px] text-gray-500 leading-6">等待資料中...</div>
-    </div>
+    <div class="ios-panel p-4 mb-4 border-t-2 border-orange-600">
+        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-3">Panel 2: Prediction Grid (混合路徑分析)</label>
+        <div class="grid grid-cols-5 gap-2" id="predictionGrid">
+            <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
+                <div class="text-[9px] text-orange-500 font-bold">Slot 1</div>
+                <div class="text-lg font-black text-white grid-val" id="p1">--</div>
+            </div>
+            <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
+                <div class="text-[9px] text-orange-500 font-bold">Slot 2</div>
+                <div class="text-lg font-black text-white grid-val" id="p2">--</div>
+            </div>
+            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
+                <div class="text-[9px] text-gray-400 font-bold">Slot 3</div>
+                <div class="text-lg font-black text-white" id="p3">--</div>
+            </div>
+            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
+                <div class="text-[9px] text-gray-400 font-bold">Slot 4</div>
+                <div class="text-lg font-black text-white" id="p4">--</div>
+            </div>
+            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
+                <div class="text-[9px] text-gray-400 font-bold">Slot 5</div>
+                <div class="text-lg font-black text-white" id="p5">--</div>
+            </div>
+        </div>
+        <div id="modelMeta" class="mt-3 text-[11px] text-gray-500 leading-6">等待資料中...</div>
+    </div>
 
-    <div class="ios-panel p-4 flex-grow overflow-hidden flex flex-col">
-        <div class="flex justify-between items-center mb-2">
-            <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Panel 3: Backtest</label>
-            <div id="hitRate" class="text-[10px] font-black text-orange-500">HIT RATE (3+): 0.0%</div>
-        </div>
-        <div class="overflow-y-auto flex-grow">
-            <table class="w-full text-[12px]">
-                <thead class="sticky top-0 bg-[#1c1c1e] text-gray-500 z-10">
-                    <tr class="text-left border-b border-white/10">
-                        <th class="pb-2">期別</th>
-                        <th class="pb-2">實際開獎</th>
-                        <th class="pb-2">預測號碼</th>
-                        <th class="pb-2">Slot</th>
-                        <th class="pb-2 text-right">命中</th>
-                    </tr>
-                </thead>
-                <tbody id="historyTable" class="divide-y divide-white/5">
-                    <tr><td colspan="5" class="text-center py-10 text-gray-600 font-mono italic">NO DATA SYNCED</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
+    <div class="ios-panel p-4 flex-grow overflow-hidden flex flex-col">
+        <div class="flex justify-between items-center mb-2">
+            <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Panel 3: Backtest</label>
+            <div id="hitRate" class="text-[10px] font-black text-orange-500">HIT RATE (3+): 0.0%</div>
+        </div>
+        <div class="overflow-y-auto flex-grow">
+            <table class="w-full text-[12px]">
+                <thead class="sticky top-0 bg-[#1c1c1e] text-gray-500 z-10">
+                    <tr class="text-left border-b border-white/10">
+                        <th class="pb-2">期別</th>
+                        <th class="pb-2">實際開獎</th>
+                        <th class="pb-2">預測號碼</th>
+                        <th class="pb-2">Slot</th>
+                        <th class="pb-2 text-right">命中</th>
+                    </tr>
+                </thead>
+                <tbody id="historyTable" class="divide-y divide-white/5">
+                    <tr><td colspan="5" class="text-center py-10 text-gray-600 font-mono italic">NO DATA SYNCED</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 
-    <script>
-        const API_URL = "https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec";
-        const SLOT_COUNT = 5, DEFAULT_WINDOW_SIZE = 18, MAX_BACKTEST = 25;
-        let activeConfig = null;
+    <script>
+        const API_URL = "https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec";
+        const SLOT_COUNT = 5, DEFAULT_WINDOW_SIZE = 21, MAX_BACKTEST = 25;
+        let activeConfig = null;
 
-        function addLog(msg, color = "gray-500") {
-            const logBox = document.getElementById("logBox");
-            const span = document.createElement("span");
-            span.className = `text-${color}`;
-            span.innerHTML = `&gt; ${msg}<br>`;
-            logBox.appendChild(span);
-            logBox.scrollTop = logBox.scrollHeight;
-        }
+        function addLog(msg, color = "gray-500") {
+            const logBox = document.getElementById("logBox");
+            const span = document.createElement("span");
+            span.className = `text-${color}`;
+            span.innerHTML = `&gt; ${msg}<br>`;
+            logBox.appendChild(span);
+            logBox.scrollTop = logBox.scrollHeight;
+        }
 
-        function formatNumber(num) { return String(num).padStart(2, "0"); }
+        function formatNumber(num) { return String(num).padStart(2, "0"); }
 
-        async function fetchSheetData() {
-            addLog("連線至核心服務...", "orange-500");
-            try {
-                const response = await fetch(API_URL);
-                const result = await response.json();
-                const rawData = typeof result === "string" ? result : (result.data || "");
-                if (!rawData.trim()) throw new Error("EMPTY_DATA");
-                addLog("同步成功，注入運算模型 v8.95", "green-500");
-                processData(rawData);
-            } catch (error) {
-                addLog(`同步失敗: ${error.message}`, "red-500");
-            }
-        }
+        async function fetchSheetData() {
+            addLog("連線至核心服務...", "orange-500");
+            try {
+                const response = await fetch(API_URL);
+                const result = await response.json();
+                const rawData = typeof result === "string" ? result : (result.data || "");
+                if (!rawData.trim()) throw new Error("EMPTY_DATA");
+                addLog("同步成功，注入運算模型 v8.95", "green-500");
+                processData(rawData);
+            } catch (error) {
+                addLog(`同步失敗: ${error.message}`, "red-500");
+            }
+        }
 
-        function processData(raw) {
-            const lines = raw.split(/\n/).map(l => l.trim()).filter(l => l && !/^date/i.test(l));
-            const draws = lines.map((line, idx) => {
-                const t = line.split(/\s+/);
-                const nums = t.slice(-5).map(Number);
-                return (nums.length === 5) ? { label: t[0], nums } : null;
-            }).filter(Boolean).reverse();
-            runBacktest(draws);
-        }
+        function processData(raw) {
+            const lines = raw.split(/\n/).map(l => l.trim()).filter(l => l && !/^date/i.test(l));
+            const draws = lines.map((line, idx) => {
+                const t = line.split(/\s+/);
+                const nums = t.slice(-5).map(Number);
+                return (nums.length === 5) ? { label: `第 ${String(idx + 1).padStart(3, "0")} 期`, nums } : null;
+            }).filter(Boolean).reverse();
+            runBacktest(draws);
+        }
 
-        // --- v8.95 策略核心 ---
-        function getOmissions(history) {
-            const omit = {};
-            for (let n = 1; n <= 39; n++) omit[n] = 0;
-            for (let n = 1; n <= 39; n++) {
-                let count = 0;
-                for (let d of history) {
-                    if (d.nums.includes(n)) break;
-                    count++;
-                }
-                omit[n] = count;
-            }
-            return omit;
-        }
+        // --- v8.95 策略核心 ---
+        function getOmissions(history) {
+            const omit = {};
+            for (let n = 1; n <= 39; n++) omit[n] = 0;
+            for (let n = 1; n <= 39; n++) {
+                let count = 0;
+                for (let d of history) {
+                    if (d.nums.includes(n)) break;
+                    count++;
+                }
+                omit[n] = count;
+            }
+            return omit;
+        }
 
-        function buildPrediction(history, fullHistory, config) {
-            const pred = [];
-            const used = new Set();
-            const omitMap = getOmissions(history);
+        function buildPrediction(history, fullHistory, config) {
+            const pred = [];
+            const used = new Set();
+            const omitMap = getOmissions(history);
+            const recentUnion = new Set();
+            history.slice(0, config.recentUnionWindow).forEach(draw => {
+                draw.nums.forEach(num => recentUnion.add(num));
+            });
+            const overlapContext = new Set([...(history[0]?.nums || []), ...(history[1]?.nums || [])]);
 
-            for (let s = 0; s < SLOT_COUNT; s++) {
-                const scores = {};
-                for (let n = 1; n <= 39; n++) scores[n] = 0;
+            for (let s = 0; s < SLOT_COUNT; s++) {
+                const scores = {};
+                for (let n = 1; n <= 39; n++) scores[n] = 0;
 
-                // 1. 位置與時序權重
-                history.slice(0, config.historyDepth).forEach((d, idx) => {
-                    const weight = (config.historyDepth - idx) / config.historyDepth;
-                    scores[d.nums[s]] += config.recencyWeight * weight;
-                });
+                // 1. 位置與時序權重
+                history.slice(0, config.historyDepth).forEach((d, idx) => {
+                    const weight = (config.historyDepth - idx) / config.historyDepth;
+                    scores[d.nums[s]] += config.recencyWeight * weight;
+                });
 
-                // 2. 遺漏補償
-                Object.keys(omitMap).forEach(n => {
-                    if (omitMap[n] > config.omissionThreshold) scores[n] += (omitMap[n] * config.omissionWeight);
-                });
+                // 2. 遺漏補償
+                Object.keys(omitMap).forEach(n => {
+                    if (omitMap[n] > config.omissionThreshold) scores[n] += (omitMap[n] * config.omissionWeight);
+                });
 
-                // 3. 波段與奇偶修正
-                const lastVal = history[0].nums[s];
-                let consecutiveOdd = 0;
-                for(let d of history) { if(d.nums[s] % 2 !== 0) consecutiveOdd++; else break; }
-                for (let n = 1; n <= 39; n++) {
-                    if (consecutiveOdd >= config.oddTrigger && n % 2 === 0) scores[n] += config.evenRecoveryWeight;
-                    if (Math.abs(n - lastVal) <= config.nearRange) scores[n] += config.nearWeight;
-                }
+                // 3. 波段與奇偶修正
+                const lastVal = history[0].nums[s];
+                let consecutiveOdd = 0;
+                for (let d of history) {
+                    if (d.nums[s] % 2 !== 0) consecutiveOdd++;
+                    else break;
+                }
+                for (let n = 1; n <= 39; n++) {
+                    if (consecutiveOdd >= config.oddTrigger && n % 2 === 0) scores[n] += config.evenRecoveryWeight;
+                    if (Math.abs(n - lastVal) <= config.nearRange) scores[n] += config.nearWeight;
+                    if (recentUnion.has(n)) scores[n] += config.recentUnionWeight;
+                }
 
-                // 4. 深度路徑搜尋
-                const anchor = history[0].nums[s];
-                for (let i = 1; i < fullHistory.length - 2; i++) {
-                    if (fullHistory[i].nums[s] === anchor) {
-                        const potential = fullHistory[i-1].nums[s];
-                        scores[potential] += config.anchorWeight;
-                    }
-                }
+                // 4. 深度路徑搜尋
+                const anchor = history[0].nums[s];
+                for (let i = 1; i < fullHistory.length - 2; i++) {
+                    if (fullHistory[i].nums[s] === anchor) {
+                        const potential = fullHistory[i - 1].nums[s];
+                        scores[potential] += config.anchorWeight;
+                    }
+                }
 
-                const sorted = Object.entries(scores)
-                    .map(([n, s]) => ({ n: parseInt(n), s }))
-                    .sort((a, b) => b.s - a.s);
+                // 5. 重疊路徑加權
+                for (let i = 2; i < Math.min(fullHistory.length - 1, config.pairDepth); i++) {
+                    const overlap = fullHistory[i].nums.filter(n => overlapContext.has(n)).length;
+                    if (overlap >= config.pairOverlap) {
+                        const potential = fullHistory[i - 1].nums[s];
+                        scores[potential] += config.pairWeight * overlap;
+                    }
+                }
 
-                let pick = sorted.find(x => !used.has(x.n)) || sorted[0];
-                pred.push(pick.n);
-                used.add(pick.n);
-            }
-            return pred.sort((a, b) => a - b);
-        }
+                const sorted = Object.entries(scores)
+                    .map(([n, s]) => ({ n: parseInt(n), s }))
+                    .sort((a, b) => b.s - a.s || a.n - b.n);
 
-        function evaluateConfig(history, config) {
-            let hits3 = 0;
-            const testCount = Math.min(history.length - config.windowSize, MAX_BACKTEST);
+                const pick = sorted.find(x => !used.has(x.n)) || sorted[0];
+                pred.push(pick.n);
+                used.add(pick.n);
+            }
 
-            if (testCount <= 0) {
-                return { rate: 0, testCount: 0 };
-            }
+            return pred.sort((a, b) => a - b);
+        }
 
-            for (let i = 0; i < testCount; i++) {
-                const actual = history[i];
-                const train = history.slice(i + 1);
-                const prediction = buildPrediction(train.slice(0, config.windowSize), history, config);
-                const count = prediction.filter(p => actual.nums.includes(p)).length;
-                if (count >= 3) hits3++;
-            }
+        function evaluateConfig(history, config) {
+            let hits3 = 0;
+            const testCount = Math.min(history.length - config.windowSize, MAX_BACKTEST);
 
-            return {
-                rate: (hits3 / testCount) * 100,
-                testCount,
-                hit3: hits3
-            };
-        }
+            if (testCount <= 0) {
+                return { rate: 0, testCount: 0 };
+            }
 
-        function findBestConfig(history) {
-            const configs = [];
-            const windowSizes = [12, 15, 18, 21];
-            const recencyWeights = [2.8, 3.5, 4.2];
-            const omissionWeights = [0.1, 0.15, 0.22];
-            const anchorWeights = [3.5, 4.5, 5.5];
-            const nearWeights = [1.0, 1.5, 2.0];
+            for (let i = 0; i < testCount; i++) {
+                const actual = history[i];
+                const train = history.slice(i + 1);
+                const prediction = buildPrediction(train.slice(0, config.windowSize), history, config);
+                const count = prediction.filter(p => actual.nums.includes(p)).length;
+                if (count >= 3) hits3++;
+            }
 
-            windowSizes.forEach(windowSize => {
-                recencyWeights.forEach(recencyWeight => {
-                    omissionWeights.forEach(omissionWeight => {
-                        anchorWeights.forEach(anchorWeight => {
-                            nearWeights.forEach(nearWeight => {
-                                configs.push({
-                                    windowSize,
-                                    historyDepth: Math.min(20, windowSize),
-                                    recencyWeight,
-                                    omissionThreshold: 8,
-                                    omissionWeight,
-                                    oddTrigger: 3,
-                                    evenRecoveryWeight: 2.0,
-                                    nearRange: 3,
-                                    nearWeight,
-                                    anchorWeight
-                                });
-                            });
-                        });
-                    });
-                });
-            });
+            return {
+                rate: (hits3 / testCount) * 100,
+                testCount,
+                hit3: hits3
+            };
+        }
 
-            let best = null;
-            configs.forEach(config => {
-                const result = evaluateConfig(history, config);
-                if (!best || result.rate > best.result.rate || (result.rate === best.result.rate && config.windowSize > best.config.windowSize)) {
-                    best = { config, result };
-                }
-            });
+        function findBestConfig(history) {
+            const configs = [];
+            const windowSizes = [21];
+            const recencyWeights = [2.6, 2.8, 3.0];
+            const omissionWeights = [0.10, 0.12, 0.15];
+            const anchorWeights = [5.0, 5.5, 6.0];
+            const nearWeights = [1.5, 2.0];
+            const recentUnionWeights = [0.0, 0.2];
+            const pairWeights = [0.8, 1.2];
 
-            return best || {
-                config: {
-                    windowSize: DEFAULT_WINDOW_SIZE,
-                    historyDepth: DEFAULT_WINDOW_SIZE,
-                    recencyWeight: 3.5,
-                    omissionThreshold: 8,
-                    omissionWeight: 0.15,
-                    oddTrigger: 3,
-                    evenRecoveryWeight: 2.0,
-                    nearRange: 3,
-                    nearWeight: 1.5,
-                    anchorWeight: 4.5
-                },
-                result: { rate: 0, testCount: 0, hit3: 0 }
-            };
-        }
+            windowSizes.forEach(windowSize => {
+                recencyWeights.forEach(recencyWeight => {
+                    omissionWeights.forEach(omissionWeight => {
+                        anchorWeights.forEach(anchorWeight => {
+                            nearWeights.forEach(nearWeight => {
+                                recentUnionWeights.forEach(recentUnionWeight => {
+                                    pairWeights.forEach(pairWeight => {
+                                        configs.push({
+                                            windowSize,
+                                            historyDepth: Math.min(20, windowSize),
+                                            recencyWeight,
+                                            omissionThreshold: 8,
+                                            omissionWeight,
+                                            oddTrigger: 3,
+                                            evenRecoveryWeight: 2.0,
+                                            nearRange: 3,
+                                            nearWeight,
+                                            anchorWeight,
+                                            recentUnionWindow: 5,
+                                            recentUnionWeight,
+                                            pairDepth: 40,
+                                            pairOverlap: 3,
+                                            pairWeight
+                                        });
+                                    });
+                                });
+                            });
+                        });
+                    });
+                });
+            });
 
-        function runBacktest(history) {
-            const best = findBestConfig(history);
-            activeConfig = best.config;
-            const results = [];
-            let hits3 = 0;
-            const testCount = Math.min(history.length - activeConfig.windowSize, MAX_BACKTEST);
+            let best = null;
+            configs.forEach(config => {
+                const result = evaluateConfig(history, config);
+                if (!best || result.rate > best.result.rate) {
+                    best = { config, result };
+                }
+            });
 
-            for (let i = 0; i < testCount; i++) {
-                const actual = history[i];
-                const train = history.slice(i + 1);
-                const prediction = buildPrediction(train.slice(0, activeConfig.windowSize), history, activeConfig);
-                const slotHits = prediction.map(p => actual.nums.includes(p));
-                const count = slotHits.filter(Boolean).length;
-                if (count >= 3) hits3++;
-                results.push({ label: actual.label, actual: actual.nums, prediction, slotHits, hits: count });
-            }
+            return best || {
+                config: {
+                    windowSize: DEFAULT_WINDOW_SIZE,
+                    historyDepth: 20,
+                    recencyWeight: 2.6,
+                    omissionThreshold: 8,
+                    omissionWeight: 0.12,
+                    oddTrigger: 3,
+                    evenRecoveryWeight: 2.0,
+                    nearRange: 3,
+                    nearWeight: 1.5,
+                    anchorWeight: 6.0,
+                    recentUnionWindow: 5,
+                    recentUnionWeight: 0.0,
+                    pairDepth: 40,
+                    pairOverlap: 3,
+                    pairWeight: 1.2
+                },
+                result: { rate: 0, testCount: 0, hit3: 0 }
+            };
+        }
 
-            const nextPred = buildPrediction(history.slice(0, activeConfig.windowSize), history, activeConfig);
-            updateUI(results, nextPred, (hits3 / testCount * 100).toFixed(1));
-        }
+        function runBacktest(history) {
+            const best = findBestConfig(history);
+            activeConfig = best.config;
+            const results = [];
+            let hits3 = 0;
+            const testCount = Math.min(history.length - activeConfig.windowSize, MAX_BACKTEST);
 
-        function updateUI(results, nextPred, rate) {
-            nextPred.forEach((n, i) => document.getElementById(`p${i+1}`).innerText = formatNumber(n));
-            document.getElementById("hitRate").innerText = `HIT RATE (3+): ${rate}%`;
-            document.getElementById("strategyMode").innerText = rate > 15 ? "STABLE" : "SCANNING";
-            
-            const table = document.getElementById("historyTable");
-            table.innerHTML = results.map(r => `
-                <tr class="border-b border-white/5">
-                    <td class="py-3 text-gray-500 font-mono">${r.label.slice(-5)}</td>
-                    <td class="font-mono text-white">${r.actual.map(formatNumber).join(" ")}</td>
-                    <td class="text-[11px] text-gray-400 font-mono">${r.prediction.map((p, i) => r.actual.includes(p) ? `<span class="hit-num">${formatNumber(p)}</span>` : formatNumber(p)).join(" ")}</td>
-                    <td>${r.prediction.map((p) => {
-                        const isHit = r.actual.includes(p);
-                        return `<span class="slot-dot ${isHit ? 'slot-hit' : 'slot-miss'}">${isHit ? '●' : '○'}</span>`;
-                    }).join("")}</td>
-                    <td class="text-right font-black ${r.hits >= 3 ? 'text-orange-500' : 'text-gray-500'}">${r.hits}</td>
-                </tr>
-            `).join("");
+            for (let i = 0; i < testCount; i++) {
+                const actual = history[i];
+                const train = history.slice(i + 1);
+                const prediction = buildPrediction(train.slice(0, activeConfig.windowSize), history, activeConfig);
+                const slotHits = prediction.map(p => actual.nums.includes(p));
+                const count = slotHits.filter(Boolean).length;
+                if (count >= 3) hits3++;
+                results.push({ label: actual.label, actual: actual.nums, prediction, slotHits, hits: count });
+            }
 
-            document.getElementById("modelMeta").innerText =
-                `Model: v8.95 Auto-Tuned | Window: ${activeConfig.windowSize} | Recency: ${activeConfig.recencyWeight.toFixed(1)} | Omit: ${activeConfig.omissionWeight.toFixed(2)} | Anchor: ${activeConfig.anchorWeight.toFixed(1)} | Samples: ${results.length}`;
-            addLog(`預測更新: ${nextPred.map(formatNumber).join(", ")}`, "orange-400");
-            addLog(`最佳參數: W${activeConfig.windowSize} / R${activeConfig.recencyWeight.toFixed(1)} / O${activeConfig.omissionWeight.toFixed(2)} / A${activeConfig.anchorWeight.toFixed(1)}`, "green-500");
-        }
-    </script>
+            const nextPred = buildPrediction(history.slice(0, activeConfig.windowSize), history, activeConfig);
+            updateUI(results, nextPred, (hits3 / testCount * 100).toFixed(1));
+        }
+
+        function updateUI(results, nextPred, rate) {
+            nextPred.forEach((n, i) => document.getElementById(`p${i+1}`).innerText = formatNumber(n));
+            document.getElementById("hitRate").innerText = `HIT RATE (3+): ${rate}%`;
+            document.getElementById("strategyMode").innerText = rate > 60 ? "BOOSTED" : rate > 30 ? "STABLE" : "SCANNING";
+
+            const table = document.getElementById("historyTable");
+            table.innerHTML = results.map(r => `
+                <tr class="border-b border-white/5">
+                    <td class="py-3 text-gray-500 font-mono">${r.label}</td>
+                    <td class="font-mono text-white">${r.actual.map(formatNumber).join(" ")}</td>
+                    <td class="text-[11px] text-gray-400 font-mono">${r.prediction.map(p => r.actual.includes(p) ? `<span class="hit-num">${formatNumber(p)}</span>` : formatNumber(p)).join(" ")}</td>
+                    <td>${r.prediction.map((p) => {
+                        const isHit = r.actual.includes(p);
+                        return `<span class="slot-dot ${isHit ? 'slot-hit' : 'slot-miss'}">${isHit ? '●' : '○'}</span>`;
+                    }).join("")}</td>
+                    <td class="text-right font-black ${r.hits >= 3 ? 'text-orange-500' : 'text-gray-500'}">${r.hits}</td>
+                </tr>
+            `).join("");
+
+            document.getElementById("modelMeta").innerText =
+                `Model: v8.95 Sprint | Window: ${activeConfig.windowSize} | Recency: ${activeConfig.recencyWeight.toFixed(1)} | Omit: ${activeConfig.omissionWeight.toFixed(2)} | Anchor: ${activeConfig.anchorWeight.toFixed(1)} | Pair: ${activeConfig.pairWeight.toFixed(1)} | Samples: ${results.length}`;
+            addLog(`預測更新: ${nextPred.map(formatNumber).join(", ")}`, "orange-400");
+            addLog(`最佳參數: W${activeConfig.windowSize} / R${activeConfig.recencyWeight.toFixed(1)} / O${activeConfig.omissionWeight.toFixed(2)} / A${activeConfig.anchorWeight.toFixed(1)} / P${activeConfig.pairWeight.toFixed(1)}`, "green-500");
+        }
+    </script>
 </body>
 </html>
