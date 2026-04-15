@@ -323,32 +323,39 @@ function buildPrediction(train, allTrainHistory, config, historicalStats) {
         }
     }
 
-    let prediction = applySpatialFilters(topNumbers(baseScores, 10), baseScores, omitMap, historicalStats, train, config);
+    const ranked = [...baseScores.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+    const topHot = ranked.slice(0, 10).map(item => item[0]);
+    const topCold = ranked
+        .slice(-10)
+        .sort((a, b) => omitMap[b[0]] - omitMap[a[0]])
+        .slice(0, 2)
+        .map(item => item[0]);
+    const candidatePool = [...new Set([...topHot, ...topCold])];
+
+    let prediction = applySpatialFilters(candidatePool, baseScores, omitMap, historicalStats, train, config);
     if (prediction.length < 5) {
-        prediction = topNumbers(baseScores, 5);
+        prediction = topHot.slice(0, 5);
     }
 
     return prediction.sort((a, b) => a - b);
 }
 
 function applySpatialFilters(candidatePool, scores, omitMap, historicalStats, train, config) {
-    const ranked = candidatePool
-        .map(num => ({ num, score: scores.get(num) }))
-        .sort((a, b) => b.score - a.score || a.num - b.num);
-
-    let best = ranked.slice(0, 5).map(item => item.num).sort((a, b) => a - b);
+    let best = candidatePool.slice(0, 5).sort((a, b) => a - b);
     let bestPenalty = evaluateSpatialPenalty(best, omitMap, historicalStats, train, config);
+    let bestScore = best.reduce((sum, num) => sum + scores.get(num), 0) - bestPenalty;
 
-    const combos = choose(ranked.slice(0, 9).map(item => item.num), 5);
+    const combos = choose(candidatePool.slice(0, 14), 5);
     combos.forEach(combo => {
         const sorted = combo.slice().sort((a, b) => a - b);
         const comboScore = sorted.reduce((sum, num) => sum + scores.get(num), 0);
         const penalty = evaluateSpatialPenalty(sorted, omitMap, historicalStats, train, config);
         const total = comboScore - penalty;
-        const bestTotal = best.reduce((sum, num) => sum + scores.get(num), 0) - bestPenalty;
-        if (total > bestTotal) {
+
+        if (total > bestScore) {
             best = sorted;
             bestPenalty = penalty;
+            bestScore = total;
         }
     });
 
@@ -365,8 +372,8 @@ function evaluateSpatialPenalty(prediction, omitMap, historicalStats, train, con
     if (sum < 75 || sum > 125) {
         penalty += config.sumPenalty * (Math.abs(sum - 100) / 10);
     }
-    if (acValue < 6) {
-        penalty += config.acPenalty * (6 - acValue);
+    if (acValue < 4) {
+        penalty += config.acPenalty * (4 - acValue);
     }
 
     const lower = historicalStats.omissionSum.mean - (historicalStats.omissionSum.stdev * 1.5);
@@ -374,8 +381,8 @@ function evaluateSpatialPenalty(prediction, omitMap, historicalStats, train, con
     if (omissionSum < lower || omissionSum > upper) {
         penalty += config.omissionPenalty * (Math.abs(omissionSum - historicalStats.omissionSum.mean) / Math.max(1, historicalStats.omissionSum.stdev));
     }
-    if (repeatOverlap >= 4) {
-        penalty += config.repeatPenalty * (repeatOverlap - 3);
+    if (repeatOverlap >= 3) {
+        penalty += config.repeatPenalty * (repeatOverlap - 2);
     }
 
     return penalty;
