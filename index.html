@@ -40,6 +40,7 @@
         </div>
         <div id="logBox" class="bg-black/50 p-3 rounded-lg text-[11px] h-24 overflow-y-auto font-mono border border-white/5 leading-relaxed">
             <span class="text-gray-500">&gt; 初始化運算引擎...</span><br>
+            <span class="text-gray-500">&gt; 模式：遺漏補償與時序加權分析</span>
         </div>
     </div>
 
@@ -86,7 +87,9 @@
                         <th class="pb-2 text-right">命中</th>
                     </tr>
                 </thead>
-                <tbody id="historyTable" class="divide-y divide-white/5"></tbody>
+                <tbody id="historyTable" class="divide-y divide-white/5">
+                    <tr><td colspan="5" class="text-center py-10 text-gray-600 font-mono italic">NO DATA SYNCED</td></tr>
+                </tbody>
             </table>
         </div>
     </div>
@@ -107,15 +110,17 @@
         function formatNumber(num) { return String(num).padStart(2, "0"); }
 
         async function fetchSheetData() {
-            addLog("正在提取雲端數據鏈...", "orange-500");
+            addLog("連線至核心服務...", "orange-500");
             try {
                 const response = await fetch(API_URL);
                 const result = await response.json();
                 const rawData = typeof result === "string" ? result : (result.data || "");
-                if (!rawData.trim()) throw new Error("DATA_NULL");
-                addLog("數據注入完成，啟動 v8.95 強化邏輯", "green-500");
+                if (!rawData.trim()) throw new Error("EMPTY_DATA");
+                addLog("同步成功，注入運算模型 v8.95", "green-500");
                 processData(rawData);
-            } catch (e) { addLog(`失敗: ${e.message}`, "red-500"); }
+            } catch (error) {
+                addLog(`同步失敗: ${error.message}`, "red-500");
+            }
         }
 
         function processData(raw) {
@@ -128,7 +133,7 @@
             runBacktest(draws);
         }
 
-        // --- v8.95 策略引擎核心 ---
+        // --- v8.95 策略核心 ---
         function getOmissions(history) {
             const omit = {};
             for (let n = 1; n <= 39; n++) omit[n] = 0;
@@ -152,36 +157,32 @@
                 const scores = {};
                 for (let n = 1; n <= 39; n++) scores[n] = 0;
 
-                // 1. 位置與遺漏權重 (Omission + Slot Freq)
+                // 1. 位置與時序權重
                 history.slice(0, 20).forEach((d, idx) => {
-                    const weight = (20 - idx) / 20; // 近期權重更高
+                    const weight = (20 - idx) / 20;
                     scores[d.nums[s]] += 3.5 * weight;
                 });
 
-                // 2. 遺漏值回補 (長久不出的號碼權重微升)
+                // 2. 遺漏補償
                 Object.keys(omitMap).forEach(n => {
                     if (omitMap[n] > 8) scores[n] += (omitMap[n] * 0.15);
                 });
 
-                // 3. 轉移矩陣 (基於上期的數值預測下期區間)
+                // 3. 波段與奇偶修正
                 const lastVal = history[0].nums[s];
-                const lastOdd = lastVal % 2 !== 0;
-                const lastBig = lastVal > 19;
-
-                // 根據歷史統計，若連續多期奇數，則偶數權重增加
                 let consecutiveOdd = 0;
                 for(let d of history) { if(d.nums[s] % 2 !== 0) consecutiveOdd++; else break; }
                 for (let n = 1; n <= 39; n++) {
                     if (consecutiveOdd >= 3 && n % 2 === 0) scores[n] += 2.0;
-                    if (Math.abs(n - lastVal) <= 3) scores[n] += 1.5; // 鄰近波段
+                    if (Math.abs(n - lastVal) <= 3) scores[n] += 1.5;
                 }
 
-                // 4. 模式深度掃描 (Deep Pattern)
+                // 4. 深度路徑搜尋
                 const anchor = history[0].nums[s];
                 for (let i = 1; i < fullHistory.length - 2; i++) {
                     if (fullHistory[i].nums[s] === anchor) {
                         const potential = fullHistory[i-1].nums[s];
-                        scores[potential] += 4.5; // 歷史重複路徑權重最高
+                        scores[potential] += 4.5;
                     }
                 }
 
@@ -193,7 +194,6 @@
                 pred.push(pick.n);
                 used.add(pick.n);
             }
-            // 排序輸出，符合一般的 Slot 展示習慣
             return pred.sort((a, b) => a - b);
         }
 
@@ -219,24 +219,24 @@
         function updateUI(results, nextPred, rate) {
             nextPred.forEach((n, i) => document.getElementById(`p${i+1}`).innerText = formatNumber(n));
             document.getElementById("hitRate").innerText = `HIT RATE (3+): ${rate}%`;
-            document.getElementById("strategyMode").innerText = rate > 20 ? "LOCKED" : "ANALYZING";
+            document.getElementById("strategyMode").innerText = rate > 15 ? "STABLE" : "SCANNING";
             
             const table = document.getElementById("historyTable");
             table.innerHTML = results.map(r => `
                 <tr class="border-b border-white/5">
-                    <td class="py-3 text-gray-500 font-mono">${r.label.includes('-') ? r.label.split('-')[1] : r.label.slice(-3)}</td>
+                    <td class="py-3 text-gray-500 font-mono">${r.label.slice(-5)}</td>
                     <td class="font-mono text-white">${r.actual.map(formatNumber).join(" ")}</td>
                     <td class="text-[11px] text-gray-400 font-mono">${r.prediction.map((p, i) => r.actual.includes(p) ? `<span class="hit-num">${formatNumber(p)}</span>` : formatNumber(p)).join(" ")}</td>
                     <td>${r.prediction.map((p) => {
                         const isHit = r.actual.includes(p);
-                        return `<span class="slot-dot ${isHit ? 'slot-hit' : 'slot-miss'}">●</span>`;
+                        return `<span class="slot-dot ${isHit ? 'slot-hit' : 'slot-miss'}">${isHit ? '●' : '○'}</span>`;
                     }).join("")}</td>
-                    <td class="text-right font-black ${r.hits >= 3 ? 'text-orange-500' : 'text-gray-600'}">${r.hits}</td>
+                    <td class="text-right font-black ${r.hits >= 3 ? 'text-orange-500' : 'text-gray-500'}">${r.hits}</td>
                 </tr>
             `).join("");
 
-            document.getElementById("modelMeta").innerText = `v8.95 | Omission Compensated | Pattern Depth: ${WINDOW_SIZE}`;
-            addLog(`預測更新完成，當前命中率期望值: ${rate}%`, "orange-400");
+            document.getElementById("modelMeta").innerText = `Model: v8.95 Hybrid Path | Window: ${WINDOW_SIZE} | Samples: ${results.length}`;
+            addLog(`預測更新: ${nextPred.map(formatNumber).join(", ")}`, "orange-400");
         }
     </script>
 </body>
