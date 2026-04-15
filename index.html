@@ -123,7 +123,7 @@
             <table class="w-full text-[12px]">
                 <thead class="sticky top-0 bg-[#1c1c1e] text-gray-500 z-10">
                     <tr class="text-left border-b border-white/10">
-                        <th class="pb-2">日期</th>
+                <th class="pb-2">期別</th>
                         <th class="pb-2">實際開獎</th>
                         <th class="pb-2">預測號碼 (5碼)</th>
                         <th class="pb-2 text-right">命中</th>
@@ -187,12 +187,18 @@
                 .filter((line) => line && !/^date\b/i.test(line));
 
             const history = lines
-                .map((line) => {
+                .map((line, index) => {
                     const tokens = line.split(/\s+/);
-                    const date = tokens[0];
-                    const nums = tokens.slice(-5).map(Number).sort((a, b) => a - b);
+                    let label = "";
+                    let nums = [];
 
-                    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+                    if (tokens.length >= 6 && /^\d{4}-\d{2}-\d{2}$/.test(tokens[0])) {
+                        label = tokens[0];
+                        nums = tokens.slice(-5).map(Number).sort((a, b) => a - b);
+                    } else if (tokens.length === 5) {
+                        label = `第 ${String(index + 1).padStart(3, "0")} 期`;
+                        nums = tokens.map(Number).sort((a, b) => a - b);
+                    } else {
                         return null;
                     }
 
@@ -204,11 +210,15 @@
                         return null;
                     }
 
-                    return { date, nums };
+                    return { label, nums };
                 })
                 .filter(Boolean);
 
-            history.sort((a, b) => new Date(b.date) - new Date(a.date));
+            if (history.length && /^\d{4}-\d{2}-\d{2}$/.test(history[0].label)) {
+                history.sort((a, b) => new Date(b.label) - new Date(a.label));
+            } else {
+                history.reverse();
+            }
 
             if (history.length < 11) {
                 addLog("資料不足，至少需要 11 期才能回測", "red-500");
@@ -297,7 +307,7 @@
 
                 rowsHtml += `
                     <tr class="border-b border-white/5">
-                        <td class="py-3 text-gray-500 font-mono">${history[i].date.slice(5)}</td>
+                        <td class="py-3 text-gray-500 font-mono">${history[i].label}</td>
                         <td class="font-mono text-white">${actual.map((num) => num.toString().padStart(2, "0")).join(" ")}</td>
                         <td class="text-[11px] text-gray-400 font-mono">${predHtml}</td>
                         <td class="text-right font-black ${hitCount >= 3 ? "text-orange-500" : hitCount >= 2 ? "text-white" : "text-gray-700"}">${hitCount}</td>
