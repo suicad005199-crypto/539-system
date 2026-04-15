@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE EVO v8.95 STRICT ROLLING</title>
+    <title>ULTIMATE EVO v9.10 HEURISTIC ENGINE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root { --ios-orange: #f97316; --ios-bg: #000000; --ios-panel: #1c1c1e; }
@@ -23,7 +23,7 @@
 <body class="min-h-screen flex flex-col p-4">
     <div class="flex justify-between items-center mb-5">
         <h1 class="text-2xl font-black italic tracking-tighter text-orange-500">
-            ULTIMATE <span class="text-white">EVO 8.95</span>
+            ULTIMATE <span class="text-white">EVO 9.10</span>
         </h1>
         <div class="flex bg-[#2c2c2e] p-1 rounded-xl flex-nowrap shrink-0">
             <button id="btnSync" onclick="fetchSheetData()" class="px-4 py-1.5 rounded-lg text-sm btn-active whitespace-nowrap">SYNC</button>
@@ -35,12 +35,12 @@
             <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">Panel 1: Engine Status</label>
             <div class="flex items-center text-[10px] text-orange-500 font-bold uppercase">
                 <span id="statusDot" class="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></span>
-                v8.95 <span id="strategyMode" class="ml-1 text-white">READY</span>
+                v9.10 <span id="strategyMode" class="ml-1 text-white">READY</span>
             </div>
         </div>
         <div id="logBox" class="bg-black/50 p-3 rounded-lg text-[11px] h-24 overflow-y-auto font-mono border border-white/5 leading-relaxed">
-            <span class="text-gray-500">&gt; Initializing strict rolling engine...</span><br>
-            <span class="text-gray-500">&gt; Mode: old single-model baseline, no future leakage</span>
+            <span class="text-gray-500">&gt; Worker engine idle...</span><br>
+            <span class="text-gray-500">&gt; Mode: strict rolling, heuristic search, spatial filters</span>
         </div>
     </div>
 
@@ -74,7 +74,7 @@
     <div class="ios-panel p-4 flex-grow overflow-hidden flex flex-col">
         <div class="flex justify-between items-center mb-2">
             <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Panel 3: Backtest</label>
-            <div id="hitRate" class="text-[10px] font-black text-orange-500">HIT RATE (3+): 0.0%</div>
+            <div id="hitRate" class="text-[10px] font-black text-orange-500">2+/3+/4+/5+: 0.0 / 0.0 / 0.0 / 0.0</div>
         </div>
         <div class="overflow-y-auto flex-grow">
             <table class="w-full text-[12px]">
@@ -96,10 +96,7 @@
 
     <script>
         const API_URL = "https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec";
-        const SLOT_COUNT = 5;
-        const DEFAULT_WINDOW_SIZE = 30;
-        const MAX_BACKTEST = 25;
-        let activeConfig = null;
+        const worker = new Worker("./8.worker.js");
 
         function addLog(msg, color = "gray-500") {
             const logBox = document.getElementById("logBox");
@@ -114,8 +111,27 @@
             return String(num).padStart(2, "0");
         }
 
+        function setStatus(mode, dotClass) {
+            document.getElementById("strategyMode").innerText = mode;
+            document.getElementById("statusDot").className = `w-2 h-2 ${dotClass} rounded-full mr-1`;
+        }
+
+        worker.onmessage = (event) => {
+            const { type, payload } = event.data;
+            if (type === "log") {
+                addLog(payload.message, payload.color);
+                return;
+            }
+
+            if (type === "analysis") {
+                updateUI(payload);
+            }
+        };
+
         async function fetchSheetData() {
             addLog("Connecting to Google Sheet API...", "orange-500");
+            setStatus("SYNC", "bg-orange-500 animate-pulse");
+
             try {
                 const response = await fetch(API_URL);
                 if (!response.ok) {
@@ -128,316 +144,59 @@
                     throw new Error("EMPTY_DATA");
                 }
 
-                addLog("Sync complete, running strict rolling backtest", "green-500");
-                processData(rawData);
+                const draws = rawData
+                    .split(/\r?\n/)
+                    .map(line => line.trim())
+                    .filter(line => line && !/^date\b/i.test(line))
+                    .map((line, idx) => {
+                        const tokens = line.split(/\s+/);
+                        const nums = tokens.slice(-5).map(Number);
+                        if (
+                            nums.length !== 5 ||
+                            nums.some(num => !Number.isInteger(num) || num < 1 || num > 39) ||
+                            new Set(nums).size !== 5
+                        ) {
+                            return null;
+                        }
+
+                        return {
+                            label: `Draw ${String(idx + 1).padStart(3, "0")}`,
+                            nums
+                        };
+                    })
+                    .filter(Boolean)
+                    .reverse();
+
+                addLog(`Loaded ${draws.length} draws, dispatching worker`, "green-500");
+                worker.postMessage({ type: "analyze", payload: { draws } });
             } catch (error) {
                 addLog(`Sync failed: ${error.message}`, "red-500");
-                document.getElementById("strategyMode").innerText = "ERROR";
-                document.getElementById("statusDot").className = "w-2 h-2 bg-red-500 rounded-full mr-1";
+                setStatus("ERROR", "bg-red-500");
             }
         }
 
-        function processData(raw) {
-            const lines = raw
-                .split(/\r?\n/)
-                .map(line => line.trim())
-                .filter(line => line && !/^date\b/i.test(line));
-
-            const draws = lines
-                .map((line, idx) => {
-                    const tokens = line.split(/\s+/);
-                    const nums = tokens.slice(-5).map(Number);
-                    if (
-                        nums.length !== 5 ||
-                        nums.some(num => !Number.isInteger(num) || num < 1 || num > 39) ||
-                        new Set(nums).size !== 5
-                    ) {
-                        return null;
-                    }
-
-                    return {
-                        label: `Draw ${String(idx + 1).padStart(3, "0")}`,
-                        nums
-                    };
-                })
-                .filter(Boolean)
-                .reverse();
-
-            if (draws.length <= DEFAULT_WINDOW_SIZE) {
-                addLog("Not enough data. Need at least 31 draws for backtest.", "red-500");
-                return;
-            }
-
-            runBacktest(draws);
-        }
-
-        function getOmissions(history) {
-            const omit = {};
-            for (let n = 1; n <= 39; n += 1) {
-                omit[n] = 0;
-            }
-
-            for (let n = 1; n <= 39; n += 1) {
-                let count = 0;
-                for (const draw of history) {
-                    if (draw.nums.includes(n)) {
-                        break;
-                    }
-                    count += 1;
-                }
-                omit[n] = count;
-            }
-
-            return omit;
-        }
-
-        function buildPrediction(history, config) {
-            const pred = [];
-            const used = new Set();
-            const omitMap = getOmissions(history);
-            const recentUnion = new Set();
-            history.slice(0, config.recentUnionWindow).forEach(draw => {
-                draw.nums.forEach(num => recentUnion.add(num));
-            });
-            const overlapContext = new Set([
-                ...(history[0]?.nums || []),
-                ...(history[1]?.nums || [])
-            ]);
-
-            for (let s = 0; s < SLOT_COUNT; s += 1) {
-                const scores = {};
-                for (let n = 1; n <= 39; n += 1) {
-                    scores[n] = 0;
-                }
-
-                history.slice(0, config.historyDepth).forEach((draw, idx) => {
-                    const weight = (config.historyDepth - idx) / config.historyDepth;
-                    scores[draw.nums[s]] += config.recencyWeight * weight;
-                });
-
-                Object.keys(omitMap).forEach(key => {
-                    const n = Number(key);
-                    if (omitMap[n] > config.omissionThreshold) {
-                        scores[n] += omitMap[n] * config.omissionWeight;
-                    }
-                });
-
-                const lastVal = history[0].nums[s];
-                let consecutiveOdd = 0;
-                for (const draw of history) {
-                    if (draw.nums[s] % 2 !== 0) {
-                        consecutiveOdd += 1;
-                    } else {
-                        break;
-                    }
-                }
-
-                for (let n = 1; n <= 39; n += 1) {
-                    if (consecutiveOdd >= config.oddTrigger && n % 2 === 0) {
-                        scores[n] += config.evenRecoveryWeight;
-                    }
-                    if (Math.abs(n - lastVal) <= config.nearRange) {
-                        scores[n] += config.nearWeight;
-                    }
-                    if (recentUnion.has(n)) {
-                        scores[n] += config.recentUnionWeight;
-                    }
-                }
-
-                const anchor = history[0].nums[s];
-                for (let i = 1; i < history.length - 1; i += 1) {
-                    if (history[i].nums[s] === anchor) {
-                        const potential = history[i - 1].nums[s];
-                        scores[potential] += config.anchorWeight;
-                    }
-                }
-
-                for (let i = 2; i < Math.min(history.length - 1, config.pairDepth); i += 1) {
-                    const overlap = history[i].nums.filter(num => overlapContext.has(num)).length;
-                    if (overlap >= config.pairOverlap) {
-                        const potential = history[i - 1].nums[s];
-                        scores[potential] += config.pairWeight * overlap;
-                    }
-                }
-
-                const sorted = Object.entries(scores)
-                    .map(([n, score]) => ({ n: Number(n), score }))
-                    .sort((a, b) => b.score - a.score || a.n - b.n);
-
-                const pick = sorted.find(item => !used.has(item.n)) || sorted[0];
-                pred.push(pick.n);
-                used.add(pick.n);
-            }
-
-            return pred.sort((a, b) => a - b);
-        }
-
-        function evaluateConfig(history, config) {
-            const testCount = Math.min(history.length - config.windowSize, MAX_BACKTEST);
-            if (testCount <= 0) {
-                return { rate2: 0, rate3: 0, score: 0, testCount: 0, hit2: 0, hit3: 0 };
-            }
-
-            let hits2 = 0;
-            let hits3 = 0;
-            for (let i = 0; i < testCount; i += 1) {
-                const actual = history[i];
-                const train = history.slice(i + 1, i + 1 + config.windowSize);
-                const prediction = buildPrediction(train, config);
-                const count = prediction.filter(num => actual.nums.includes(num)).length;
-                if (count >= 2) {
-                    hits2 += 1;
-                }
-                if (count >= 3) {
-                    hits3 += 1;
-                }
-            }
-
-            return {
-                rate2: (hits2 / testCount) * 100,
-                rate3: (hits3 / testCount) * 100,
-                score: ((hits2 / testCount) * 100) * 3 + ((hits3 / testCount) * 100) * 8,
-                testCount,
-                hit2: hits2,
-                hit3: hits3
-            };
-        }
-
-        function findBestConfig(history) {
-            const configs = [];
-            const windowSizes = [24, 30];
-            const historyDepths = [16, 20];
-            const recencyWeights = [2.8, 3.2];
-            const omissionThresholds = [7, 9];
-            const omissionWeights = [0.20, 0.25];
-            const anchorWeights = [3.0, 4.0];
-            const nearWeights = [0.0, 0.5];
-            const evenRecoveryWeights = [0.0, 1.0];
-            const recentUnionWeights = [0.2, 0.6];
-            const pairWeights = [0.0, 0.2];
-
-            windowSizes.forEach(windowSize => {
-                historyDepths.forEach(historyDepth => {
-                    recencyWeights.forEach(recencyWeight => {
-                        omissionThresholds.forEach(omissionThreshold => {
-                            omissionWeights.forEach(omissionWeight => {
-                                anchorWeights.forEach(anchorWeight => {
-                                    nearWeights.forEach(nearWeight => {
-                                        evenRecoveryWeights.forEach(evenRecoveryWeight => {
-                                            recentUnionWeights.forEach(recentUnionWeight => {
-                                                pairWeights.forEach(pairWeight => {
-                                                    configs.push({
-                                                        windowSize,
-                                                        historyDepth: Math.min(historyDepth, windowSize),
-                                                        recencyWeight,
-                                                        omissionThreshold,
-                                                        omissionWeight,
-                                                        oddTrigger: 2,
-                                                        evenRecoveryWeight,
-                                                        nearRange: 4,
-                                                        nearWeight,
-                                                        anchorWeight,
-                                                        recentUnionWindow: 2,
-                                                        recentUnionWeight,
-                                                        pairDepth: 24,
-                                                        pairOverlap: 3,
-                                                        pairWeight
-                                                    });
-                                                });
-                                            });
-                                        });
-                                    });
-                                });
-                            });
-                        });
-                    });
-                });
-            });
-
-            let best = null;
-            configs.forEach(config => {
-                const result = evaluateConfig(history, config);
-                if (
-                    !best ||
-                    result.score > best.result.score ||
-                    (result.score === best.result.score && result.rate3 > best.result.rate3) ||
-                    (result.score === best.result.score && result.rate3 === best.result.rate3 && result.rate2 > best.result.rate2)
-                ) {
-                    best = { config, result };
-                }
-            });
-
-            return best || {
-                config: {
-                    windowSize: 30,
-                    historyDepth: 20,
-                    recencyWeight: 3.2,
-                    omissionThreshold: 7,
-                    omissionWeight: 0.25,
-                    oddTrigger: 2,
-                    evenRecoveryWeight: 0.0,
-                    nearRange: 4,
-                    nearWeight: 0.5,
-                    anchorWeight: 4.0,
-                    recentUnionWindow: 2,
-                    recentUnionWeight: 0.2,
-                    pairDepth: 24,
-                    pairOverlap: 3,
-                    pairWeight: 0.0
-                },
-                result: { rate2: 0, rate3: 0, score: 0, testCount: 0, hit2: 0, hit3: 0 }
-            };
-        }
-
-        function runBacktest(history) {
-            const best = findBestConfig(history);
-            activeConfig = best.config;
-            const results = [];
-            let hits2 = 0;
-            let hits3 = 0;
-            const testCount = Math.min(history.length - activeConfig.windowSize, MAX_BACKTEST);
-
-            for (let i = 0; i < testCount; i += 1) {
-                const actual = history[i];
-                const train = history.slice(i + 1, i + 1 + activeConfig.windowSize);
-                const prediction = buildPrediction(train, activeConfig);
-                const hitFlags = prediction.map(num => actual.nums.includes(num));
-                const count = hitFlags.filter(Boolean).length;
-
-                if (count >= 2) {
-                    hits2 += 1;
-                }
-                if (count >= 3) {
-                    hits3 += 1;
-                }
-
-                results.push({
-                    label: actual.label,
-                    actual: actual.nums,
-                    prediction,
-                    hitFlags,
-                    hits: count
-                });
-            }
-
-            const nextTrain = history.slice(0, activeConfig.windowSize);
-            const nextPred = buildPrediction(nextTrain, activeConfig);
-            const rate2 = testCount > 0 ? ((hits2 / testCount) * 100).toFixed(1) : "0.0";
-            const rate3 = testCount > 0 ? ((hits3 / testCount) * 100).toFixed(1) : "0.0";
-            updateUI(results, nextPred, rate2, rate3);
-        }
-
-        function updateUI(results, nextPred, rate2, rate3) {
-            nextPred.forEach((num, idx) => {
+        function updateUI(payload) {
+            payload.nextPrediction.forEach((num, idx) => {
                 document.getElementById(`p${idx + 1}`).innerText = formatNumber(num);
             });
 
-            document.getElementById("hitRate").innerText = `HIT RATE (2+/3+): ${rate2}% / ${rate3}%`;
-            document.getElementById("strategyMode").innerText = Number(rate3) >= 10 ? "TUNED" : "SCANNING";
-            document.getElementById("statusDot").className = "w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse";
+            document.getElementById("hitRate").innerText =
+                `2+/3+/4+/5+: ${payload.metrics.rate2.toFixed(1)} / ${payload.metrics.rate3.toFixed(1)} / ${payload.metrics.rate4.toFixed(1)} / ${payload.metrics.rate5.toFixed(1)}`;
+
+            const mode = payload.metrics.rate2 < 100
+                ? "CRITICAL"
+                : payload.metrics.rate3 > 50
+                    ? "STABLE"
+                    : "TUNED";
+            const dotClass = payload.metrics.rate2 < 100
+                ? "bg-red-500"
+                : payload.metrics.rate3 > 50
+                    ? "bg-green-500 animate-pulse"
+                    : "bg-orange-500 animate-pulse";
+            setStatus(mode, dotClass);
 
             const table = document.getElementById("historyTable");
-            table.innerHTML = results.length ? results.map(result => `
+            table.innerHTML = payload.visibleResults.length ? payload.visibleResults.map(result => `
                 <tr class="border-b border-white/5">
                     <td class="py-3 text-gray-500 font-mono">${result.label}</td>
                     <td class="font-mono text-white">${result.actual.map(formatNumber).join(" ")}</td>
@@ -448,10 +207,11 @@
             `).join("") : `<tr><td colspan="5" class="text-center py-10 text-gray-600 font-mono italic">NOT ENOUGH DATA</td></tr>`;
 
             document.getElementById("modelMeta").innerText =
-                `Model: v8.95 Strict Rolling+ | Window: ${activeConfig.windowSize} | Recency: ${activeConfig.recencyWeight.toFixed(1)} | Omit: ${activeConfig.omissionWeight.toFixed(2)} | Anchor: ${activeConfig.anchorWeight.toFixed(1)} | Union: ${activeConfig.recentUnionWeight.toFixed(1)} | Pair: ${activeConfig.pairWeight.toFixed(1)} | Samples: ${results.length}`;
+                `Model: ${payload.modelName} | Window: ${payload.config.windowSize} | Depth: ${payload.config.historyDepth} | Objective: ${payload.metrics.objective.toFixed(1)} | Full Backtest: ${payload.metrics.testCount} draws`;
 
-            addLog(`Next prediction: ${nextPred.map(formatNumber).join(", ")}`, "orange-400");
-            addLog(`Best config: W${activeConfig.windowSize} / R${activeConfig.recencyWeight.toFixed(1)} / O${activeConfig.omissionWeight.toFixed(2)} / A${activeConfig.anchorWeight.toFixed(1)} / U${activeConfig.recentUnionWeight.toFixed(1)} / P${activeConfig.pairWeight.toFixed(1)}`, "green-500");
+            addLog(`Next prediction: ${payload.nextPrediction.map(formatNumber).join(", ")}`, "orange-400");
+            addLog(`Best config: ${payload.configSummary}`, "green-500");
+            addLog(`Filters: ${payload.filterSummary}`, "gray-400");
         }
     </script>
 </body>
