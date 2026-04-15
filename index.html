@@ -94,6 +94,456 @@
         </div>
     </div>
 
+    <script id="worker-source" type="text/plain">
+const DISPLAY_ROWS = 10;
+const SLOT_COUNT = 5;
+
+self.onmessage = (event) => {
+    const { type, payload } = event.data;
+    if (type !== "analyze") {
+        return;
+    }
+
+    try {
+        const draws = payload.draws || [];
+        if (draws.length < 36) {
+            throw new Error("Need at least 36 draws for heuristic backtest.");
+        }
+
+        log("Worker started strict rolling search", "orange-500");
+        const historicalStats = buildHistoricalStats(draws);
+        const { config, metrics, results } = heuristicSearch(draws, historicalStats);
+        const nextPrediction = buildPrediction(draws.slice(0, config.windowSize), draws, config, historicalStats);
+
+        self.postMessage({
+            type: "analysis",
+            payload: {
+                modelName: "v9.10 Heuristic Worker",
+                config,
+                configSummary: summarizeConfig(config),
+                filterSummary: `AC>=6 | Sum 75-125 | OmitSum ${historicalStats.omissionSum.mean.toFixed(1)} +/- ${(historicalStats.omissionSum.stdev * 1.5).toFixed(1)} | Recent rows ${DISPLAY_ROWS}`,
+                nextPrediction,
+                metrics,
+                visibleResults: results.slice(0, DISPLAY_ROWS)
+            }
+        });
+    } catch (error) {
+        log(`Worker failed: ${error.message}`, "red-500");
+        self.postMessage({
+            type: "analysis",
+            payload: {
+                modelName: "v9.10 Heuristic Worker",
+                config: defaultConfig(),
+                configSummary: "fallback",
+                filterSummary: "worker error",
+                nextPrediction: [0, 0, 0, 0, 0],
+                metrics: { rate2: 0, rate3: 0, rate4: 0, rate5: 0, objective: 0, testCount: 0 },
+                visibleResults: []
+            }
+        });
+    }
+};
+
+function log(message, color) {
+    self.postMessage({ type: "log", payload: { message, color } });
+}
+
+function defaultConfig() {
+    return {
+        windowSize: 30,
+        historyDepth: 18,
+        recencyWeight: 2.6,
+        omissionThreshold: 7,
+        omissionWeight: 0.18,
+        velocityWeight: 1.2,
+        anchorWeight: 2.6,
+        recentUnionWeight: 0.35,
+        nearWeight: 0.45,
+        pairWeight: 0.15,
+        sumPenalty: 14,
+        acPenalty: 18,
+        omissionPenalty: 12,
+        repeatPenalty: 16
+    };
+}
+
+function heuristicSearch(draws, historicalStats) {
+    const seeds = [
+        defaultConfig(),
+        { ...defaultConfig(), windowSize: 24, historyDepth: 16, recencyWeight: 2.2, omissionWeight: 0.22, velocityWeight: 1.6 },
+        { ...defaultConfig(), windowSize: 36, historyDepth: 20, recencyWeight: 3.1, anchorWeight: 3.2, recentUnionWeight: 0.2 },
+        { ...defaultConfig(), windowSize: 30, historyDepth: 20, pairWeight: 0.3, nearWeight: 0.2, omissionPenalty: 9 },
+        { ...defaultConfig(), windowSize: 24, historyDepth: 18, recencyWeight: 2.9, recentUnionWeight: 0.55, repeatPenalty: 22 }
+    ];
+
+    let best = null;
+    let current = seeds[0];
+
+    seeds.forEach((seed, index) => {
+        log(`Evaluating seed ${index + 1}/${seeds.length}`, "gray-400");
+        const evaluation = evaluateConfig(draws, seed, historicalStats);
+        if (!best || evaluation.metrics.objective > best.metrics.objective) {
+            best = { config: seed, ...evaluation };
+            current = seed;
+        }
+    });
+
+    let step = 1;
+    for (let round = 0; round < 5; round += 1) {
+        const candidates = [];
+        for (let i = 0; i < 22; i += 1) {
+            candidates.push(mutateConfig(current, step));
+        }
+        candidates.push(current);
+
+        candidates.forEach(candidate => {
+            const evaluation = evaluateConfig(draws, candidate, historicalStats);
+            if (!best || evaluation.metrics.objective > best.metrics.objective) {
+                best = { config: candidate, ...evaluation };
+                current = candidate;
+            }
+        });
+
+        log(`Round ${round + 1}: objective ${best.metrics.objective.toFixed(1)} | 2+ ${best.metrics.rate2.toFixed(1)} | 3+ ${best.metrics.rate3.toFixed(1)}`, "green-500");
+        step *= 0.72;
+    }
+
+    return best;
+}
+
+function mutateConfig(config, step) {
+    const next = { ...config };
+    next.windowSize = clamp(snap(next.windowSize + randomSigned(12 * step), [24, 30, 36, 42]), 24, 42);
+    next.historyDepth = clamp(Math.round(next.historyDepth + randomSigned(6 * step)), 12, Math.min(24, next.windowSize));
+    next.recencyWeight = clamp(round2(next.recencyWeight + randomSigned(1.2 * step)), 1.2, 4.5);
+    next.omissionThreshold = clamp(Math.round(next.omissionThreshold + randomSigned(3 * step)), 4, 12);
+    next.omissionWeight = clamp(round2(next.omissionWeight + randomSigned(0.12 * step)), 0.0, 0.4);
+    next.velocityWeight = clamp(round2(next.velocityWeight + randomSigned(0.9 * step)), 0.0, 3.0);
+    next.anchorWeight = clamp(round2(next.anchorWeight + randomSigned(1.4 * step)), 0.0, 5.0);
+    next.recentUnionWeight = clamp(round2(next.recentUnionWeight + randomSigned(0.5 * step)), 0.0, 1.0);
+    next.nearWeight = clamp(round2(next.nearWeight + randomSigned(0.6 * step)), 0.0, 1.5);
+    next.pairWeight = clamp(round2(next.pairWeight + randomSigned(0.5 * step)), 0.0, 1.0);
+    next.sumPenalty = clamp(round2(next.sumPenalty + randomSigned(8 * step)), 4, 40);
+    next.acPenalty = clamp(round2(next.acPenalty + randomSigned(8 * step)), 4, 40);
+    next.omissionPenalty = clamp(round2(next.omissionPenalty + randomSigned(8 * step)), 4, 40);
+    next.repeatPenalty = clamp(round2(next.repeatPenalty + randomSigned(8 * step)), 4, 40);
+    return next;
+}
+
+function evaluateConfig(draws, config, historicalStats) {
+    const testCount = Math.max(0, draws.length - config.windowSize - 1);
+    let hit2 = 0;
+    let hit3 = 0;
+    let hit4 = 0;
+    let hit5 = 0;
+    const results = [];
+
+    for (let i = 0; i < testCount; i += 1) {
+        const actual = draws[i];
+        const train = draws.slice(i + 1, i + 1 + config.windowSize);
+        const prediction = buildPrediction(train, draws.slice(i + 1), config, historicalStats);
+        const hits = prediction.filter(num => actual.nums.includes(num)).length;
+
+        if (hits >= 2) hit2 += 1;
+        if (hits >= 3) hit3 += 1;
+        if (hits >= 4) hit4 += 1;
+        if (hits >= 5) hit5 += 1;
+
+        results.push({
+            label: actual.label,
+            actual: actual.nums,
+            prediction,
+            hitFlags: prediction.map(num => actual.nums.includes(num)),
+            hits
+        });
+    }
+
+    const denominator = testCount || 1;
+    const rate2 = (hit2 / denominator) * 100;
+    const rate3 = (hit3 / denominator) * 100;
+    const rate4 = (hit4 / denominator) * 100;
+    const rate5 = (hit5 / denominator) * 100;
+    const objective = (rate2 * 10) + (rate3 * 50) + (rate4 * 200);
+
+    return {
+        metrics: { rate2, rate3, rate4, rate5, objective, testCount },
+        results
+    };
+}
+
+function buildPrediction(train, allTrainHistory, config, historicalStats) {
+    const omitMap = getOmissions(train);
+    const velocities = buildVelocityMap(allTrainHistory);
+    const recentUnion = new Set();
+    train.slice(0, 3).forEach(draw => draw.nums.forEach(num => recentUnion.add(num)));
+    const overlapContext = new Set([...(train[0]?.nums || []), ...(train[1]?.nums || [])]);
+    const baseScores = new Map();
+
+    for (let n = 1; n <= 39; n += 1) {
+        baseScores.set(n, 0);
+    }
+
+    train.slice(0, config.historyDepth).forEach((draw, idx) => {
+        const weight = (config.historyDepth - idx) / config.historyDepth;
+        draw.nums.forEach(num => {
+            baseScores.set(num, baseScores.get(num) + (config.recencyWeight * weight));
+        });
+    });
+
+    for (let n = 1; n <= 39; n += 1) {
+        if (omitMap[n] > config.omissionThreshold) {
+            baseScores.set(n, baseScores.get(n) + (omitMap[n] * config.omissionWeight));
+        }
+        baseScores.set(n, baseScores.get(n) + (velocities[n] * config.velocityWeight));
+        if (recentUnion.has(n)) {
+            baseScores.set(n, baseScores.get(n) + config.recentUnionWeight);
+        }
+
+        const nearDistance = Math.min(...train[0].nums.map(value => Math.abs(value - n)));
+        if (nearDistance <= 2) {
+            baseScores.set(n, baseScores.get(n) + config.nearWeight);
+        }
+    }
+
+    for (let slot = 0; slot < SLOT_COUNT; slot += 1) {
+        const anchor = train[0].nums[slot];
+        for (let i = 1; i < train.length - 1; i += 1) {
+            if (train[i].nums[slot] === anchor) {
+                const prev = train[i - 1].nums[slot];
+                baseScores.set(prev, baseScores.get(prev) + config.anchorWeight);
+            }
+        }
+
+        for (let i = 2; i < Math.min(train.length - 1, 18); i += 1) {
+            const overlap = train[i].nums.filter(num => overlapContext.has(num)).length;
+            if (overlap >= 3) {
+                const prev = train[i - 1].nums[slot];
+                baseScores.set(prev, baseScores.get(prev) + (config.pairWeight * overlap));
+            }
+        }
+    }
+
+    let prediction = applySpatialFilters(topNumbers(baseScores, 10), baseScores, omitMap, historicalStats, train, config);
+    if (prediction.length < 5) {
+        prediction = topNumbers(baseScores, 5);
+    }
+
+    return prediction.sort((a, b) => a - b);
+}
+
+function applySpatialFilters(candidatePool, scores, omitMap, historicalStats, train, config) {
+    const ranked = candidatePool
+        .map(num => ({ num, score: scores.get(num) }))
+        .sort((a, b) => b.score - a.score || a.num - b.num);
+
+    let best = ranked.slice(0, 5).map(item => item.num).sort((a, b) => a - b);
+    let bestPenalty = evaluateSpatialPenalty(best, omitMap, historicalStats, train, config);
+
+    const combos = choose(ranked.slice(0, 9).map(item => item.num), 5);
+    combos.forEach(combo => {
+        const sorted = combo.slice().sort((a, b) => a - b);
+        const comboScore = sorted.reduce((sum, num) => sum + scores.get(num), 0);
+        const penalty = evaluateSpatialPenalty(sorted, omitMap, historicalStats, train, config);
+        const total = comboScore - penalty;
+        const bestTotal = best.reduce((sum, num) => sum + scores.get(num), 0) - bestPenalty;
+        if (total > bestTotal) {
+            best = sorted;
+            bestPenalty = penalty;
+        }
+    });
+
+    return best;
+}
+
+function evaluateSpatialPenalty(prediction, omitMap, historicalStats, train, config) {
+    let penalty = 0;
+    const sum = prediction.reduce((acc, value) => acc + value, 0);
+    const acValue = getAcValue(prediction);
+    const omissionSum = prediction.reduce((acc, value) => acc + omitMap[value], 0);
+    const repeatOverlap = getMaxRepeatOverlap(prediction, train);
+
+    if (sum < 75 || sum > 125) {
+        penalty += config.sumPenalty * (Math.abs(sum - 100) / 10);
+    }
+    if (acValue < 6) {
+        penalty += config.acPenalty * (6 - acValue);
+    }
+
+    const lower = historicalStats.omissionSum.mean - (historicalStats.omissionSum.stdev * 1.5);
+    const upper = historicalStats.omissionSum.mean + (historicalStats.omissionSum.stdev * 1.5);
+    if (omissionSum < lower || omissionSum > upper) {
+        penalty += config.omissionPenalty * (Math.abs(omissionSum - historicalStats.omissionSum.mean) / Math.max(1, historicalStats.omissionSum.stdev));
+    }
+    if (repeatOverlap >= 4) {
+        penalty += config.repeatPenalty * (repeatOverlap - 3);
+    }
+
+    return penalty;
+}
+
+function buildHistoricalStats(draws) {
+    const omissionSums = [];
+    for (let i = 0; i < draws.length - 1; i += 1) {
+        const omitMap = getOmissions(draws.slice(i + 1));
+        omissionSums.push(draws[i].nums.reduce((sum, num) => sum + omitMap[num], 0));
+    }
+
+    return {
+        omissionSum: meanStdev(omissionSums)
+    };
+}
+
+function getOmissions(history) {
+    const omit = {};
+    for (let n = 1; n <= 39; n += 1) {
+        omit[n] = 0;
+    }
+    for (let n = 1; n <= 39; n += 1) {
+        let count = 0;
+        for (const draw of history) {
+            if (draw.nums.includes(n)) {
+                break;
+            }
+            count += 1;
+        }
+        omit[n] = count;
+    }
+    return omit;
+}
+
+function buildVelocityMap(history) {
+    const out = {};
+    for (let n = 1; n <= 39; n += 1) {
+        out[n] = getOmissionVelocity(n, history);
+    }
+    return out;
+}
+
+function getOmissionVelocity(num, history) {
+    const gaps = [];
+    let currentGap = 0;
+    for (const draw of history) {
+        if (draw.nums.includes(num)) {
+            gaps.push(currentGap);
+            currentGap = 0;
+        } else {
+            currentGap += 1;
+        }
+    }
+    gaps.push(currentGap);
+    return analyzeGapPattern(gaps);
+}
+
+function analyzeGapPattern(gaps) {
+    if (gaps.length < 3) {
+        return 0;
+    }
+    const current = gaps[gaps.length - 1];
+    const prev = gaps[gaps.length - 2];
+    const prev2 = gaps[gaps.length - 3];
+    const acceleration = (current - prev) - (prev - prev2);
+    const recentMean = (prev + prev2) / 2;
+    let score = 0;
+    if (current >= recentMean) score += 0.8;
+    if (acceleration < 0) score += 0.6;
+    if (Math.abs(current - recentMean) <= 1.5) score += 0.5;
+    return score;
+}
+
+function getAcValue(numbers) {
+    const diffs = new Set();
+    for (let i = 0; i < numbers.length; i += 1) {
+        for (let j = i + 1; j < numbers.length; j += 1) {
+            diffs.add(numbers[j] - numbers[i]);
+        }
+    }
+    return diffs.size - (numbers.length - 1);
+}
+
+function getMaxRepeatOverlap(prediction, history) {
+    let maxOverlap = 0;
+    history.forEach(draw => {
+        const overlap = draw.nums.filter(num => prediction.includes(num)).length;
+        if (overlap > maxOverlap) {
+            maxOverlap = overlap;
+        }
+    });
+    return maxOverlap;
+}
+
+function topNumbers(scoreMap, count) {
+    return [...scoreMap.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0] - b[0])
+        .slice(0, count)
+        .map(item => item[0]);
+}
+
+function choose(items, size) {
+    const out = [];
+    const path = [];
+
+    function dfs(start) {
+        if (path.length === size) {
+            out.push(path.slice());
+            return;
+        }
+        for (let i = start; i < items.length; i += 1) {
+            path.push(items[i]);
+            dfs(i + 1);
+            path.pop();
+        }
+    }
+
+    dfs(0);
+    return out;
+}
+
+function meanStdev(values) {
+    if (!values.length) {
+        return { mean: 0, stdev: 1 };
+    }
+    const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+    const variance = values.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / values.length;
+    return { mean, stdev: Math.sqrt(variance) || 1 };
+}
+
+function summarizeConfig(config) {
+    return [
+        `W${config.windowSize}`,
+        `D${config.historyDepth}`,
+        `R${config.recencyWeight.toFixed(2)}`,
+        `O${config.omissionWeight.toFixed(2)}`,
+        `V${config.velocityWeight.toFixed(2)}`,
+        `A${config.anchorWeight.toFixed(2)}`
+    ].join(" / ");
+}
+
+function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+}
+
+function randomSigned(scale) {
+    return (Math.random() * 2 - 1) * scale;
+}
+
+function snap(value, options) {
+    let best = options[0];
+    let distance = Math.abs(value - best);
+    options.forEach(option => {
+        const nextDistance = Math.abs(value - option);
+        if (nextDistance < distance) {
+            best = option;
+            distance = nextDistance;
+        }
+    });
+    return best;
+}
+
+function round2(value) {
+    return Math.round(value * 100) / 100;
+}
+    </script>
+
     <script>
         const API_URL = "https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec";
         let worker = null;
@@ -122,7 +572,10 @@
             }
 
             try {
-                worker = new Worker("./8.worker.js");
+                const workerSource = document.getElementById("worker-source").textContent;
+                const blob = new Blob([workerSource], { type: "text/javascript" });
+                const workerUrl = URL.createObjectURL(blob);
+                worker = new Worker(workerUrl);
             } catch (error) {
                 addLog(`Worker init failed: ${error.message}`, "red-500");
                 setStatus("ERROR", "bg-red-500");
