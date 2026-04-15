@@ -3,85 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE EVO v8.85 TRIPLE-TRACK</title>
+    <title>ULTIMATE EVO v8.85 FIVE-PICK</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        :root { --ios-orange: #f97316; --ios-bg: #000000; --ios-panel: #1c1c1e; }
-        body { background-color: var(--ios-bg); color: #fff; font-family: -apple-system, system-ui; overflow-x: hidden; }
-        .ios-panel { background: var(--ios-panel); border-radius: 12px; }
-        .orange-glow { box-shadow: 0 0 35px rgba(249, 115, 22, 0.3); }
-        .btn-active { background: var(--ios-orange); color: #000; font-weight: 700; }
-        .btn-inactive { background: #2c2c2e; color: var(--ios-orange); }
-        #logBox { font-variant-numeric: tabular-nums; scrollbar-width: none; }
-        #logBox::-webkit-scrollbar { display: none; }
-        .hit-num { color: #fff; font-weight: 900; background: var(--ios-orange); padding: 1px 4px; border-radius: 4px; }
-        .grid-val { text-shadow: 0 0 10px rgba(249, 115, 22, 0.5); }
+        :root {
+            --ios-orange: #f97316;
+            --ios-bg: #000000;
+            --ios-panel: #1c1c1e;
+        }
+
+        body {
+            background-color: var(--ios-bg);
+            color: #fff;
+            font-family: -apple-system, system-ui, sans-serif;
+            overflow-x: hidden;
+        }
+
+        .ios-panel {
+            background: var(--ios-panel);
+            border-radius: 12px;
+        }
+
+        .orange-glow {
+            box-shadow: 0 0 35px rgba(249, 115, 22, 0.3);
+        }
+
+        .btn-active {
+            background: var(--ios-orange);
+            color: #000;
+            font-weight: 700;
+        }
+
+        #logBox {
+            font-variant-numeric: tabular-nums;
+            scrollbar-width: none;
+        }
+
+        #logBox::-webkit-scrollbar {
+            display: none;
+        }
+
+        .hit-num {
+            color: #fff;
+            font-weight: 900;
+            background: var(--ios-orange);
+            padding: 1px 4px;
+            border-radius: 4px;
+        }
+
+        .grid-val {
+            text-shadow: 0 0 10px rgba(249, 115, 22, 0.5);
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col p-4">
-
     <div class="flex justify-between items-center mb-5">
-        <h1 class="text-2xl font-black italic tracking-tighter text-orange-500">ULTIMATE <span class="text-white">EVO 8.85</span></h1>
+        <h1 class="text-2xl font-black italic tracking-tighter text-orange-500">
+            ULTIMATE <span class="text-white">EVO 8.85</span>
+        </h1>
         <div class="flex bg-[#2c2c2e] p-1 rounded-xl flex-nowrap shrink-0">
-            <button id="btnSync" onclick="fetchSheetData()" class="px-4 py-1.5 rounded-lg text-sm btn-active whitespace-nowrap">同步雲端</button>
+            <button id="btnSync" onclick="fetchSheetData()" class="px-4 py-1.5 rounded-lg text-sm btn-active whitespace-nowrap">
+                同步資料
+            </button>
         </div>
     </div>
 
     <div class="ios-panel p-4 mb-4 orange-glow border border-orange-500/50">
         <div class="flex justify-between items-end mb-2">
-            <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">Panel 1: ENGINE STATUS 數據引擎</label>
+            <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">
+                Panel 1: Engine Status
+            </label>
             <div class="flex items-center text-[10px] text-orange-500 font-bold uppercase">
-                <span id="statusDot" class="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></span> v8.85 <span id="strategyMode" class="ml-1 text-white">READY</span>
+                <span id="statusDot" class="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></span>
+                v8.85 <span id="strategyMode" class="ml-1 text-white">READY</span>
             </div>
         </div>
         <div id="logBox" class="bg-black/50 p-3 rounded-lg text-[11px] h-24 overflow-y-auto font-mono border border-white/5 leading-relaxed">
-            <span class="text-gray-500">> 系統初始化完成...</span><br>
-            <span class="text-gray-500">> 等待同步指令...</span>
+            <span class="text-gray-500">&gt; 等待同步 Google Sheet 資料...</span><br>
+            <span class="text-gray-500">&gt; 模式已切換為固定選 5 碼</span>
         </div>
     </div>
 
     <div class="ios-panel p-4 mb-4 border-t-2 border-orange-600">
-        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-3">Panel 2: HEDGING 狙擊碼位 (三軌核心)</label>
-        <div class="grid grid-cols-4 gap-2" id="predictionGrid">
+        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-3">
+            Panel 2: Prediction Grid (固定選 5 碼)
+        </label>
+        <div class="grid grid-cols-5 gap-2" id="predictionGrid">
             <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
-                <div class="text-[9px] text-orange-500 font-bold">強勢軌</div>
+                <div class="text-[9px] text-orange-500 font-bold">第 1 碼</div>
                 <div class="text-lg font-black text-white grid-val" id="p1">--</div>
             </div>
             <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
-                <div class="text-[9px] text-orange-500 font-bold">連動軌</div>
+                <div class="text-[9px] text-orange-500 font-bold">第 2 碼</div>
                 <div class="text-lg font-black text-white grid-val" id="p2">--</div>
             </div>
             <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
-                <div class="text-[9px] text-gray-400 font-bold">補償碼</div>
+                <div class="text-[9px] text-gray-400 font-bold">第 3 碼</div>
                 <div class="text-lg font-black text-white" id="p3">--</div>
             </div>
             <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
-                <div class="text-[9px] text-gray-400 font-bold">對沖碼</div>
+                <div class="text-[9px] text-gray-400 font-bold">第 4 碼</div>
                 <div class="text-lg font-black text-white" id="p4">--</div>
             </div>
             <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
-                <div class="text-[9px] text-gray-400 font-bold">冷區軌</div>
+                <div class="text-[9px] text-gray-400 font-bold">第 5 碼</div>
                 <div class="text-lg font-black text-white" id="p5">--</div>
-            </div>
-            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
-                <div class="text-[9px] text-gray-400 font-bold">尾數軌</div>
-                <div class="text-lg font-black text-white" id="p6">--</div>
-            </div>
-            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
-                <div class="text-[9px] text-gray-400 font-bold">共振軌</div>
-                <div class="text-lg font-black text-white" id="p7">--</div>
-            </div>
-            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
-                <div class="text-[9px] text-gray-400 font-bold">保險軌</div>
-                <div class="text-lg font-black text-white" id="p8">--</div>
             </div>
         </div>
     </div>
 
     <div class="ios-panel p-4 flex-grow overflow-hidden flex flex-col">
         <div class="flex justify-between items-center mb-2">
-            <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Panel 3: BACKTEST 滾動回測列表</label>
-            <div id="hitRate" class="text-[10px] font-black text-orange-500">HIT RATE: 0.0%</div>
+            <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                Panel 3: Backtest
+            </label>
+            <div id="hitRate" class="text-[10px] font-black text-orange-500">HIT RATE (3+): 0.0%</div>
         </div>
         <div class="overflow-y-auto flex-grow">
             <table class="w-full text-[12px]">
@@ -89,145 +125,204 @@
                     <tr class="text-left border-b border-white/10">
                         <th class="pb-2">日期</th>
                         <th class="pb-2">實際開獎</th>
-                        <th class="pb-2">預測組合 (8碼)</th>
-                        <th class="pb-2 text-right">星</th>
+                        <th class="pb-2">預測號碼 (5碼)</th>
+                        <th class="pb-2 text-right">命中</th>
                     </tr>
                 </thead>
                 <tbody id="historyTable" class="divide-y divide-white/5">
-                    <tr><td colspan="4" class="text-center py-10 text-gray-600 font-mono italic">NO DATA SYNCED</td></tr>
+                    <tr>
+                        <td colspan="4" class="text-center py-10 text-gray-600 font-mono italic">NO DATA SYNCED</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
     </div>
 
     <script>
-        // 設定你的 API 網址
         const API_URL = "https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec";
 
         function addLog(msg, color = "gray-500") {
-            const logBox = document.getElementById('logBox');
-            const span = document.createElement('span');
+            const logBox = document.getElementById("logBox");
+            const span = document.createElement("span");
             span.className = `text-${color}`;
-            span.innerHTML = `> ${msg}<br>`;
+            span.innerHTML = `&gt; ${msg}<br>`;
             logBox.appendChild(span);
             logBox.scrollTop = logBox.scrollHeight;
         }
 
         async function fetchSheetData() {
-            addLog("開始同步雲端數據...", "orange-500");
+            addLog("開始同步 Google Sheet...", "orange-500");
+
             try {
                 const response = await fetch(API_URL);
-                const result = await response.json();
-                const rawData = typeof result === "string" ? result : result.data;
-                
-                if (rawData) {
-                    addLog("數據獲取成功，啟動解析引擎", "green-500");
-                    processData(rawData);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
                 }
+
+                const result = await response.json();
+                const rawData =
+                    typeof result === "string"
+                        ? result
+                        : typeof result.data === "string"
+                            ? result.data
+                            : "";
+
+                if (!rawData.trim()) {
+                    throw new Error("API 沒有回傳可用資料");
+                }
+
+                addLog("同步成功，開始分析固定 5 碼模型", "green-500");
+                processData(rawData);
             } catch (error) {
-                addLog("連線異常，檢查 API 網址", "red-500");
+                addLog(`同步失敗: ${error.message}`, "red-500");
+                document.getElementById("strategyMode").innerText = "ERROR";
+                document.getElementById("statusDot").className = "w-2 h-2 bg-red-500 rounded-full mr-1";
             }
         }
 
         function processData(raw) {
-            const lines = raw.split(/\r?\n/).filter(line => line.trim() && !line.toLowerCase().includes('date'));
-            let history = lines.map(line => {
-                const tokens = line.trim().split(/\s+/);
-                return {
-                    date: tokens[0],
-                    nums: tokens.slice(-5).map(Number).sort((a,b)=>a-b)
-                };
-            });
+            const lines = raw
+                .split(/\r?\n/)
+                .map((line) => line.trim())
+                .filter((line) => line && !/^date\b/i.test(line));
 
-            // 確保日期由新到舊
+            const history = lines
+                .map((line) => {
+                    const tokens = line.split(/\s+/);
+                    const date = tokens[0];
+                    const nums = tokens.slice(-5).map(Number).sort((a, b) => a - b);
+
+                    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+                        return null;
+                    }
+
+                    if (nums.length !== 5 || nums.some((num) => !Number.isInteger(num) || num < 1 || num > 39)) {
+                        return null;
+                    }
+
+                    if (new Set(nums).size !== 5) {
+                        return null;
+                    }
+
+                    return { date, nums };
+                })
+                .filter(Boolean);
+
             history.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-            // 更新 UI
+            if (history.length < 11) {
+                addLog("資料不足，至少需要 11 期才能回測", "red-500");
+                return;
+            }
+
             runBacktest(history);
         }
 
-        // --- Triple-Track v8.85 演算法核心 ---
         function getUnifiedLogic(historyWindow) {
-            // 路徑 A：熱度與鄰碼
-            let scores = Array(40).fill(0);
-            historyWindow.slice(0, 10).forEach((h, idx) => {
-                h.nums.forEach(n => {
-                    scores[n] += (10 - idx) * 2; // 越近期分數越高
-                    if (n > 1) scores[n-1] += 2;
-                    if (n < 39) scores[n+1] += 2;
+            const scores = Array(40).fill(0);
+            const gapScores = Array(40).fill(0);
+            const tailMap = Array(10).fill(0);
+
+            historyWindow.slice(0, 10).forEach((draw, idx) => {
+                draw.nums.forEach((num) => {
+                    scores[num] += (10 - idx) * 2;
+                    if (num > 1) {
+                        scores[num - 1] += 2;
+                    }
+                    if (num < 39) {
+                        scores[num + 1] += 2;
+                    }
                 });
             });
 
-            // 路徑 B：遺漏震盪
-            let gapScores = Array(40).fill(0);
-            for(let i=1; i<=39; i++) {
+            for (let num = 1; num <= 39; num += 1) {
                 let gap = 0;
-                for(let h of historyWindow) {
-                    if(h.nums.includes(i)) break;
-                    gap++;
+                for (const draw of historyWindow) {
+                    if (draw.nums.includes(num)) {
+                        break;
+                    }
+                    gap += 1;
                 }
-                if(gap > 5 && gap < 15) gapScores[i] += gap * 3;
+                if (gap > 5 && gap < 15) {
+                    gapScores[num] += gap * 3;
+                }
             }
 
-            // 路徑 C：尾數強度
-            let tailMap = Array(10).fill(0);
-            historyWindow.slice(0, 5).forEach(h => h.nums.forEach(n => tailMap[n%10]++));
+            historyWindow.slice(0, 5).forEach((draw) => {
+                draw.nums.forEach((num) => {
+                    tailMap[num % 10] += 1;
+                });
+            });
 
-            // 合流計算
-            let final = [];
-            for(let i=1; i<=39; i++) {
-                let total = scores[i] + gapScores[i] + (tailMap[i%10] * 5);
-                final.push({ num: i, score: total });
+            const ranked = [];
+            for (let num = 1; num <= 39; num += 1) {
+                const total = scores[num] + gapScores[num] + tailMap[num % 10] * 5;
+                ranked.push({ num, score: total });
             }
 
-            return final.sort((a,b) => b.score - a.score)
-                        .slice(0, 8)
-                        .map(x => x.num)
-                        .sort((a,b) => a-b);
+            return ranked
+                .sort((a, b) => {
+                    if (b.score !== a.score) {
+                        return b.score - a.score;
+                    }
+                    return a.num - b.num;
+                })
+                .slice(0, 5)
+                .map((item) => item.num)
+                .sort((a, b) => a - b);
         }
 
         function runBacktest(history) {
             let stars3Plus = 0;
             let rowsHtml = "";
-            const testRange = Math.min(history.length - 10, 15); // 回測最近 15 期
+            const testRange = Math.min(history.length - 10, 15);
 
-            for (let i = 0; i < testRange; i++) {
+            for (let i = 0; i < testRange; i += 1) {
                 const trainData = history.slice(i + 1);
                 const actual = history[i].nums;
                 const prediction = getUnifiedLogic(trainData);
-                const hits = actual.filter(n => prediction.includes(n));
+                const hits = actual.filter((num) => prediction.includes(num));
                 const hitCount = hits.length;
 
-                if (hitCount >= 3) stars3Plus++;
+                if (hitCount >= 3) {
+                    stars3Plus += 1;
+                }
 
-                const predHtml = prediction.map(p => {
-                    const pStr = p.toString().padStart(2, '0');
-                    return actual.includes(p) ? `<span class="hit-num">${pStr}</span>` : pStr;
-                }).join(',');
+                const predHtml = prediction
+                    .map((num) => {
+                        const text = num.toString().padStart(2, "0");
+                        return actual.includes(num) ? `<span class="hit-num">${text}</span>` : text;
+                    })
+                    .join(",");
 
                 rowsHtml += `
                     <tr class="border-b border-white/5">
                         <td class="py-3 text-gray-500 font-mono">${history[i].date.slice(5)}</td>
-                        <td class="font-mono text-white">${actual.map(n => n.toString().padStart(2, '0')).join(' ')}</td>
+                        <td class="font-mono text-white">${actual.map((num) => num.toString().padStart(2, "0")).join(" ")}</td>
                         <td class="text-[11px] text-gray-400 font-mono">${predHtml}</td>
-                        <td class="text-right font-black ${hitCount >= 3 ? 'text-orange-500' : (hitCount >= 2 ? 'text-white' : 'text-gray-700')}">${hitCount}</td>
+                        <td class="text-right font-black ${hitCount >= 3 ? "text-orange-500" : hitCount >= 2 ? "text-white" : "text-gray-700"}">${hitCount}</td>
                     </tr>
                 `;
             }
 
-            // 更新預測顯示 (下一期)
             const nextPred = getUnifiedLogic(history);
-            nextPred.forEach((num, idx) => {
-                document.getElementById(`p${idx + 1}`).innerText = num.toString().padStart(2, '0');
-            });
+            for (let index = 0; index < 5; index += 1) {
+                document.getElementById(`p${index + 1}`).innerText = nextPred[index].toString().padStart(2, "0");
+            }
 
-            // 更新數據
-            document.getElementById('historyTable').innerHTML = rowsHtml;
-            const rate = ((stars3Plus / testRange) * 100).toFixed(1);
-            document.getElementById('hitRate').innerText = `HIT RATE (3+): ${rate}%`;
-            document.getElementById('strategyMode').innerText = rate > 20 ? 'AGGRESSIVE' : 'SEARCHING';
-            
-            addLog(`回測完成: 3星命中率 ${rate}%`, "green-500");
+            document.getElementById("historyTable").innerHTML = rowsHtml || `
+                <tr>
+                    <td colspan="4" class="text-center py-10 text-gray-600 font-mono italic">NOT ENOUGH DATA</td>
+                </tr>
+            `;
+
+            const rate = testRange > 0 ? ((stars3Plus / testRange) * 100).toFixed(1) : "0.0";
+            document.getElementById("hitRate").innerText = `HIT RATE (3+): ${rate}%`;
+            document.getElementById("strategyMode").innerText = Number(rate) > 20 ? "AGGRESSIVE" : "SEARCHING";
+            document.getElementById("statusDot").className = "w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse";
+
+            addLog(`固定 5 碼回測完成，3 星命中率 ${rate}%`, "green-500");
+            addLog(`下一期推薦: ${nextPred.map((num) => num.toString().padStart(2, "0")).join(" ")}`, "orange-400");
         }
     </script>
 </body>
