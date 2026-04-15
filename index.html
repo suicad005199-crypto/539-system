@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE EVO v8.88 SLOT ENGINE</title>
+    <title>ULTIMATE EVO v8.95 SLOT ENGINE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root { --ios-orange: #f97316; --ios-bg: #000000; --ios-panel: #1c1c1e; }
@@ -23,7 +23,7 @@
 <body class="min-h-screen flex flex-col p-4">
     <div class="flex justify-between items-center mb-5">
         <h1 class="text-2xl font-black italic tracking-tighter text-orange-500">
-            ULTIMATE <span class="text-white">EVO 8.88</span>
+            ULTIMATE <span class="text-white">EVO 8.95</span>
         </h1>
         <div class="flex bg-[#2c2c2e] p-1 rounded-xl flex-nowrap shrink-0">
             <button id="btnSync" onclick="fetchSheetData()" class="px-4 py-1.5 rounded-lg text-sm btn-active whitespace-nowrap">同步資料</button>
@@ -35,16 +35,16 @@
             <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">Panel 1: Engine Status</label>
             <div class="flex items-center text-[10px] text-orange-500 font-bold uppercase">
                 <span id="statusDot" class="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></span>
-                v8.88 <span id="strategyMode" class="ml-1 text-white">READY</span>
+                v8.95 <span id="strategyMode" class="ml-1 text-white">READY</span>
             </div>
         </div>
         <div id="logBox" class="bg-black/50 p-3 rounded-lg text-[11px] h-24 overflow-y-auto font-mono border border-white/5 leading-relaxed">
-            <span class="text-gray-500">&gt; 等待同步 Google Sheet 資料...</span><br>
+            <span class="text-gray-500">&gt; 初始化運算引擎...</span><br>
         </div>
     </div>
 
     <div class="ios-panel p-4 mb-4 border-t-2 border-orange-600">
-        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-3">Panel 2: Prediction Grid (優化權重)</label>
+        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-3">Panel 2: Prediction Grid (混合路徑分析)</label>
         <div class="grid grid-cols-5 gap-2" id="predictionGrid">
             <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
                 <div class="text-[9px] text-orange-500 font-bold">Slot 1</div>
@@ -86,17 +86,14 @@
                         <th class="pb-2 text-right">命中</th>
                     </tr>
                 </thead>
-                <tbody id="historyTable" class="divide-y divide-white/5">
-                    <tr><td colspan="5" class="text-center py-10 text-gray-600 font-mono italic">NO DATA SYNCED</td></tr>
-                </tbody>
+                <tbody id="historyTable" class="divide-y divide-white/5"></tbody>
             </table>
         </div>
     </div>
 
     <script>
         const API_URL = "https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec";
-        const SLOT_COUNT = 5, WINDOW_SIZE = 15, MAX_BACKTEST = 30;
-        const ZONES = [{ label: "01-12", min: 1, max: 12 }, { label: "13-24", min: 13, max: 24 }, { label: "25-39", min: 25, max: 39 }];
+        const SLOT_COUNT = 5, WINDOW_SIZE = 18, MAX_BACKTEST = 25;
 
         function addLog(msg, color = "gray-500") {
             const logBox = document.getElementById("logBox");
@@ -110,17 +107,15 @@
         function formatNumber(num) { return String(num).padStart(2, "0"); }
 
         async function fetchSheetData() {
-            addLog("連線至核心服務...", "orange-500");
+            addLog("正在提取雲端數據鏈...", "orange-500");
             try {
                 const response = await fetch(API_URL);
                 const result = await response.json();
                 const rawData = typeof result === "string" ? result : (result.data || "");
-                if (!rawData.trim()) throw new Error("EMPTY_DATA");
-                addLog("同步成功，注入運算模型 v8.88", "green-500");
+                if (!rawData.trim()) throw new Error("DATA_NULL");
+                addLog("數據注入完成，啟動 v8.95 強化邏輯", "green-500");
                 processData(rawData);
-            } catch (error) {
-                addLog(`同步失敗: ${error.message}`, "red-500");
-            }
+            } catch (e) { addLog(`失敗: ${e.message}`, "red-500"); }
         }
 
         function processData(raw) {
@@ -128,60 +123,78 @@
             const draws = lines.map((line, idx) => {
                 const t = line.split(/\s+/);
                 const nums = t.slice(-5).map(Number);
-                return (nums.length === 5 && !nums.some(isNaN)) ? { label: t[0].includes('-') ? t[0] : `P-${idx}`, nums } : null;
+                return (nums.length === 5) ? { label: t[0], nums } : null;
             }).filter(Boolean).reverse();
             runBacktest(draws);
         }
 
-        // --- 核心優化邏輯 ---
-        function getSlotHotness(history, slot) {
-            const counts = {};
-            history.forEach(d => { counts[d.nums[slot]] = (counts[d.nums[slot]] || 0) + 1; });
-            return counts;
+        // --- v8.95 策略引擎核心 ---
+        function getOmissions(history) {
+            const omit = {};
+            for (let n = 1; n <= 39; n++) omit[n] = 0;
+            for (let n = 1; n <= 39; n++) {
+                let count = 0;
+                for (let d of history) {
+                    if (d.nums.includes(n)) break;
+                    count++;
+                }
+                omit[n] = count;
+            }
+            return omit;
         }
 
         function buildPrediction(history, fullHistory) {
             const pred = [];
             const used = new Set();
+            const omitMap = getOmissions(history);
 
             for (let s = 0; s < SLOT_COUNT; s++) {
                 const scores = {};
                 for (let n = 1; n <= 39; n++) scores[n] = 0;
 
-                // 1. 位置熱度 (Slot specific frequency)
-                const hotness = getSlotHotness(history.slice(0, 20), s);
-                Object.keys(hotness).forEach(n => scores[n] += hotness[n] * 2.5);
-
-                // 2. 尾數趨勢 (Tail trend)
-                const lastTail = history[0].nums[s] % 10;
-                history.slice(0, 10).forEach(d => {
-                    if (d.nums[s] % 10 === lastTail) scores[d.nums[s]] += 1.8;
+                // 1. 位置與遺漏權重 (Omission + Slot Freq)
+                history.slice(0, 20).forEach((d, idx) => {
+                    const weight = (20 - idx) / 20; // 近期權重更高
+                    scores[d.nums[s]] += 3.5 * weight;
                 });
 
-                // 3. 鄰號修正 (Neighbor numbers)
-                const lastVal = history[0].nums[s];
-                [lastVal-1, lastVal+1].forEach(n => { if(n>=1 && n<=39) scores[n] += 1.2; });
+                // 2. 遺漏值回補 (長久不出的號碼權重微升)
+                Object.keys(omitMap).forEach(n => {
+                    if (omitMap[n] > 8) scores[n] += (omitMap[n] * 0.15);
+                });
 
-                // 4. 模式克隆 (Pattern Clone - 降低閾值)
-                const pattern = history.slice(0, 2).map(d => d.nums[s]);
-                for (let i = 2; i < fullHistory.length - 1; i++) {
-                    if (fullHistory[i].nums[s] === pattern[0] && fullHistory[i+1].nums[s] === pattern[1]) {
-                        const nextVal = fullHistory[i-1]?.nums[s];
-                        if (nextVal) scores[nextVal] += 4.0;
+                // 3. 轉移矩陣 (基於上期的數值預測下期區間)
+                const lastVal = history[0].nums[s];
+                const lastOdd = lastVal % 2 !== 0;
+                const lastBig = lastVal > 19;
+
+                // 根據歷史統計，若連續多期奇數，則偶數權重增加
+                let consecutiveOdd = 0;
+                for(let d of history) { if(d.nums[s] % 2 !== 0) consecutiveOdd++; else break; }
+                for (let n = 1; n <= 39; n++) {
+                    if (consecutiveOdd >= 3 && n % 2 === 0) scores[n] += 2.0;
+                    if (Math.abs(n - lastVal) <= 3) scores[n] += 1.5; // 鄰近波段
+                }
+
+                // 4. 模式深度掃描 (Deep Pattern)
+                const anchor = history[0].nums[s];
+                for (let i = 1; i < fullHistory.length - 2; i++) {
+                    if (fullHistory[i].nums[s] === anchor) {
+                        const potential = fullHistory[i-1].nums[s];
+                        scores[potential] += 4.5; // 歷史重複路徑權重最高
                     }
                 }
 
-                // 排序並過濾重複
                 const sorted = Object.entries(scores)
-                    .map(([num, score]) => ({ num: parseInt(num), score }))
-                    .sort((a, b) => b.score - a.score);
+                    .map(([n, s]) => ({ n: parseInt(n), s }))
+                    .sort((a, b) => b.s - a.s);
 
-                let pick = sorted.find(item => !used.has(item.num));
-                if (!pick) pick = sorted[0];
-                pred.push(pick.num);
-                used.add(pick.num);
+                let pick = sorted.find(x => !used.has(x.n)) || sorted[0];
+                pred.push(pick.n);
+                used.add(pick.n);
             }
-            return pred;
+            // 排序輸出，符合一般的 Slot 展示習慣
+            return pred.sort((a, b) => a - b);
         }
 
         function runBacktest(history) {
@@ -193,7 +206,7 @@
                 const actual = history[i];
                 const train = history.slice(i + 1);
                 const prediction = buildPrediction(train.slice(0, WINDOW_SIZE), history);
-                const slotHits = prediction.map((p, idx) => p === actual.nums[idx]);
+                const slotHits = prediction.map(p => actual.nums.includes(p));
                 const count = slotHits.filter(Boolean).length;
                 if (count >= 3) hits3++;
                 results.push({ label: actual.label, actual: actual.nums, prediction, slotHits, hits: count });
@@ -206,21 +219,24 @@
         function updateUI(results, nextPred, rate) {
             nextPred.forEach((n, i) => document.getElementById(`p${i+1}`).innerText = formatNumber(n));
             document.getElementById("hitRate").innerText = `HIT RATE (3+): ${rate}%`;
-            document.getElementById("strategyMode").innerText = rate > 15 ? "STABLE" : "SCANNING";
+            document.getElementById("strategyMode").innerText = rate > 20 ? "LOCKED" : "ANALYZING";
             
             const table = document.getElementById("historyTable");
             table.innerHTML = results.map(r => `
                 <tr class="border-b border-white/5">
-                    <td class="py-3 text-gray-500 font-mono">${r.label.slice(-5)}</td>
+                    <td class="py-3 text-gray-500 font-mono">${r.label.includes('-') ? r.label.split('-')[1] : r.label.slice(-3)}</td>
                     <td class="font-mono text-white">${r.actual.map(formatNumber).join(" ")}</td>
-                    <td class="text-[11px] text-gray-400 font-mono">${r.prediction.map((p, i) => r.slotHits[i] ? `<span class="hit-num">${formatNumber(p)}</span>` : formatNumber(p)).join(" ")}</td>
-                    <td>${r.slotHits.map((h, i) => `<span class="slot-dot ${h ? 'slot-hit' : 'slot-miss'}">${i+1}</span>`).join("")}</td>
-                    <td class="text-right font-black ${r.hits >= 3 ? 'text-orange-500' : 'text-gray-500'}">${r.hits}</td>
+                    <td class="text-[11px] text-gray-400 font-mono">${r.prediction.map((p, i) => r.actual.includes(p) ? `<span class="hit-num">${formatNumber(p)}</span>` : formatNumber(p)).join(" ")}</td>
+                    <td>${r.prediction.map((p) => {
+                        const isHit = r.actual.includes(p);
+                        return `<span class="slot-dot ${isHit ? 'slot-hit' : 'slot-miss'}">●</span>`;
+                    }).join("")}</td>
+                    <td class="text-right font-black ${r.hits >= 3 ? 'text-orange-500' : 'text-gray-600'}">${r.hits}</td>
                 </tr>
             `).join("");
 
-            document.getElementById("modelMeta").innerText = `Model: Elastic Frequency | Depth: ${WINDOW_SIZE} | Samples: ${results.length}`;
-            addLog(`預測更新: ${nextPred.map(formatNumber).join(", ")}`, "orange-400");
+            document.getElementById("modelMeta").innerText = `v8.95 | Omission Compensated | Pattern Depth: ${WINDOW_SIZE}`;
+            addLog(`預測更新完成，當前命中率期望值: ${rate}%`, "orange-400");
         }
     </script>
 </body>
