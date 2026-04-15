@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE EVO v8.85 FIVE-PICK</title>
+    <title>ULTIMATE EVO v8.86 SLOT ENGINE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root {
@@ -81,7 +81,7 @@
 <body class="min-h-screen flex flex-col p-4">
     <div class="flex justify-between items-center mb-5">
         <h1 class="text-2xl font-black italic tracking-tighter text-orange-500">
-            ULTIMATE <span class="text-white">EVO 8.85</span>
+            ULTIMATE <span class="text-white">EVO 8.86</span>
         </h1>
         <div class="flex bg-[#2c2c2e] p-1 rounded-xl flex-nowrap shrink-0">
             <button id="btnSync" onclick="fetchSheetData()" class="px-4 py-1.5 rounded-lg text-sm btn-active whitespace-nowrap">
@@ -97,12 +97,12 @@
             </label>
             <div class="flex items-center text-[10px] text-orange-500 font-bold uppercase">
                 <span id="statusDot" class="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></span>
-                v8.85 <span id="strategyMode" class="ml-1 text-white">READY</span>
+                v8.86 <span id="strategyMode" class="ml-1 text-white">READY</span>
             </div>
         </div>
         <div id="logBox" class="bg-black/50 p-3 rounded-lg text-[11px] h-24 overflow-y-auto font-mono border border-white/5 leading-relaxed">
             <span class="text-gray-500">&gt; 等待同步 Google Sheet 資料...</span><br>
-            <span class="text-gray-500">&gt; 已切換為 Slot 1~5 原始順序分析模式</span>
+            <span class="text-gray-500">&gt; 目前模式：Slot 1~5 原始順序分析</span>
         </div>
     </div>
 
@@ -216,7 +216,7 @@
                     throw new Error("API 沒有回傳可用資料");
                 }
 
-                addLog("同步成功，開始分析 Slot 模式模型", "green-500");
+                addLog("同步成功，開始重新建立 Slot 模型", "green-500");
                 processData(rawData);
             } catch (error) {
                 addLog(`同步失敗: ${error.message}`, "red-500");
@@ -282,12 +282,12 @@
             return ZONES.findIndex((zone) => num >= zone.min && num <= zone.max);
         }
 
-        function getDrawDelta(draw) {
-            const delta = [];
+        function getDrawDelta(nums) {
+            const deltas = [];
             for (let i = 0; i < SLOT_COUNT - 1; i += 1) {
-                delta.push(draw.nums[i + 1] - draw.nums[i]);
+                deltas.push(nums[i + 1] - nums[i]);
             }
-            return delta;
+            return deltas;
         }
 
         function getOffsetFromPrevious(history, index) {
@@ -298,18 +298,13 @@
             return history[index].nums.map((num, slot) => num - history[index + 1].nums[slot]);
         }
 
-        function buildForbiddenPatterns(history) {
+        function buildObservedPatterns(history) {
             const oddEvenSet = new Set();
             const gapSet = new Set();
 
             history.forEach((draw) => {
-                const oddEven = draw.nums.map((num) => (num % 2 === 0 ? "E" : "O")).join("");
-                const gapPattern = getDrawDelta(draw)
-                    .map((delta) => Math.max(-9, Math.min(9, delta)))
-                    .join(",");
-
-                oddEvenSet.add(oddEven);
-                gapSet.add(gapPattern);
+                oddEvenSet.add(draw.nums.map((num) => (num % 2 === 0 ? "E" : "O")).join(""));
+                gapSet.add(getDrawDelta(draw.nums).map((delta) => Math.max(-9, Math.min(9, delta))).join(","));
             });
 
             return { oddEvenSet, gapSet };
@@ -322,9 +317,9 @@
 
             historyWindow.forEach((draw) => {
                 for (let slot = 0; slot < SLOT_COUNT - 1; slot += 1) {
-                    const tailA = draw.nums[slot] % 10;
-                    const tailB = draw.nums[slot + 1] % 10;
-                    chains[slot][tailA][tailB] += 1;
+                    const currentTail = draw.nums[slot] % 10;
+                    const nextTail = draw.nums[slot + 1] % 10;
+                    chains[slot][currentTail][nextTail] += 1;
                 }
             });
 
@@ -334,7 +329,7 @@
         function buildFingerprints(historyWindow) {
             return historyWindow.map((draw, index) => ({
                 index,
-                delta: getDrawDelta(draw),
+                delta: getDrawDelta(draw.nums),
                 offset: getOffsetFromPrevious(historyWindow, index)
             }));
         }
@@ -355,7 +350,6 @@
 
         function calculateSequenceSimilarity(recent, candidate) {
             let score = 0;
-
             for (let i = 0; i < recent.length; i += 1) {
                 if (recent[i] === candidate[i]) {
                     score += 1;
@@ -367,7 +361,6 @@
                     score += 0.25;
                 }
             }
-
             return score / recent.length;
         }
 
@@ -387,7 +380,7 @@
                 }
 
                 const similarity = calculateSequenceSimilarity(recentFlat, flattenWindow(candidateWindow));
-                if (similarity >= 0.7) {
+                if (similarity >= 0.62) {
                     clones.push({
                         similarity,
                         nextDraw: allHistory[start - 1]
@@ -395,48 +388,50 @@
                 }
             }
 
-            return clones.sort((a, b) => b.similarity - a.similarity).slice(0, 6);
+            return clones.sort((a, b) => b.similarity - a.similarity).slice(0, 8);
         }
 
-        function scoreSlot(slot, historyWindow, allHistory, fingerprints, endingChains, clones) {
+        function scoreSlotCandidates(slot, historyWindow, fingerprints, endingChains, clones) {
             const scoreMap = new Map();
             const slotSeries = historyWindow.map((draw) => draw.nums[slot]);
+            const currentValue = slotSeries[0];
 
             for (let num = 1; num <= 39; num += 1) {
                 scoreMap.set(num, 0);
             }
 
-            const recentZoneCounts = Array(ZONES.length).fill(0);
+            const zoneCounts = Array(ZONES.length).fill(0);
             slotSeries.slice(0, 6).forEach((num) => {
-                recentZoneCounts[getZoneIndex(num)] += 1;
+                zoneCounts[getZoneIndex(num)] += 1;
             });
-            const dominantZone = recentZoneCounts.indexOf(Math.max(...recentZoneCounts));
+            const dominantZone = zoneCounts.indexOf(Math.max(...zoneCounts));
 
             for (let num = 1; num <= 39; num += 1) {
                 const zoneIndex = getZoneIndex(num);
                 if (zoneIndex === dominantZone) {
-                    scoreMap.set(num, scoreMap.get(num) + 18);
+                    scoreMap.set(num, scoreMap.get(num) + 12);
                 }
-
-                const zoneMomentum = slotSeries.slice(0, 10).filter((value) => getZoneIndex(value) === zoneIndex).length;
-                scoreMap.set(num, scoreMap.get(num) + zoneMomentum * 2);
             }
 
-            slotSeries.slice(0, 10).forEach((num, idx) => {
-                scoreMap.set(num, scoreMap.get(num) + (10 - idx) * 2.4);
+            slotSeries.slice(0, 8).forEach((num, idx) => {
+                scoreMap.set(num, scoreMap.get(num) + (8 - idx) * 2.2);
             });
+
+            for (let num = 1; num <= 39; num += 1) {
+                scoreMap.set(num, scoreMap.get(num) + Math.max(0, 8 - Math.abs(num - currentValue)) * 0.65);
+            }
 
             const currentFingerprint = fingerprints[0];
             fingerprints.slice(1).forEach((fingerprint) => {
                 const deltaMatch = compareVectors(currentFingerprint.delta, fingerprint.delta, 1);
                 const offsetMatch = compareVectors(currentFingerprint.offset, fingerprint.offset, 2);
-                const weight = deltaMatch * 16 + offsetMatch * 12;
+                const weight = deltaMatch * 10 + offsetMatch * 8;
 
-                if (weight > 10 && fingerprint.index > 0) {
+                if (weight > 7 && fingerprint.index > 0) {
                     const followUp = historyWindow[fingerprint.index - 1];
                     if (followUp) {
-                        const followNum = followUp.nums[slot];
-                        scoreMap.set(followNum, scoreMap.get(followNum) + weight);
+                        const candidate = followUp.nums[slot];
+                        scoreMap.set(candidate, scoreMap.get(candidate) + weight);
                     }
                 }
             });
@@ -444,50 +439,56 @@
             if (slot > 0) {
                 const prevTail = historyWindow[0].nums[slot - 1] % 10;
                 const tailCounts = endingChains[slot - 1][prevTail];
-
                 for (let num = 1; num <= 39; num += 1) {
-                    scoreMap.set(num, scoreMap.get(num) + tailCounts[num % 10] * 1.8);
+                    scoreMap.set(num, scoreMap.get(num) + tailCounts[num % 10] * 1.3);
                 }
             }
 
-            clones.forEach((clone) => {
-                if (clone.nextDraw) {
-                    const cloneNum = clone.nextDraw.nums[slot];
-                    scoreMap.set(cloneNum, scoreMap.get(cloneNum) + clone.similarity * 28);
+            clones.forEach((clone, idx) => {
+                if (!clone.nextDraw) {
+                    return;
                 }
+                const weight = (clone.similarity * 16) / (idx + 1);
+                const candidate = clone.nextDraw.nums[slot];
+                scoreMap.set(candidate, scoreMap.get(candidate) + weight);
             });
-
-            const currentValue = historyWindow[0].nums[slot];
-            for (let num = 1; num <= 39; num += 1) {
-                scoreMap.set(num, scoreMap.get(num) + Math.max(0, 10 - Math.abs(num - currentValue)) * 0.45);
-            }
 
             const ranked = [];
             for (let num = 1; num <= 39; num += 1) {
                 ranked.push({ num, score: scoreMap.get(num) });
             }
 
-            return ranked.sort((a, b) => b.score - a.score).slice(0, 8);
+            return ranked.sort((a, b) => {
+                if (b.score !== a.score) {
+                    return b.score - a.score;
+                }
+                return a.num - b.num;
+            }).slice(0, 6);
         }
 
-        function passesPruning(sequence, forbiddenPatterns) {
+        function getPrunePenalty(sequence, observedPatterns) {
+            let penalty = 0;
             const oddEven = sequence.map((num) => (num % 2 === 0 ? "E" : "O")).join("");
-            const gapPattern = sequence
-                .slice(0, SLOT_COUNT - 1)
-                .map((_, index) => Math.max(-9, Math.min(9, sequence[index + 1] - sequence[index])))
-                .join(",");
+            const gapPattern = getDrawDelta(sequence).map((delta) => Math.max(-9, Math.min(9, delta))).join(",");
 
-            return forbiddenPatterns.oddEvenSet.has(oddEven) && forbiddenPatterns.gapSet.has(gapPattern);
+            if (!observedPatterns.oddEvenSet.has(oddEven)) {
+                penalty += 12;
+            }
+            if (!observedPatterns.gapSet.has(gapPattern)) {
+                penalty += 16;
+            }
+
+            return penalty;
         }
 
-        function buildPrediction(historyWindow, allHistory, forbiddenPatterns) {
+        function buildPrediction(historyWindow, allHistory, observedPatterns) {
             const fingerprints = buildFingerprints(historyWindow);
             const endingChains = buildEndingChains(historyWindow);
             const clones = findPatternClones(historyWindow, allHistory);
             const slotCandidates = [];
 
             for (let slot = 0; slot < SLOT_COUNT; slot += 1) {
-                slotCandidates.push(scoreSlot(slot, historyWindow, allHistory, fingerprints, endingChains, clones));
+                slotCandidates.push(scoreSlotCandidates(slot, historyWindow, fingerprints, endingChains, clones));
             }
 
             let beam = [{ sequence: [], score: 0, used: new Set() }];
@@ -507,26 +508,31 @@
 
                         let score = state.score + candidate.score;
                         if (slotIndex > 0) {
-                            score -= Math.abs(sequence[slotIndex] - sequence[slotIndex - 1]) * 0.25;
+                            score -= Math.abs(sequence[slotIndex] - sequence[slotIndex - 1]) * 0.18;
                         }
 
                         nextBeam.push({ sequence, score, used });
                     });
                 });
 
-                beam = nextBeam.sort((a, b) => b.score - a.score).slice(0, 48);
+                beam = nextBeam.sort((a, b) => b.score - a.score).slice(0, 40);
             });
 
-            const pruned = beam.filter((state) => passesPruning(state.sequence, forbiddenPatterns));
-            const best = (pruned.length ? pruned : beam)[0];
+            const scoredBeam = beam.map((state) => ({
+                ...state,
+                score: state.score - getPrunePenalty(state.sequence, observedPatterns)
+            }));
+
+            const best = scoredBeam.sort((a, b) => b.score - a.score)[0];
 
             return {
                 sequence: best.sequence,
                 slotCandidates,
                 cloneCount: clones.length,
-                zoneText: slotCandidates
-                    .map((candidates, slot) => `S${slot + 1}:${ZONES[getZoneIndex(candidates[0].num)].label}`)
-                    .join(" | ")
+                zoneText: slotCandidates.map((candidates, slot) => {
+                    const bestNum = candidates[0].num;
+                    return `S${slot + 1}:${ZONES[getZoneIndex(bestNum)].label}`;
+                }).join(" | ")
             };
         }
 
@@ -557,7 +563,7 @@
         }
 
         function runBacktest(history) {
-            const forbiddenPatterns = buildForbiddenPatterns(history);
+            const observedPatterns = buildObservedPatterns(history);
             const results = [];
             let stars3Plus = 0;
             const slotTotals = Array(SLOT_COUNT).fill(0);
@@ -570,7 +576,7 @@
                     continue;
                 }
 
-                const prediction = buildPrediction(trainWindow, history.slice(i + 1), forbiddenPatterns);
+                const prediction = buildPrediction(trainWindow, history.slice(i + 1), observedPatterns);
                 const slotHits = prediction.sequence.map((num, slot) => num === actual.nums[slot]);
                 const hitCount = slotHits.filter(Boolean).length;
 
@@ -593,13 +599,13 @@
                 });
             }
 
-            const nextPrediction = buildPrediction(history.slice(0, WINDOW_SIZE), history, forbiddenPatterns);
+            const nextPrediction = buildPrediction(history.slice(0, WINDOW_SIZE), history, observedPatterns);
             updatePredictionGrid(nextPrediction.sequence);
             renderBacktestRows(results);
 
             const rate = results.length ? ((stars3Plus / results.length) * 100).toFixed(1) : "0.0";
             document.getElementById("hitRate").innerText = `HIT RATE (3+): ${rate}%`;
-            document.getElementById("strategyMode").innerText = Number(rate) >= 50 ? "PATTERN LOCK" : "SEARCHING";
+            document.getElementById("strategyMode").innerText = Number(rate) >= 20 ? "LOCKED" : "SEARCHING";
             document.getElementById("statusDot").className = "w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse";
 
             const slotRates = slotTotals
@@ -610,9 +616,8 @@
                 `Zone bias: ${nextPrediction.zoneText} | Pattern clones: ${nextPrediction.cloneCount} | Slot hit rates: ${slotRates}`;
 
             addLog(`回測完成，3 星命中率 ${rate}%`, "green-500");
-            addLog(`Slot 命中率: ${slotRates}`, "orange-400");
-            addLog(`下一期順序預測: ${nextPrediction.sequence.map(formatNumber).join(" ")}`, "orange-400");
-            addLog("提醒：這是模式識別回測，不代表未來可保證 80-100% 命中。", "gray-500");
+            addLog(`Slot 命中率：${slotRates}`, "orange-400");
+            addLog(`下一期預測：${nextPrediction.sequence.map(formatNumber).join(" ")}`, "orange-400");
         }
     </script>
 </body>
