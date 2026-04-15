@@ -1,648 +1,234 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>539 Google Sheet 回測工具</title>
+    <title>ULTIMATE EVO v8.85 TRIPLE-TRACK</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        :root {
-            --bg: #f2f5fb;
-            --card: #ffffff;
-            --blue: #007aff;
-            --green: #34c759;
-            --red: #ff3b30;
-            --gray: #8e8e93;
-            --text: #1c1c1e;
-            --border: #e5e7eb;
-        }
-
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            padding: 18px;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background:
-                radial-gradient(circle at top left, rgba(0, 122, 255, 0.12), transparent 28%),
-                linear-gradient(180deg, #f9fbff 0%, var(--bg) 100%);
-            color: var(--text);
-            line-height: 1.5;
-        }
-
-        .container {
-            max-width: 1080px;
-            margin: 0 auto;
-        }
-
-        .header {
-            padding: 10px 0 18px;
-        }
-
-        .header h1 {
-            margin: 0 0 8px;
-            font-size: clamp(1.8rem, 2.8vw, 2.6rem);
-        }
-
-        .header p {
-            margin: 0;
-            color: var(--gray);
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: 1.1fr 0.9fr;
-            gap: 16px;
-        }
-
-        .card {
-            background: var(--card);
-            border-radius: 18px;
-            padding: 20px;
-            margin-bottom: 16px;
-            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.07);
-            border: 1px solid rgba(229, 231, 235, 0.9);
-        }
-
-        .section-title {
-            font-size: 1.05rem;
-            font-weight: 700;
-            margin: 0 0 10px;
-        }
-
-        .section-desc {
-            margin: 0 0 12px;
-            color: var(--gray);
-            font-size: 0.93rem;
-        }
-
-        textarea {
-            width: 100%;
-            min-height: 280px;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 12px;
-            font-family: Consolas, "Courier New", monospace;
-            font-size: 14px;
-            background: #fafcff;
-            resize: vertical;
-        }
-
-        .btn-group {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 10px;
-            margin-top: 12px;
-        }
-
-        button {
-            border: none;
-            border-radius: 12px;
-            padding: 12px 14px;
-            font-size: 15px;
-            font-weight: 700;
-            cursor: pointer;
-        }
-
-        button:hover {
-            opacity: 0.92;
-        }
-
-        .btn-sync {
-            background: var(--green);
-            color: white;
-        }
-
-        .btn-calc {
-            background: var(--blue);
-            color: white;
-        }
-
-        .btn-clear {
-            background: #eceef3;
-            color: var(--text);
-        }
-
-        #status-msg {
-            margin-top: 12px;
-            padding: 10px 12px;
-            border-radius: 12px;
-            background: #f3f8ff;
-            color: var(--blue);
-            font-size: 0.93rem;
-        }
-
-        .ball-row {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin: 16px 0;
-        }
-
-        .ball {
-            width: 52px;
-            height: 52px;
-            background: linear-gradient(145deg, var(--blue), #0056b3);
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 800;
-            font-size: 18px;
-            box-shadow: 0 8px 18px rgba(0, 122, 255, 0.24);
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
-        }
-
-        .stat-item {
-            background: #f8fafc;
-            padding: 14px;
-            border-radius: 14px;
-            text-align: center;
-            border: 1px solid var(--border);
-        }
-
-        .stat-label {
-            font-size: 12px;
-            color: var(--gray);
-            display: block;
-        }
-
-        .stat-value {
-            font-size: 22px;
-            font-weight: 800;
-            margin-top: 4px;
-            display: block;
-        }
-
-        .text-green {
-            color: var(--green);
-        }
-
-        .text-red {
-            color: var(--red);
-        }
-
-        .list {
-            display: grid;
-            gap: 10px;
-        }
-
-        .list-item {
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 12px;
-            background: #fcfdff;
-        }
-
-        .list-top {
-            display: flex;
-            justify-content: space-between;
-            gap: 10px;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-
-        .list-title {
-            font-weight: 700;
-            font-size: 0.95rem;
-        }
-
-        .list-sub {
-            color: var(--gray);
-            font-size: 0.86rem;
-        }
-
-        .mini-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 6px;
-        }
-
-        .mini-ball {
-            min-width: 38px;
-            height: 32px;
-            padding: 0 8px;
-            border-radius: 999px;
-            background: #edf4ff;
-            color: #0b4dcc;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.9rem;
-            font-weight: 700;
-        }
-
-        .hit-badge {
-            padding: 4px 10px;
-            border-radius: 999px;
-            font-size: 12px;
-            font-weight: 700;
-            white-space: nowrap;
-        }
-
-        .bg-hit {
-            background: rgba(52, 199, 89, 0.12);
-            color: var(--green);
-        }
-
-        .bg-miss {
-            background: rgba(255, 59, 48, 0.1);
-            color: var(--red);
-        }
-
-        .hint {
-            color: var(--gray);
-            font-size: 0.92rem;
-        }
-
-        @media (max-width: 900px) {
-            .grid {
-                grid-template-columns: 1fr;
-            }
-
-            .btn-group {
-                grid-template-columns: 1fr;
-            }
-        }
+        :root { --ios-orange: #f97316; --ios-bg: #000000; --ios-panel: #1c1c1e; }
+        body { background-color: var(--ios-bg); color: #fff; font-family: -apple-system, system-ui; overflow-x: hidden; }
+        .ios-panel { background: var(--ios-panel); border-radius: 12px; }
+        .orange-glow { box-shadow: 0 0 35px rgba(249, 115, 22, 0.3); }
+        .btn-active { background: var(--ios-orange); color: #000; font-weight: 700; }
+        .btn-inactive { background: #2c2c2e; color: var(--ios-orange); }
+        #logBox { font-variant-numeric: tabular-nums; scrollbar-width: none; }
+        #logBox::-webkit-scrollbar { display: none; }
+        .hit-num { color: #fff; font-weight: 900; background: var(--ios-orange); padding: 1px 4px; border-radius: 4px; }
+        .grid-val { text-shadow: 0 0 10px rgba(249, 115, 22, 0.5); }
     </style>
 </head>
-<body>
-<div class="container">
-    <div class="header">
-        <h1>539 Google Sheet 回測工具</h1>
-        <p>支援 `Date N1 N2 N3 N4 N5` 格式，自動同步、解析、推薦與滾動回測。</p>
+<body class="min-h-screen flex flex-col p-4">
+
+    <div class="flex justify-between items-center mb-5">
+        <h1 class="text-2xl font-black italic tracking-tighter text-orange-500">ULTIMATE <span class="text-white">EVO 8.85</span></h1>
+        <div class="flex bg-[#2c2c2e] p-1 rounded-xl flex-nowrap shrink-0">
+            <button id="btnSync" onclick="fetchSheetData()" class="px-4 py-1.5 rounded-lg text-sm btn-active whitespace-nowrap">同步雲端</button>
+        </div>
     </div>
 
-    <div class="grid">
-        <div>
-            <div class="card">
-                <h2 class="section-title">歷史資料</h2>
-                <p class="section-desc">可直接貼上 Google Sheet 匯出的文字，或按按鈕從 Apps Script API 同步。</p>
-                <textarea id="history-input" placeholder="Date N1 N2 N3 N4 N5&#10;2026-01-01 18 29 15 16 36"></textarea>
-                <div id="status-msg">尚未同步資料。</div>
-                <div class="btn-group">
-                    <button class="btn-sync" type="button" onclick="fetchSheetData()">同步 Google Sheet</button>
-                    <button class="btn-calc" type="button" onclick="analyzeData()">重新分析</button>
-                    <button class="btn-clear" type="button" onclick="clearAll()">清空</button>
-                </div>
-            </div>
-
-            <div class="card">
-                <h2 class="section-title">最近 10 期開獎</h2>
-                <p class="section-desc">最新一期會顯示在最上面，方便和推薦號碼一起比對。</p>
-                <div id="recent-list" class="list">
-                    <div class="hint">還沒有資料。</div>
-                </div>
+    <div class="ios-panel p-4 mb-4 orange-glow border border-orange-500/50">
+        <div class="flex justify-between items-end mb-2">
+            <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">Panel 1: ENGINE STATUS 數據引擎</label>
+            <div class="flex items-center text-[10px] text-orange-500 font-bold uppercase">
+                <span id="statusDot" class="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></span> v8.85 <span id="strategyMode" class="ml-1 text-white">READY</span>
             </div>
         </div>
+        <div id="logBox" class="bg-black/50 p-3 rounded-lg text-[11px] h-24 overflow-y-auto font-mono border border-white/5 leading-relaxed">
+            <span class="text-gray-500">> 系統初始化完成...</span><br>
+            <span class="text-gray-500">> 等待同步指令...</span>
+        </div>
+    </div>
 
-        <div>
-            <div class="card">
-                <h2 class="section-title">下一期推薦號碼</h2>
-                <p class="section-desc">目前規則綜合最近 10 期頻率、最近 3 期熱度與遺漏期數。</p>
-                <div class="ball-row" id="predict-row">
-                    <div class="ball">--</div>
-                    <div class="ball">--</div>
-                    <div class="ball">--</div>
-                    <div class="ball">--</div>
-                    <div class="ball">--</div>
-                </div>
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <span class="stat-label">中 3 碼以上命中率</span>
-                        <span class="stat-value text-red" id="stat-rate">0.0%</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">回測次數</span>
-                        <span class="stat-value" id="stat-count">0</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">中 3 碼以上次數</span>
-                        <span class="stat-value" id="stat-hit3">0</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">最近一次回測命中</span>
-                        <span class="stat-value" id="stat-last-hit">0</span>
-                    </div>
-                </div>
+    <div class="ios-panel p-4 mb-4 border-t-2 border-orange-600">
+        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-3">Panel 2: HEDGING 狙擊碼位 (三軌核心)</label>
+        <div class="grid grid-cols-4 gap-2" id="predictionGrid">
+            <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
+                <div class="text-[9px] text-orange-500 font-bold">強勢軌</div>
+                <div class="text-lg font-black text-white grid-val" id="p1">--</div>
             </div>
-
-            <div class="card">
-                <h2 class="section-title">滾動回測明細</h2>
-                <p class="section-desc">每次使用前 10 期去預測下一期，並同時列出預測與實際開獎號碼。</p>
-                <div id="backtest-list" class="list">
-                    <div class="hint">至少需要 11 期資料才會出現回測結果。</div>
-                </div>
+            <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
+                <div class="text-[9px] text-orange-500 font-bold">連動軌</div>
+                <div class="text-lg font-black text-white grid-val" id="p2">--</div>
+            </div>
+            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
+                <div class="text-[9px] text-gray-400 font-bold">補償碼</div>
+                <div class="text-lg font-black text-white" id="p3">--</div>
+            </div>
+            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
+                <div class="text-[9px] text-gray-400 font-bold">對沖碼</div>
+                <div class="text-lg font-black text-white" id="p4">--</div>
+            </div>
+            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
+                <div class="text-[9px] text-gray-400 font-bold">冷區軌</div>
+                <div class="text-lg font-black text-white" id="p5">--</div>
+            </div>
+            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
+                <div class="text-[9px] text-gray-400 font-bold">尾數軌</div>
+                <div class="text-lg font-black text-white" id="p6">--</div>
+            </div>
+            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
+                <div class="text-[9px] text-gray-400 font-bold">共振軌</div>
+                <div class="text-lg font-black text-white" id="p7">--</div>
+            </div>
+            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
+                <div class="text-[9px] text-gray-400 font-bold">保險軌</div>
+                <div class="text-lg font-black text-white" id="p8">--</div>
             </div>
         </div>
     </div>
-</div>
 
-<script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec";
+    <div class="ios-panel p-4 flex-grow overflow-hidden flex flex-col">
+        <div class="flex justify-between items-center mb-2">
+            <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Panel 3: BACKTEST 滾動回測列表</label>
+            <div id="hitRate" class="text-[10px] font-black text-orange-500">HIT RATE: 0.0%</div>
+        </div>
+        <div class="overflow-y-auto flex-grow">
+            <table class="w-full text-[12px]">
+                <thead class="sticky top-0 bg-[#1c1c1e] text-gray-500 z-10">
+                    <tr class="text-left border-b border-white/10">
+                        <th class="pb-2">日期</th>
+                        <th class="pb-2">實際開獎</th>
+                        <th class="pb-2">預測組合 (8碼)</th>
+                        <th class="pb-2 text-right">星</th>
+                    </tr>
+                </thead>
+                <tbody id="historyTable" class="divide-y divide-white/5">
+                    <tr><td colspan="4" class="text-center py-10 text-gray-600 font-mono italic">NO DATA SYNCED</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 
-    function formatNumber(num) {
-        return String(num).padStart(2, "0");
-    }
+    <script>
+        // 設定你的 API 網址
+        const API_URL = "https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec";
 
-    function updateStatus(message, isError) {
-        const el = document.getElementById("status-msg");
-        el.textContent = message;
-        el.style.background = isError ? "#fff1f0" : "#f3f8ff";
-        el.style.color = isError ? "var(--red)" : "var(--blue)";
-    }
-
-    function setPlaceholderBalls() {
-        renderBalls(["--", "--", "--", "--", "--"]);
-    }
-
-    async function fetchSheetData() {
-        if (!API_URL || API_URL.includes("YOUR_")) {
-            updateStatus("尚未設定有效的 Google Apps Script API。", true);
-            return;
+        function addLog(msg, color = "gray-500") {
+            const logBox = document.getElementById('logBox');
+            const span = document.createElement('span');
+            span.className = `text-${color}`;
+            span.innerHTML = `> ${msg}<br>`;
+            logBox.appendChild(span);
+            logBox.scrollTop = logBox.scrollHeight;
         }
 
-        updateStatus("正在同步 Google Sheet 資料...", false);
-
-        try {
-            const response = await fetch(API_URL, { method: "GET" });
-            if (!response.ok) {
-                throw new Error("API 回應失敗，HTTP 狀態碼: " + response.status);
+        async function fetchSheetData() {
+            addLog("開始同步雲端數據...", "orange-500");
+            try {
+                const response = await fetch(API_URL);
+                const result = await response.json();
+                const rawData = typeof result === "string" ? result : result.data;
+                
+                if (rawData) {
+                    addLog("數據獲取成功，啟動解析引擎", "green-500");
+                    processData(rawData);
+                }
+            } catch (error) {
+                addLog("連線異常，檢查 API 網址", "red-500");
             }
-
-            const result = await response.json();
-            const rawData =
-                typeof result === "string" ? result :
-                typeof result.data === "string" ? result.data :
-                typeof result.values === "string" ? result.values :
-                "";
-
-            if (!rawData.trim()) {
-                const message = result.message || "API 有回應，但沒有可用資料。";
-                throw new Error(message);
-            }
-
-            document.getElementById("history-input").value = rawData;
-            updateStatus("Google Sheet 同步成功，已自動重新分析。", false);
-            analyzeData();
-        } catch (error) {
-            updateStatus("同步失敗: " + error.message, true);
         }
-    }
 
-    function parseHistory(raw) {
-        const lines = raw
-            .split(/\r?\n/)
-            .map((line) => line.trim())
-            .filter(Boolean);
-
-        const parsed = [];
-
-        lines.forEach((line, index) => {
-            if (/^date\b/i.test(line)) {
-                return;
-            }
-
-            const tokens = line.split(/\s+/);
-            if (tokens.length < 6) {
-                throw new Error("第 " + (index + 1) + " 行格式不足，至少需要日期加 5 個號碼。");
-            }
-
-            const dateToken = tokens[0];
-            const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-            if (!datePattern.test(dateToken)) {
-                throw new Error("第 " + (index + 1) + " 行日期格式錯誤，需為 YYYY-MM-DD。");
-            }
-
-            const numberTokens = tokens.slice(-5);
-            const numbers = numberTokens.map((token) => Number(token));
-
-            const isValid = numbers.every((num) => Number.isInteger(num) && num >= 1 && num <= 39);
-            if (!isValid) {
-                throw new Error("第 " + (index + 1) + " 行號碼需為 1 到 39 的整數。");
-            }
-
-            if (new Set(numbers).size !== 5) {
-                throw new Error("第 " + (index + 1) + " 行有重複號碼。");
-            }
-
-            parsed.push({
-                date: dateToken,
-                numbers: numbers.slice().sort((a, b) => a - b)
+        function processData(raw) {
+            const lines = raw.split(/\r?\n/).filter(line => line.trim() && !line.toLowerCase().includes('date'));
+            let history = lines.map(line => {
+                const tokens = line.trim().split(/\s+/);
+                return {
+                    date: tokens[0],
+                    nums: tokens.slice(-5).map(Number).sort((a,b)=>a-b)
+                };
             });
-        });
 
-        return parsed;
-    }
+            // 確保日期由新到舊
+            history.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    function getPrediction(windowDraws) {
-        const scores = Array(40).fill(0);
-        const lastSeen = Array(40).fill(-1);
-
-        windowDraws.forEach((draw, index) => {
-            draw.numbers.forEach((num) => {
-                scores[num] += 3;
-                lastSeen[num] = index;
-                if (index >= windowDraws.length - 3) {
-                    scores[num] += 2;
-                }
-            });
-        });
-
-        const ranked = [];
-        for (let num = 1; num <= 39; num += 1) {
-            const gap = lastSeen[num] === -1 ? windowDraws.length : windowDraws.length - 1 - lastSeen[num];
-            const score = scores[num] + gap * 0.5 + (scores[num] === 0 ? 1 : 0);
-            ranked.push({ num, score });
+            // 更新 UI
+            runBacktest(history);
         }
 
-        return ranked
-            .sort((a, b) => {
-                if (b.score !== a.score) {
-                    return b.score - a.score;
-                }
-                return a.num - b.num;
-            })
-            .slice(0, 5)
-            .map((item) => item.num)
-            .sort((a, b) => a - b);
-    }
-
-    function countHits(prediction, actualNumbers) {
-        const actualSet = new Set(actualNumbers);
-        return prediction.filter((num) => actualSet.has(num)).length;
-    }
-
-    function renderBalls(nums) {
-        const row = document.getElementById("predict-row");
-        row.innerHTML = nums
-            .map((num) => "<div class=\"ball\">" + (typeof num === "number" ? formatNumber(num) : num) + "</div>")
-            .join("");
-    }
-
-    function renderRecent(draws) {
-        const list = document.getElementById("recent-list");
-
-        if (!draws.length) {
-            list.innerHTML = "<div class=\"hint\">還沒有資料。</div>";
-            return;
-        }
-
-        list.innerHTML = draws
-            .slice(-10)
-            .reverse()
-            .map((draw) => {
-                const balls = draw.numbers
-                    .map((num) => "<span class=\"mini-ball\">" + formatNumber(num) + "</span>")
-                    .join("");
-
-                return (
-                    "<div class=\"list-item\">" +
-                        "<div class=\"list-top\">" +
-                            "<div>" +
-                                "<div class=\"list-title\">" + draw.date + "</div>" +
-                                "<div class=\"list-sub\">最近 10 期中獎號碼</div>" +
-                            "</div>" +
-                        "</div>" +
-                        "<div class=\"mini-row\">" + balls + "</div>" +
-                    "</div>"
-                );
-            })
-            .join("");
-    }
-
-    function renderBacktest(results) {
-        const list = document.getElementById("backtest-list");
-
-        if (!results.length) {
-            list.innerHTML = "<div class=\"hint\">至少需要 11 期資料才會出現回測結果。</div>";
-            return;
-        }
-
-        list.innerHTML = results
-            .slice()
-            .reverse()
-            .map((item) => {
-                const predBalls = item.prediction
-                    .map((num) => "<span class=\"mini-ball\">預 " + formatNumber(num) + "</span>")
-                    .join("");
-                const actualBalls = item.actual
-                    .map((num) => "<span class=\"mini-ball\">開 " + formatNumber(num) + "</span>")
-                    .join("");
-                const badgeClass = item.hits >= 3 ? "bg-hit" : "bg-miss";
-
-                return (
-                    "<div class=\"list-item\">" +
-                        "<div class=\"list-top\">" +
-                            "<div>" +
-                                "<div class=\"list-title\">" + item.date + "</div>" +
-                                "<div class=\"list-sub\">第 " + item.index + " 期回測</div>" +
-                            "</div>" +
-                            "<span class=\"hit-badge " + badgeClass + "\">命中 " + item.hits + " 碼</span>" +
-                        "</div>" +
-                        "<div class=\"mini-row\">" + predBalls + "</div>" +
-                        "<div class=\"mini-row\">" + actualBalls + "</div>" +
-                    "</div>"
-                );
-            })
-            .join("");
-    }
-
-    function analyzeData() {
-        const raw = document.getElementById("history-input").value.trim();
-
-        if (!raw) {
-            setPlaceholderBalls();
-            renderRecent([]);
-            renderBacktest([]);
-            document.getElementById("stat-rate").textContent = "0.0%";
-            document.getElementById("stat-count").textContent = "0";
-            document.getElementById("stat-hit3").textContent = "0";
-            document.getElementById("stat-last-hit").textContent = "0";
-            updateStatus("請先貼上或同步歷史資料。", true);
-            return;
-        }
-
-        try {
-            const draws = parseHistory(raw);
-            renderRecent(draws);
-
-            if (draws.length < 10) {
-                setPlaceholderBalls();
-                renderBacktest([]);
-                updateStatus("至少需要 10 期資料才能產生下一期推薦。", true);
-                return;
-            }
-
-            const nextPrediction = getPrediction(draws.slice(-10));
-            renderBalls(nextPrediction);
-
-            const results = [];
-            let hit3Count = 0;
-
-            for (let index = 10; index < draws.length; index += 1) {
-                const windowDraws = draws.slice(index - 10, index);
-                const actualDraw = draws[index];
-                const prediction = getPrediction(windowDraws);
-                const hits = countHits(prediction, actualDraw.numbers);
-
-                if (hits >= 3) {
-                    hit3Count += 1;
-                }
-
-                results.push({
-                    index: index + 1,
-                    date: actualDraw.date,
-                    prediction,
-                    actual: actualDraw.numbers,
-                    hits
+        // --- Triple-Track v8.85 演算法核心 ---
+        function getUnifiedLogic(historyWindow) {
+            // 路徑 A：熱度與鄰碼
+            let scores = Array(40).fill(0);
+            historyWindow.slice(0, 10).forEach((h, idx) => {
+                h.nums.forEach(n => {
+                    scores[n] += (10 - idx) * 2; // 越近期分數越高
+                    if (n > 1) scores[n-1] += 2;
+                    if (n < 39) scores[n+1] += 2;
                 });
+            });
+
+            // 路徑 B：遺漏震盪
+            let gapScores = Array(40).fill(0);
+            for(let i=1; i<=39; i++) {
+                let gap = 0;
+                for(let h of historyWindow) {
+                    if(h.nums.includes(i)) break;
+                    gap++;
+                }
+                if(gap > 5 && gap < 15) gapScores[i] += gap * 3;
             }
 
-            renderBacktest(results);
+            // 路徑 C：尾數強度
+            let tailMap = Array(10).fill(0);
+            historyWindow.slice(0, 5).forEach(h => h.nums.forEach(n => tailMap[n%10]++));
 
-            const testTotal = results.length;
-            const rate = testTotal ? ((hit3Count / testTotal) * 100).toFixed(1) : "0.0";
-            const lastHit = testTotal ? results[results.length - 1].hits : 0;
+            // 合流計算
+            let final = [];
+            for(let i=1; i<=39; i++) {
+                let total = scores[i] + gapScores[i] + (tailMap[i%10] * 5);
+                final.push({ num: i, score: total });
+            }
 
-            const rateEl = document.getElementById("stat-rate");
-            rateEl.textContent = rate + "%";
-            rateEl.className = "stat-value " + (Number(rate) >= 80 ? "text-green" : "text-red");
-
-            document.getElementById("stat-count").textContent = String(testTotal);
-            document.getElementById("stat-hit3").textContent = String(hit3Count);
-            document.getElementById("stat-last-hit").textContent = String(lastHit);
-
-            updateStatus(
-                "分析完成。已支援 Date 欄、表頭與空白列，並顯示最近 10 期與完整回測明細。",
-                false
-            );
-        } catch (error) {
-            setPlaceholderBalls();
-            renderBacktest([]);
-            updateStatus(error.message, true);
+            return final.sort((a,b) => b.score - a.score)
+                        .slice(0, 8)
+                        .map(x => x.num)
+                        .sort((a,b) => a-b);
         }
-    }
 
-    function clearAll() {
-        document.getElementById("history-input").value = "";
-        setPlaceholderBalls();
-        renderRecent([]);
-        renderBacktest([]);
-        document.getElementById("stat-rate").textContent = "0.0%";
-        document.getElementById("stat-count").textContent = "0";
-        document.getElementById("stat-hit3").textContent = "0";
-        document.getElementById("stat-last-hit").textContent = "0";
-        updateStatus("已清空資料。", false);
-    }
-</script>
+        function runBacktest(history) {
+            let stars3Plus = 0;
+            let rowsHtml = "";
+            const testRange = Math.min(history.length - 10, 15); // 回測最近 15 期
+
+            for (let i = 0; i < testRange; i++) {
+                const trainData = history.slice(i + 1);
+                const actual = history[i].nums;
+                const prediction = getUnifiedLogic(trainData);
+                const hits = actual.filter(n => prediction.includes(n));
+                const hitCount = hits.length;
+
+                if (hitCount >= 3) stars3Plus++;
+
+                const predHtml = prediction.map(p => {
+                    const pStr = p.toString().padStart(2, '0');
+                    return actual.includes(p) ? `<span class="hit-num">${pStr}</span>` : pStr;
+                }).join(',');
+
+                rowsHtml += `
+                    <tr class="border-b border-white/5">
+                        <td class="py-3 text-gray-500 font-mono">${history[i].date.slice(5)}</td>
+                        <td class="font-mono text-white">${actual.map(n => n.toString().padStart(2, '0')).join(' ')}</td>
+                        <td class="text-[11px] text-gray-400 font-mono">${predHtml}</td>
+                        <td class="text-right font-black ${hitCount >= 3 ? 'text-orange-500' : (hitCount >= 2 ? 'text-white' : 'text-gray-700')}">${hitCount}</td>
+                    </tr>
+                `;
+            }
+
+            // 更新預測顯示 (下一期)
+            const nextPred = getUnifiedLogic(history);
+            nextPred.forEach((num, idx) => {
+                document.getElementById(`p${idx + 1}`).innerText = num.toString().padStart(2, '0');
+            });
+
+            // 更新數據
+            document.getElementById('historyTable').innerHTML = rowsHtml;
+            const rate = ((stars3Plus / testRange) * 100).toFixed(1);
+            document.getElementById('hitRate').innerText = `HIT RATE (3+): ${rate}%`;
+            document.getElementById('strategyMode').innerText = rate > 20 ? 'AGGRESSIVE' : 'SEARCHING';
+            
+            addLog(`回測完成: 3星命中率 ${rate}%`, "green-500");
+        }
+    </script>
 </body>
 </html>
