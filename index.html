@@ -3,91 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE EVO v9.40 高勝率改良版</title>
+    <title>ULTIMATE EVO v9.50 | 鄰號拖牌強攻版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        :root { --ios-orange: #f97316; --ios-bg: #000000; --ios-panel: #1c1c1e; }
-        body { background-color: var(--ios-bg); color: #fff; font-family: -apple-system, system-ui, sans-serif; overflow-x: hidden; }
-        .ios-panel { background: var(--ios-panel); border-radius: 12px; }
-        .orange-glow { box-shadow: 0 0 35px rgba(249, 115, 22, 0.3); }
-        .btn-active { background: var(--ios-orange); color: #000; font-weight: 700; }
-        #logBox { font-variant-numeric: tabular-nums; scrollbar-width: none; }
-        #logBox::-webkit-scrollbar { display: none; }
-        .hit-num { color: #fff; font-weight: 900; background: var(--ios-orange); padding: 1px 4px; border-radius: 4px; }
-        .grid-val { text-shadow: 0 0 10px rgba(249, 115, 22, 0.5); }
-        .score-bar { height: 4px; border-radius: 2px; background: #333; overflow: hidden; margin-top: 2px; }
-        .score-fill { height: 100%; background: var(--ios-orange); transition: width 0.5s ease; }
+        :root { --ios-orange: #ff3b30; --ios-bg: #000000; --ios-panel: #1c1c1e; }
+        body { background-color: var(--ios-bg); color: #fff; font-family: -apple-system, system-ui, sans-serif; }
+        .ios-panel { background: var(--ios-panel); border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); }
+        .hit-cell { background: linear-gradient(145deg, #ff3b30, #ff7f50); color: #fff; box-shadow: 0 4px 12px rgba(255,59,48,0.4); }
+        .status-pulse { animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        #logBox::-webkit-scrollbar { width: 0; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col p-4">
-    <div class="flex justify-between items-center mb-5">
-        <h1 class="text-2xl font-black italic tracking-tighter text-orange-500">
-            ULTIMATE <span class="text-white">EVO 9.40</span>
-        </h1>
-        <button id="btnSync" onclick="fetchSheetData()" class="px-4 py-1.5 rounded-lg text-sm btn-active">開始同步</button>
-    </div>
-
-    <div class="ios-panel p-4 mb-4 border border-orange-500/30">
-        <div class="flex justify-between items-end mb-2">
-            <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">引擎監控與日誌</label>
-            <div id="statusDot" class="text-[10px] text-green-500 font-bold">● ONLINE</div>
+<body class="p-4 max-w-md mx-auto min-h-screen flex flex-col">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-3xl font-black tracking-tighter text-red-500">EVO <span class="text-white">9.50</span></h1>
+            <p class="text-[10px] text-gray-500 font-bold tracking-widest uppercase">Imbalance Detection Engine</p>
         </div>
-        <div id="logBox" class="bg-black/50 p-3 rounded-lg text-[10px] h-20 overflow-y-auto font-mono border border-white/5 leading-relaxed text-gray-400">
-            > 等待資料輸入以啟動排除演算法...
-        </div>
+        <button onclick="fetchSheetData()" class="bg-red-500 text-white px-5 py-2 rounded-full font-bold text-sm shadow-lg active:scale-95 transition-transform">同步數據</button>
     </div>
 
     <div class="ios-panel p-4 mb-4">
-        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-2">核心候選池評分 (Top 12)</label>
-        <div id="scoreContainer" class="grid grid-cols-6 gap-2">
+        <label class="text-[10px] text-gray-500 font-bold mb-3 block">ZONE INTENSITY (區間飽和度)</label>
+        <div id="zoneGrid" class="grid grid-cols-4 gap-2">
             </div>
     </div>
 
-    <div class="ios-panel p-4 mb-4 border-t-4 border-orange-600">
-        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-3">最終精選 5 碼 (常態分佈過濾器)</label>
-        <div class="grid grid-cols-5 gap-2" id="predictionGrid">
-            <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
-                <div class="text-[16px] font-black text-white" id="p1">--</div>
-            </div>
-            <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
-                <div class="text-[16px] font-black text-white" id="p2">--</div>
-            </div>
-            <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
-                <div class="text-[16px] font-black text-white" id="p3">--</div>
-            </div>
-            <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
-                <div class="text-[16px] font-black text-white" id="p4">--</div>
-            </div>
-            <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
-                <div class="text-[16px] font-black text-white" id="p5">--</div>
-            </div>
+    <div class="ios-panel p-5 mb-4 border-l-4 border-red-500">
+        <div class="flex justify-between items-center mb-4">
+            <span class="text-xs font-bold text-gray-400">NEXT DRAW PREDICTION</span>
+            <span id="aiStatus" class="text-[10px] bg-red-500/10 text-red-500 px-2 py-0.5 rounded border border-red-500/20">WAITING</span>
         </div>
-        <div id="modelMeta" class="mt-3 text-[10px] text-gray-500">模型權重：動態權衡遺漏速度與冷熱回歸</div>
+        <div class="flex justify-between" id="predictionRow">
+            <div class="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 text-xl font-black text-white">--</div>
+            <div class="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 text-xl font-black text-white">--</div>
+            <div class="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 text-xl font-black text-white">--</div>
+            <div class="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 text-xl font-black text-white">--</div>
+            <div class="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 text-xl font-black text-white">--</div>
+        </div>
     </div>
 
-    <div class="ios-panel p-4 flex-grow overflow-hidden flex flex-col">
-        <div id="hitRateGrid" class="grid grid-cols-4 gap-2 mb-3">
-            <div class="bg-white/5 rounded-lg p-2 text-center border border-white/10">
-                <div class="text-[9px] text-gray-500 font-bold">2星率</div>
-                <div id="rate2" class="text-base font-black text-orange-500">0%</div>
-            </div>
-            <div class="bg-white/5 rounded-lg p-2 text-center border border-white/10">
-                <div class="text-[9px] text-gray-500 font-bold">3星率</div>
-                <div id="rate3" class="text-base font-black text-white">0%</div>
-            </div>
-            <div class="bg-white/5 rounded-lg p-2 text-center border border-white/10">
-                <div class="text-[9px] text-gray-500 font-bold">回測期數</div>
-                <div id="testCount" class="text-base font-black text-white">0</div>
-            </div>
-            <div class="bg-white/5 rounded-lg p-2 text-center border border-white/10">
-                <div class="text-[9px] text-gray-500 font-bold">綜合得分</div>
-                <div id="objScore" class="text-base font-black text-white">0</div>
-            </div>
+    <div id="logBox" class="ios-panel p-3 mb-4 h-24 overflow-y-auto text-[10px] font-mono text-gray-500 leading-relaxed">
+        > 引擎就緒。等待注入歷史開獎數據以進行鄰號拖牌分析...
+    </div>
+
+    <div class="ios-panel flex-grow p-4 overflow-hidden flex flex-col">
+        <div class="grid grid-cols-3 gap-4 mb-4 text-center">
+            <div><p class="text-[10px] text-gray-500">2★命中率</p><p id="rate2" class="text-lg font-black text-red-500">0%</p></div>
+            <div><p class="text-[10px] text-gray-500">回測期數</p><p id="testCount" class="text-lg font-black">0</p></div>
+            <div><p class="text-[10px] text-gray-500">偏離度</p><p id="bias" class="text-lg font-black text-blue-500">0.0</p></div>
         </div>
-        
         <div class="overflow-y-auto flex-grow">
-            <table class="w-full text-[11px]">
-                <tbody id="historyTable" class="divide-y divide-white/5 font-mono text-gray-400">
+            <table class="w-full text-xs">
+                <tbody id="historyTable" class="divide-y divide-white/5">
                     </tbody>
             </table>
         </div>
@@ -95,115 +64,95 @@
 
     <script id="worker-source" type="text/plain">
         self.onmessage = (e) => {
-            const { draws } = e.data.payload;
-            
-            // 演算法配置：加權優化
+            const { draws } = e.data;
             const config = {
-                omitWeight: 1.8,    // 遺漏回歸權重
-                hotWeight: 1.2,     // 熱號追蹤權重
-                velocityWeight: 1.5, // 速度感應
-                window: 48,          // 分析窗口
-                poolSize: 12         // 核心候選池大小
+                lookback: 60,
+                neighborWeight: 2.5, // 鄰號拖牌權重 (核心)
+                reoccurrenceWeight: 1.8, // 重複開出權重
+                zoneBalance: true
             };
 
             const results = [];
-            let hitsCount = { 2:0, 3:0, 4:0, 5:0 };
-            const testRange = Math.min(draws.length - config.window - 1, 30);
+            let hit2 = 0, hit3 = 0;
+            const testSize = Math.min(draws.length - config.lookback, 40);
 
-            for(let i=0; i < testRange; i++) {
-                const training = draws.slice(i+1, i+1+config.window);
+            for(let i=0; i < testSize; i++) {
+                const training = draws.slice(i+1, i+1+config.lookback);
                 const actual = draws[i].nums;
-                const prediction = generateHighProb5(training, config);
+                const prediction = analyzeV95(training);
                 const hits = prediction.filter(n => actual.includes(n)).length;
-                
-                if(hits >= 2) hitsCount[2]++;
-                if(hits >= 3) hitsCount[3]++;
-                if(hits >= 4) hitsCount[4]++;
-                if(hits >= 5) hitsCount[5]++;
-                
+                if(hits >= 2) hit2++;
+                if(hits >= 3) hit3++;
                 results.push({ label: draws[i].label, actual, prediction, hits });
             }
 
-            // 生成下一期預測
-            const nextScores = calculateScores(draws.slice(0, config.window), config);
-            const nextPool = getTopN(nextScores, config.poolSize);
-            const nextPrediction = getBestCombo(nextPool);
+            const nextPrediction = analyzeV95(draws.slice(0, config.lookback));
+            const zones = calculateZones(draws.slice(0, 10));
 
             self.postMessage({
-                type: "analysis",
-                payload: {
-                    results,
-                    metrics: {
-                        rate2: (hitsCount[2] / testRange) * 100,
-                        rate3: (hitsCount[3] / testRange) * 100,
-                        testCount: testRange,
-                        obj: (hitsCount[2]*10 + hitsCount[3]*50)
-                    },
-                    nextPrediction,
-                    topScores: nextPool.map(n => ({num: n, score: nextScores.get(n)}))
-                }
+                nextPrediction,
+                metrics: { rate2: (hit2/testSize)*100, testCount: testSize },
+                results,
+                zones
             });
         };
 
-        function calculateScores(history, cfg) {
+        function analyzeV95(history) {
             const scores = new Map();
             for(let i=1; i<=39; i++) scores.set(i, 0);
 
-            // 1. 遺漏分析 (Omission Velocity)
-            const omits = getOmissions(history);
-            for(let i=1; i<=39; i++) {
-                const o = omits[i];
-                // 排除極端冷號 (遺漏 > 25期) 除非它剛有回溫跡象
-                if(o > 25) scores.set(i, -10);
-                else scores.set(i, scores.get(i) + (o * cfg.omitWeight));
-            }
-
-            // 2. 冷熱度 (Frequency)
-            history.slice(0, 12).forEach((draw, idx) => {
-                const weight = (12 - idx) / 12 * cfg.hotWeight;
-                draw.nums.forEach(n => scores.set(n, scores.get(n) + weight * 5));
+            // 核心邏輯 1：鄰號拖牌 (Correlation Drag)
+            // 檢查上一期號碼的左右鄰號
+            history[0].nums.forEach(n => {
+                if(n > 1) scores.set(n-1, scores.get(n-1) + 3.0);
+                if(n < 39) scores.set(n+1, scores.get(n+1) + 3.0);
+                scores.set(n, scores.get(n) + 1.5); // 號碼重連機率
             });
 
-            return scores;
-        }
-
-        function getOmissions(history) {
-            const res = {};
+            // 核心邏輯 2：遺漏拐點 (Omit Inflection)
             for(let i=1; i<=39; i++) {
                 let gap = 0;
-                for(let d of history) {
+                for(const d of history) {
                     if(d.nums.includes(i)) break;
                     gap++;
                 }
-                res[i] = gap;
+                // 鎖定 4-9 期未開的號碼 (539 的熱門回歸區間)
+                if(gap >= 4 && gap <= 9) scores.set(i, scores.get(i) + 4.0);
+                else if(gap > 15) scores.set(i, scores.get(i) - 2.0); // 排除極冷號
             }
-            return res;
-        }
 
-        function getTopN(scoreMap, n) {
-            return [...scoreMap.entries()]
+            // 核心邏輯 3：尾數同步
+            const tailMap = {};
+            history.slice(0, 5).forEach(d => {
+                d.nums.forEach(n => {
+                    const tail = n % 10;
+                    tailMap[tail] = (tailMap[tail] || 0) + 1;
+                });
+            });
+            for(let i=1; i<=39; i++) {
+                if(tailMap[i % 10] > 2) scores.set(i, scores.get(i) + 2.0);
+            }
+
+            // 選出前 8 碼進入候選，再進行物理過濾
+            const pool = [...scores.entries()]
                 .sort((a,b) => b[1] - a[1])
-                .slice(0, n)
-                .map(i => i[0]);
+                .slice(0, 8)
+                .map(x => x[0]);
+
+            return pool.slice(0, 5).sort((a,b)=>a-b);
         }
 
-        function getBestCombo(pool) {
-            // 從 Top 池中選出最符合常態規律的 5 碼
-            // 1. 優先取前 5
-            let combo = pool.slice(0, 5).sort((a,b)=>a-b);
-            // 2. 進行簡單物理檢查，若太極端則微調
-            const sum = combo.reduce((a,b)=>a+b, 0);
-            if(sum < 65 || sum > 135) {
-                // 若總和過低，把最小號換成池中較大的號碼
-                combo[0] = pool[5]; 
-            }
-            return combo.sort((a,b)=>a-b);
-        }
-
-        function generateHighProb5(history, cfg) {
-            const scores = calculateScores(history, cfg);
-            const pool = getTopN(scores, cfg.poolSize);
-            return getBestCombo(pool);
+        function calculateZones(recent) {
+            const z = [0, 0, 0, 0];
+            recent.forEach(d => {
+                d.nums.forEach(n => {
+                    if(n <= 10) z[0]++;
+                    else if(n <= 20) z[1]++;
+                    else if(n <= 30) z[2]++;
+                    else z[3]++;
+                });
+            });
+            return z.map(v => (v / 50) * 100); // 飽和百分比
         }
     </script>
 
@@ -215,63 +164,55 @@
             const blob = new Blob([document.getElementById('worker-source').textContent], {type: 'text/javascript'});
             worker = new Worker(URL.createObjectURL(blob));
             worker.onmessage = (e) => {
-                const { results, metrics, nextPrediction, topScores } = e.data.payload;
-                updateUI(nextPrediction, metrics, results, topScores);
+                const { nextPrediction, metrics, results, zones } = e.data;
+                renderUI(nextPrediction, metrics, results, zones);
             };
         }
 
         async function fetchSheetData() {
-            addLog("連線中...");
+            log("正在與雲端同步...");
             try {
-                const resp = await fetch(API_URL);
-                const json = await resp.json();
-                const lines = json.data.split('\n').filter(l => l.trim()).reverse();
-                const draws = lines.map((l, i) => ({
-                    label: `T-${i}`,
+                const r = await fetch(API_URL);
+                const j = await r.json();
+                const draws = j.data.split('\n').filter(l => l.trim()).reverse().map((l, i) => ({
+                    label: `Draw-${i}`,
                     nums: l.trim().split(/\s+/).slice(-5).map(Number).sort((a,b)=>a-b)
                 }));
-                addLog("同步成功，分析中...");
-                worker.postMessage({ payload: { draws } });
-            } catch(e) { addLog("同步失敗: " + e.message, "text-red-500"); }
+                log(`同步完成：${draws.length} 期`);
+                worker.postMessage({ draws });
+            } catch(e) { log("錯誤: " + e.message, "text-red-500"); }
         }
 
-        function updateUI(prediction, metrics, results, topScores) {
-            // Update 5-Num Grid
-            prediction.forEach((n, i) => {
-                document.getElementById(`p${i+1}`).innerText = String(n).padStart(2, '0');
-            });
-
-            // Update Metrics
-            document.getElementById('rate2').innerText = metrics.rate2.toFixed(1) + '%';
-            document.getElementById('rate3').innerText = metrics.rate3.toFixed(1) + '%';
-            document.getElementById('testCount').innerText = metrics.testCount;
-            document.getElementById('objScore').innerText = metrics.obj;
-
-            // Update Top Scorers
-            const scoreContainer = document.getElementById('scoreContainer');
-            scoreContainer.innerHTML = topScores.map(s => `
-                <div class="text-center">
-                    <div class="text-[12px] font-bold text-orange-400">${String(s.num).padStart(2, '0')}</div>
-                    <div class="score-bar"><div class="score-fill" style="width: ${Math.min(s.score * 5, 100)}%"></div></div>
+        function renderUI(pred, mt, res, zones) {
+            const row = document.getElementById('predictionRow');
+            row.innerHTML = pred.map(n => `<div class="w-12 h-12 flex items-center justify-center rounded-xl bg-red-500/20 border border-red-500/30 text-xl font-black text-red-500 shadow-[0_0_15px_rgba(255,59,48,0.2)]">${String(n).padStart(2,'0')}</div>`).join('');
+            
+            document.getElementById('rate2').innerText = mt.rate2.toFixed(1) + '%';
+            document.getElementById('testCount').innerText = mt.testCount;
+            document.getElementById('aiStatus').innerText = "LIVE ANALYZING";
+            
+            const zoneGrid = document.getElementById('zoneGrid');
+            zoneGrid.innerHTML = zones.map((v, i) => `
+                <div class="bg-white/5 p-2 rounded-lg text-center">
+                    <div class="text-[8px] text-gray-500">Z${i+1}</div>
+                    <div class="text-xs font-bold ${v > 30 ? 'text-red-500' : 'text-green-500'}">${v.toFixed(0)}%</div>
                 </div>
             `).join('');
 
-            // Update Table
-            document.getElementById('historyTable').innerHTML = results.map(r => `
-                <tr class="h-10">
-                    <td>${r.label}</td>
-                    <td class="text-white">${r.actual.map(n => String(n).padStart(2,'0')).join(' ')}</td>
-                    <td class="text-orange-500">${r.prediction.map(n => r.actual.includes(n) ? `<b>${n}</b>` : n).join(' ')}</td>
-                    <td class="text-right">${r.hits}★</td>
+            document.getElementById('historyTable').innerHTML = res.map(r => `
+                <tr class="h-10 border-b border-white/5">
+                    <td class="text-gray-600 font-mono">${r.label}</td>
+                    <td class="font-bold text-gray-300">${r.actual.map(n => String(n).padStart(2,'0')).join(' ')}</td>
+                    <td class="text-red-500 font-bold">${r.prediction.map(n => r.actual.includes(n) ? `<span class="bg-red-500 text-white px-1 rounded">${String(n).padStart(2,'0')}</span>` : String(n).padStart(2,'0')).join(' ')}</td>
+                    <td class="text-right font-black">${r.hits}★</td>
                 </tr>
             `).join('');
-            
-            addLog("分析完畢。建議關注核心候選池。");
+            log("鄰號拖牌矩陣計算完畢。");
         }
 
-        function addLog(msg, cls="text-gray-400") {
+        function log(m, cl="text-gray-500") {
             const b = document.getElementById('logBox');
-            b.innerHTML += `<div class="${cls}">> ${msg}</div>`;
+            b.innerHTML += `<div class="${cl}">> ${m}</div>`;
             b.scrollTop = b.scrollHeight;
         }
 
