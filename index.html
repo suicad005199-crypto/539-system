@@ -35,40 +35,40 @@
             <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">Panel 1: 引擎狀態</label>
             <div class="flex items-center text-[10px] text-orange-500 font-bold uppercase">
                 <span id="statusDot" class="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></span>
-                v9.20 <span id="strategyMode" class="ml-1 text-white">待命</span>
+                v9.20 <span id="strategyMode" class="ml-1 text-white">READY</span>
             </div>
         </div>
         <div id="logBox" class="bg-black/50 p-3 rounded-lg text-[11px] h-24 overflow-y-auto font-mono border border-white/5 leading-relaxed">
-            <span class="text-gray-500">&gt; Worker 引擎待命中...</span><br>
-            <span class="text-gray-500">&gt; 模式：嚴格滾動回測、投票優化、空間過濾</span>
+            <span class="text-gray-500">&gt; Worker 已初始化，等待同步資料...</span><br>
+            <span class="text-gray-500">&gt; 模式：投票模型 + 嚴格滾動回測</span>
         </div>
     </div>
 
     <div class="ios-panel p-4 mb-4 border-t-2 border-orange-600">
-        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-3">Panel 2: 預測面板（固定 5 碼）</label>
+        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-3">Panel 2: 預測號碼（固定 5 碼）</label>
         <div class="grid grid-cols-5 gap-2" id="predictionGrid">
             <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
-                <div class="text-[9px] text-orange-500 font-bold">預測 1</div>
+                <div class="text-[9px] text-orange-500 font-bold">第 1 碼</div>
                 <div class="text-lg font-black text-white grid-val" id="p1">--</div>
             </div>
             <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
-                <div class="text-[9px] text-orange-500 font-bold">預測 2</div>
+                <div class="text-[9px] text-orange-500 font-bold">第 2 碼</div>
                 <div class="text-lg font-black text-white grid-val" id="p2">--</div>
             </div>
             <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
-                <div class="text-[9px] text-gray-400 font-bold">預測 3</div>
+                <div class="text-[9px] text-gray-400 font-bold">第 3 碼</div>
                 <div class="text-lg font-black text-white" id="p3">--</div>
             </div>
             <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
-                <div class="text-[9px] text-gray-400 font-bold">預測 4</div>
+                <div class="text-[9px] text-gray-400 font-bold">第 4 碼</div>
                 <div class="text-lg font-black text-white" id="p4">--</div>
             </div>
             <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
-                <div class="text-[9px] text-gray-400 font-bold">預測 5</div>
+                <div class="text-[9px] text-gray-400 font-bold">第 5 碼</div>
                 <div class="text-lg font-black text-white" id="p5">--</div>
             </div>
         </div>
-        <div id="modelMeta" class="mt-3 text-[11px] text-gray-500 leading-6">等待資料同步中...</div>
+        <div id="modelMeta" class="mt-3 text-[11px] text-gray-500 leading-6">等待同步資料...</div>
     </div>
 
     <div class="ios-panel p-4 flex-grow overflow-hidden flex flex-col">
@@ -96,35 +96,32 @@
 
     <script id="worker-source" type="text/plain">
 const DISPLAY_ROWS = 10;
-const SLOT_COUNT = 5;
 
 self.onmessage = (event) => {
-    const { type, payload } = event.data;
-    if (type !== "analyze") {
-        return;
-    }
+    const { type, payload } = event.data || {};
+    if (type !== "analyze") return;
 
     try {
-        const draws = payload.draws || [];
+        const draws = Array.isArray(payload?.draws) ? payload.draws : [];
         if (draws.length < 36) {
-            throw new Error("至少需要 36 期資料才能進行回測。");
+            throw new Error("資料不足，至少需要 36 期才能分析。");
         }
 
-        log("Worker 已啟動，開始嚴格滾動搜尋", "orange-500");
-        const historicalStats = buildHistoricalStats(draws);
-        const { config, metrics, results } = heuristicSearch(draws, historicalStats);
-        const nextPrediction = buildPrediction(draws.slice(0, config.windowSize), draws, config, historicalStats);
+        log("Worker 已啟動，開始進行嚴格滾動回測。", "orange-500");
+        const stats = buildHistoricalStats(draws);
+        const best = heuristicSearch(draws, stats);
+        const nextPrediction = buildPrediction(draws.slice(0, best.config.windowSize), best.config);
 
         self.postMessage({
             type: "analysis",
             payload: {
                 modelName: "v9.20 中文強化版",
-                config,
-                configSummary: summarizeConfig(config),
-                filterSummary: `AC>=4 | 總和 75-125 | 遺漏總和 ${historicalStats.omissionSum.mean.toFixed(1)} ± ${(historicalStats.omissionSum.stdev * 1.5).toFixed(1)} | 顯示最近 ${DISPLAY_ROWS} 期`,
+                config: best.config,
+                configSummary: summarizeConfig(best.config),
+                filterSummary: "投票模型：熱號 + Slot + 遺漏速度",
                 nextPrediction,
-                metrics,
-                visibleResults: results.slice(0, DISPLAY_ROWS)
+                metrics: best.metrics,
+                visibleResults: best.results.slice(0, DISPLAY_ROWS)
             }
         });
     } catch (error) {
@@ -134,7 +131,7 @@ self.onmessage = (event) => {
             payload: {
                 modelName: "v9.20 中文強化版",
                 config: defaultConfig(),
-                configSummary: "使用備援設定",
+                configSummary: "已退回預設參數",
                 filterSummary: "Worker 錯誤",
                 nextPrediction: [0, 0, 0, 0, 0],
                 metrics: { rate2: 0, rate3: 0, rate4: 0, rate5: 0, objective: 0, testCount: 0 },
@@ -151,69 +148,46 @@ function log(message, color) {
 function defaultConfig() {
     return {
         windowSize: 36,
-        historyDepth: 20,
-        recencyWeight: 3.2,
-        omissionThreshold: 7,
-        omissionWeight: 0.25,
-        velocityWeight: 1.0,
-        anchorWeight: 1.0,
-        recentUnionWeight: 1.0,
-        nearWeight: 0.4,
-        pairWeight: 0.6,
         wa: 1.2,
         wb: 1.2,
         wc: 0.8,
-        a: {
-            depth: 8,
-            hot: 2.0,
-            omit_t: 5,
-            omit: 0.25,
-            recent_n: 4,
-            recent: 1.0,
-            near1: 0.0,
-            near2: 0.3
-        },
-        b: {
-            depth: 20,
-            recency: 3.2,
-            omit_t: 7,
-            omit: 0.25,
-            odd_trigger: 4,
-            even: 0.0,
-            near_r: 4,
-            near: 0.4,
-            union: 0.0,
-            anchor: 1.0,
-            pair_depth: 24,
-            pair_need: 3,
-            pair: 0.6,
-            recent_window: 5
-        },
-        c: {
-            depth: 8,
-            hot: 2.0,
-            omit_t: 5,
-            omit: 0.15,
-            vel: 1.0
-        }
+        a: { depth: 10, hot: 2.0, omitThreshold: 5, omitWeight: 0.20, recentDepth: 3, recentWeight: 1.0, nearWeight: 0.3 },
+        b: { depth: 16, slotWeight: 2.6, omitThreshold: 6, omitWeight: 0.15, nearRange: 4, nearWeight: 0.4, anchorWeight: 2.0 },
+        c: { depth: 8, hot: 2.0, omitThreshold: 5, omitWeight: 0.15, velocityWeight: 0.8 }
     };
 }
 
-function heuristicSearch(draws, historicalStats) {
+function buildHistoricalStats(draws) {
+    const omissionSums = [];
+    for (let i = 0; i < Math.max(0, draws.length - 1); i += 1) {
+        const train = draws.slice(i + 1);
+        if (train.length < 5) continue;
+        const omitMap = getOmissions(train);
+        const omissionSum = draws[i].nums.reduce((sum, num) => sum + omitMap[num], 0);
+        omissionSums.push(omissionSum);
+    }
+    const mean = omissionSums.length ? omissionSums.reduce((sum, value) => sum + value, 0) / omissionSums.length : 0;
+    const variance = omissionSums.length
+        ? omissionSums.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / omissionSums.length
+        : 0;
+    return { omissionSum: { mean, stdev: Math.sqrt(variance) } };
+}
+
+function heuristicSearch(draws) {
     const hotConfigs = [
-        { depth: 8, hot: 2.0, omit_t: 5, omit: 0.25, recent_n: 4, recent: 1.0, near1: 0.0, near2: 0.3 },
-        { depth: 8, hot: 1.2, omit_t: 7, omit: 0.15, recent_n: 4, recent: 0.6, near1: 0.0, near2: 0.1 },
-        { depth: 10, hot: 2.0, omit_t: 5, omit: 0.20, recent_n: 3, recent: 1.0, near1: 0.3, near2: 0.3 }
+        { depth: 8, hot: 2.0, omitThreshold: 5, omitWeight: 0.25, recentDepth: 4, recentWeight: 1.0, nearWeight: 0.3 },
+        { depth: 10, hot: 2.0, omitThreshold: 5, omitWeight: 0.20, recentDepth: 3, recentWeight: 1.0, nearWeight: 0.3 },
+        { depth: 8, hot: 1.2, omitThreshold: 7, omitWeight: 0.15, recentDepth: 4, recentWeight: 0.6, nearWeight: 0.1 }
     ];
     const slotConfigs = [
-        { depth: 20, recency: 3.2, omit_t: 7, omit: 0.25, odd_trigger: 4, even: 0.0, near_r: 4, near: 0.4, union: 0.0, anchor: 1.0, pair_depth: 24, pair_need: 3, pair: 0.6, recent_window: 5 },
-        { depth: 12, recency: 2.6, omit_t: 7, omit: 0.15, odd_trigger: 3, even: 0.0, near_r: 3, near: 0.0, union: 0.4, anchor: 4.0, pair_depth: 24, pair_need: 3, pair: 0.4, recent_window: 2 },
-        { depth: 16, recency: 2.6, omit_t: 6, omit: 0.15, odd_trigger: 3, even: 0.6, near_r: 4, near: 0.4, union: 0.0, anchor: 2.0, pair_depth: 24, pair_need: 2, pair: 0.2, recent_window: 3 }
+        { depth: 20, slotWeight: 3.2, omitThreshold: 7, omitWeight: 0.25, nearRange: 4, nearWeight: 0.4, anchorWeight: 1.0 },
+        { depth: 12, slotWeight: 2.6, omitThreshold: 7, omitWeight: 0.15, nearRange: 3, nearWeight: 0.0, anchorWeight: 4.0 },
+        { depth: 16, slotWeight: 2.6, omitThreshold: 6, omitWeight: 0.15, nearRange: 4, nearWeight: 0.4, anchorWeight: 2.0 }
     ];
     const velocityConfigs = [
-        { depth: 8, hot: 2.0, omit_t: 5, omit: 0.15, vel: 1.0 },
-        { depth: 16, hot: 1.6, omit_t: 9, omit: 0.2, vel: 1.4 },
-        { depth: 8, hot: 2.0, omit_t: 5, omit: 0.15, vel: 0.8 }
+        { depth: 8, hot: 2.0, omitThreshold: 5, omitWeight: 0.15, velocityWeight: 1.0 },
+        { depth: 16, hot: 1.6, omitThreshold: 9, omitWeight: 0.2, velocityWeight: 1.4 },
+        { depth: 8, hot: 2.0, omitThreshold: 5, omitWeight: 0.15, velocityWeight: 0.8 }
     ];
     const weights = [
         [1.0, 1.2, 0.8],
@@ -226,23 +200,13 @@ function heuristicSearch(draws, historicalStats) {
     let best = null;
     let tested = 0;
 
-    windowSizes.forEach(windowSize => {
-        hotConfigs.forEach(a => {
-            slotConfigs.forEach(b => {
-                velocityConfigs.forEach(c => {
-                    weights.forEach(weightSet => {
+    windowSizes.forEach((windowSize) => {
+        hotConfigs.forEach((a) => {
+            slotConfigs.forEach((b) => {
+                velocityConfigs.forEach((c) => {
+                    weights.forEach((weightSet) => {
                         const config = {
-                            ...defaultConfig(),
                             windowSize,
-                            historyDepth: b.depth,
-                            recencyWeight: b.recency,
-                            omissionThreshold: b.omit_t,
-                            omissionWeight: b.omit,
-                            velocityWeight: c.vel,
-                            anchorWeight: b.anchor,
-                            recentUnionWeight: a.recent,
-                            nearWeight: b.near,
-                            pairWeight: b.pair,
                             wa: weightSet[0],
                             wb: weightSet[1],
                             wc: weightSet[2],
@@ -250,7 +214,7 @@ function heuristicSearch(draws, historicalStats) {
                             b: { ...b },
                             c: { ...c }
                         };
-                        const evaluation = evaluateConfig(draws, config, historicalStats);
+                        const evaluation = evaluateConfig(draws, config);
                         tested += 1;
                         if (
                             !best ||
@@ -266,24 +230,27 @@ function heuristicSearch(draws, historicalStats) {
         });
     });
 
-    log(`已測試 ${tested} 組投票模型`, "gray-400");
-    log(`最佳結果：2星 ${best.metrics.rate2.toFixed(1)}% / 3星 ${best.metrics.rate3.toFixed(1)}%`, "green-500");
+    log(`參數搜尋完成，共測試 ${tested} 組。`, "green-500");
+    log(`最佳結果：2星 ${best.metrics.rate2.toFixed(1)}%，3星 ${best.metrics.rate3.toFixed(1)}%。`, "orange-400");
     return best;
 }
 
-function evaluateConfig(draws, config, historicalStats) {
-    const testCount = Math.max(0, draws.length - config.windowSize - 1);
+function evaluateConfig(draws, config) {
+    const results = [];
     let hit2 = 0;
     let hit3 = 0;
     let hit4 = 0;
     let hit5 = 0;
-    const results = [];
+    const testCount = Math.max(0, draws.length - config.windowSize - 1);
 
     for (let i = 0; i < testCount; i += 1) {
         const actual = draws[i];
         const train = draws.slice(i + 1, i + 1 + config.windowSize);
-        const prediction = buildPrediction(train, draws.slice(i + 1), config, historicalStats);
-        const hits = prediction.filter(num => actual.nums.includes(num)).length;
+        if (train.length < config.windowSize) break;
+
+        const prediction = buildPrediction(train, config);
+        const hitNums = prediction.filter((num) => actual.nums.includes(num));
+        const hits = hitNums.length;
 
         if (hits >= 2) hit2 += 1;
         if (hits >= 3) hit3 += 1;
@@ -294,284 +261,159 @@ function evaluateConfig(draws, config, historicalStats) {
             label: actual.label,
             actual: actual.nums,
             prediction,
-            hitFlags: prediction.map(num => actual.nums.includes(num)),
-            hits
+            hits,
+            hitNums
         });
     }
 
-    const denominator = testCount || 1;
-    const rate2 = (hit2 / denominator) * 100;
-    const rate3 = (hit3 / denominator) * 100;
-    const rate4 = (hit4 / denominator) * 100;
-    const rate5 = (hit5 / denominator) * 100;
-    const objective = (rate2 * 10) + (rate3 * 50) + (rate4 * 200);
-
-    return {
-        metrics: { rate2, rate3, rate4, rate5, objective, testCount },
-        results
+    const divisor = results.length || 1;
+    const metrics = {
+        rate2: (hit2 / divisor) * 100,
+        rate3: (hit3 / divisor) * 100,
+        rate4: (hit4 / divisor) * 100,
+        rate5: (hit5 / divisor) * 100,
+        objective: ((hit2 / divisor) * 10) + ((hit3 / divisor) * 50) + ((hit4 / divisor) * 200),
+        testCount: results.length
     };
+
+    return { results, metrics };
 }
 
-function buildPrediction(train, allTrainHistory, config, historicalStats) {
-    const pickA = predictHotOmit(train, config.a);
-    const pickB = predictSlotModel(train, config.b);
-    const pickC = predictVelocityModel(train, config.c);
-    const votes = {};
-
+function buildPrediction(train, config) {
+    const voteMap = new Map();
     for (let n = 1; n <= 39; n += 1) {
-        votes[n] = 0;
+        voteMap.set(n, 0);
     }
 
-    pickA.forEach(num => { votes[num] += config.wa; });
-    pickB.forEach(num => { votes[num] += config.wb; });
-    pickC.forEach(num => { votes[num] += config.wc; });
+    const modelA = predictHotOmit(train, config.a);
+    const modelB = predictSlotModel(train, config.b);
+    const modelC = predictVelocityModel(train, config.c);
 
-    train.slice(0, 10).forEach((draw, idx) => {
-        draw.nums.forEach(num => {
-            votes[num] += 0.05 * (10 - idx);
+    modelA.forEach((num, index) => voteMap.set(num, voteMap.get(num) + config.wa * (6 - index)));
+    modelB.forEach((num, index) => voteMap.set(num, voteMap.get(num) + config.wb * (6 - index)));
+    modelC.forEach((num, index) => voteMap.set(num, voteMap.get(num) + config.wc * (6 - index)));
+
+    train.slice(0, 10).forEach((draw, index) => {
+        draw.nums.forEach((num) => {
+            voteMap.set(num, voteMap.get(num) + ((10 - index) * 0.05));
         });
     });
 
-    return topNumbers(votes, 5).sort((a, b) => a - b);
+    return [...voteMap.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0] - b[0])
+        .slice(0, 5)
+        .map(([num]) => num)
+        .sort((a, b) => a - b);
 }
 
-function predictHotOmit(train, config) {
-    const omit = getOmissions(train);
-    const scores = {};
-    for (let n = 1; n <= 39; n += 1) {
-        scores[n] = 0;
-    }
+function predictHotOmit(train, cfg) {
+    const scores = new Map();
+    const omitMap = getOmissions(train);
+    for (let n = 1; n <= 39; n += 1) scores.set(n, 0);
 
-    const depth = Math.min(config.depth, train.length);
-    train.slice(0, depth).forEach((draw, idx) => {
-        const weight = (depth - idx) / depth;
-        draw.nums.forEach(num => {
-            scores[num] += config.hot * weight;
+    train.slice(0, cfg.depth).forEach((draw, index) => {
+        const weight = (cfg.depth - index) / cfg.depth;
+        draw.nums.forEach((num) => {
+            scores.set(num, scores.get(num) + (cfg.hot * weight));
         });
-    });
-
-    Object.keys(omit).forEach(key => {
-        const num = Number(key);
-        if (omit[num] >= config.omit_t) {
-            scores[num] += omit[num] * config.omit;
-        }
-    });
-
-    const recent = new Set();
-    train.slice(0, config.recent_n).forEach(draw => draw.nums.forEach(num => recent.add(num)));
-    recent.forEach(num => {
-        scores[num] += config.recent;
     });
 
     for (let n = 1; n <= 39; n += 1) {
-        const near = Math.min(...train[0].nums.map(value => Math.abs(value - n)));
-        if (near <= 1) {
-            scores[n] += config.near1;
-        } else if (near <= 2) {
-            scores[n] += config.near2;
+        if (omitMap[n] > cfg.omitThreshold) {
+            scores.set(n, scores.get(n) + (omitMap[n] * cfg.omitWeight));
         }
     }
 
-    return topNumbers(scores, 5);
+    train.slice(0, cfg.recentDepth).forEach((draw) => {
+        draw.nums.forEach((num) => {
+            scores.set(num, scores.get(num) + cfg.recentWeight);
+            if (num > 1) scores.set(num - 1, scores.get(num - 1) + cfg.nearWeight);
+            if (num < 39) scores.set(num + 1, scores.get(num + 1) + cfg.nearWeight);
+        });
+    });
+
+    return topNumbers(scores);
 }
 
-function predictSlotModel(train, config) {
-    const omit = getOmissions(train);
-    const used = new Set();
-    const prediction = [];
-    const recentUnion = new Set();
-    train.slice(0, config.recent_window).forEach(draw => draw.nums.forEach(num => recentUnion.add(num)));
-    const overlapContext = new Set([...(train[0]?.nums || []), ...(train[1]?.nums || [])]);
+function predictSlotModel(train, cfg) {
+    const scores = new Map();
+    const omitMap = getOmissions(train);
+    for (let n = 1; n <= 39; n += 1) scores.set(n, 0);
 
-    for (let slot = 0; slot < SLOT_COUNT; slot += 1) {
-        const scores = {};
-        for (let n = 1; n <= 39; n += 1) {
-            scores[n] = 0;
-        }
-
-        const depth = Math.min(config.depth, train.length);
-        train.slice(0, depth).forEach((draw, idx) => {
-            const weight = (depth - idx) / depth;
-            scores[draw.nums[slot]] += config.recency * weight;
+    for (let slot = 0; slot < 5; slot += 1) {
+        train.slice(0, cfg.depth).forEach((draw, index) => {
+            const weight = (cfg.depth - index) / cfg.depth;
+            const value = draw.nums[slot];
+            scores.set(value, scores.get(value) + (cfg.slotWeight * weight));
         });
-
-        Object.keys(omit).forEach(key => {
-            const num = Number(key);
-            if (omit[num] > config.omit_t) {
-                scores[num] += omit[num] * config.omit;
-            }
-        });
-
-        const last = train[0].nums[slot];
-        let consecutiveOdd = 0;
-        for (const draw of train) {
-            if (draw.nums[slot] % 2 !== 0) {
-                consecutiveOdd += 1;
-            } else {
-                break;
-            }
-        }
-
-        for (let n = 1; n <= 39; n += 1) {
-            if (consecutiveOdd >= config.odd_trigger && n % 2 === 0) {
-                scores[n] += config.even;
-            }
-            if (Math.abs(n - last) <= config.near_r) {
-                scores[n] += config.near;
-            }
-            if (recentUnion.has(n)) {
-                scores[n] += config.union;
-            }
-        }
 
         const anchor = train[0].nums[slot];
-        for (let i = 1; i < train.length - 1; i += 1) {
-            if (train[i].nums[slot] === anchor) {
-                scores[train[i - 1].nums[slot]] += config.anchor;
+        for (let i = 1; i < train.length; i += 1) {
+            if (train[i].nums[slot] === anchor && i > 0) {
+                const nextValue = train[i - 1].nums[slot];
+                scores.set(nextValue, scores.get(nextValue) + cfg.anchorWeight);
             }
         }
-
-        for (let i = 2; i < Math.min(train.length - 1, config.pair_depth); i += 1) {
-            const overlap = train[i].nums.filter(num => overlapContext.has(num)).length;
-            if (overlap >= config.pair_need) {
-                scores[train[i - 1].nums[slot]] += config.pair * overlap;
-            }
-        }
-
-        const ranked = Object.entries(scores)
-            .map(([num, score]) => ({ num: Number(num), score }))
-            .sort((a, b) => b.score - a.score || a.num - b.num);
-        const pick = ranked.find(item => !used.has(item.num)) || ranked[0];
-        prediction.push(pick.num);
-        used.add(pick.num);
     }
 
-    return prediction.sort((a, b) => a - b);
+    for (let n = 1; n <= 39; n += 1) {
+        if (omitMap[n] > cfg.omitThreshold) {
+            scores.set(n, scores.get(n) + (omitMap[n] * cfg.omitWeight));
+        }
+    }
+
+    const recent = train[0].nums;
+    for (let n = 1; n <= 39; n += 1) {
+        const minDistance = Math.min(...recent.map((value) => Math.abs(value - n)));
+        if (minDistance <= cfg.nearRange) {
+            scores.set(n, scores.get(n) + cfg.nearWeight);
+        }
+    }
+
+    return topNumbers(scores);
 }
 
-function predictVelocityModel(train, config) {
-    const omit = getOmissions(train);
-    const scores = {};
-    for (let n = 1; n <= 39; n += 1) {
-        scores[n] = 0;
-    }
+function predictVelocityModel(train, cfg) {
+    const scores = new Map();
+    const omitMap = getOmissions(train);
+    for (let n = 1; n <= 39; n += 1) scores.set(n, 0);
 
-    const depth = Math.min(config.depth, train.length);
-    train.slice(0, depth).forEach((draw, idx) => {
-        const weight = (depth - idx) / depth;
-        draw.nums.forEach(num => {
-            scores[num] += config.hot * weight;
+    train.slice(0, cfg.depth).forEach((draw, index) => {
+        const weight = (cfg.depth - index) / cfg.depth;
+        draw.nums.forEach((num) => {
+            scores.set(num, scores.get(num) + (cfg.hot * weight));
         });
     });
 
     for (let n = 1; n <= 39; n += 1) {
-        if (omit[n] >= config.omit_t) {
-            scores[n] += omit[n] * config.omit;
+        if (omitMap[n] > cfg.omitThreshold) {
+            scores.set(n, scores.get(n) + (omitMap[n] * cfg.omitWeight));
         }
-        scores[n] += getOmissionVelocity(n, train) * config.vel;
+        scores.set(n, scores.get(n) + (getOmissionVelocity(n, train) * cfg.velocityWeight));
     }
 
-    const ranked = Object.entries(scores)
-        .map(([num, score]) => ({ num: Number(num), score }))
-        .sort((a, b) => b.score - a.score || a.num - b.num);
-    const hot = ranked.slice(0, 8).map(item => item.num);
-    const cold = ranked.slice(-10)
-        .sort((a, b) => omit[b.num] - omit[a.num])
-        .slice(0, 2)
-        .map(item => item.num);
-    const pool = [...new Set([...hot, ...cold])];
-    return pool.slice(0, 5).sort((a, b) => a - b);
-}
-
-function applySpatialFilters(candidatePool, scores, omitMap, historicalStats, train, config) {
-    let best = candidatePool.slice(0, 5).sort((a, b) => a - b);
-    let bestPenalty = evaluateSpatialPenalty(best, omitMap, historicalStats, train, config);
-    let bestScore = best.reduce((sum, num) => sum + scores.get(num), 0) - bestPenalty;
-
-    const combos = choose(candidatePool.slice(0, 14), 5);
-    combos.forEach(combo => {
-        const sorted = combo.slice().sort((a, b) => a - b);
-        const comboScore = sorted.reduce((sum, num) => sum + scores.get(num), 0);
-        const penalty = evaluateSpatialPenalty(sorted, omitMap, historicalStats, train, config);
-        const total = comboScore - penalty;
-
-        if (total > bestScore) {
-            best = sorted;
-            bestPenalty = penalty;
-            bestScore = total;
-        }
-    });
-
-    return best;
-}
-
-function evaluateSpatialPenalty(prediction, omitMap, historicalStats, train, config) {
-    let penalty = 0;
-    const sum = prediction.reduce((acc, value) => acc + value, 0);
-    const acValue = getAcValue(prediction);
-    const omissionSum = prediction.reduce((acc, value) => acc + omitMap[value], 0);
-    const repeatOverlap = getMaxRepeatOverlap(prediction, train);
-
-    if (sum < 75 || sum > 125) {
-        penalty += config.sumPenalty * (Math.abs(sum - 100) / 10);
-    }
-    if (acValue < 4) {
-        penalty += config.acPenalty * (4 - acValue);
-    }
-
-    const lower = historicalStats.omissionSum.mean - (historicalStats.omissionSum.stdev * 1.5);
-    const upper = historicalStats.omissionSum.mean + (historicalStats.omissionSum.stdev * 1.5);
-    if (omissionSum < lower || omissionSum > upper) {
-        penalty += config.omissionPenalty * (Math.abs(omissionSum - historicalStats.omissionSum.mean) / Math.max(1, historicalStats.omissionSum.stdev));
-    }
-    if (repeatOverlap >= 3) {
-        penalty += config.repeatPenalty * (repeatOverlap - 2);
-    }
-
-    return penalty;
-}
-
-function buildHistoricalStats(draws) {
-    const omissionSums = [];
-    for (let i = 0; i < draws.length - 1; i += 1) {
-        const omitMap = getOmissions(draws.slice(i + 1));
-        omissionSums.push(draws[i].nums.reduce((sum, num) => sum + omitMap[num], 0));
-    }
-
-    return {
-        omissionSum: meanStdev(omissionSums)
-    };
+    return topNumbers(scores);
 }
 
 function getOmissions(history) {
     const omit = {};
+    for (let n = 1; n <= 39; n += 1) omit[n] = 0;
+
     for (let n = 1; n <= 39; n += 1) {
-        omit[n] = 0;
-    }
-    for (let n = 1; n <= 39; n += 1) {
-        let count = 0;
+        let gap = 0;
         for (const draw of history) {
-            if (draw.nums.includes(n)) {
-                break;
-            }
-            count += 1;
+            if (draw.nums.includes(n)) break;
+            gap += 1;
         }
-        omit[n] = count;
+        omit[n] = gap;
     }
     return omit;
-}
-
-function buildVelocityMap(history) {
-    const out = {};
-    for (let n = 1; n <= 39; n += 1) {
-        out[n] = getOmissionVelocity(n, history);
-    }
-    return out;
 }
 
 function getOmissionVelocity(num, history) {
     const gaps = [];
     let currentGap = 0;
+
     for (const draw of history) {
         if (draw.nums.includes(num)) {
             gaps.push(currentGap);
@@ -580,118 +422,34 @@ function getOmissionVelocity(num, history) {
             currentGap += 1;
         }
     }
-    gaps.push(currentGap);
-    return analyzeGapPattern(gaps);
+
+    return analyzeGapPattern(gaps, currentGap);
 }
 
-function analyzeGapPattern(gaps) {
-    if (gaps.length < 3) {
-        return 0;
-    }
-    const current = gaps[gaps.length - 1];
-    const prev = gaps[gaps.length - 2];
-    const prev2 = gaps[gaps.length - 3];
-    const acceleration = (current - prev) - (prev - prev2);
-    const recentMean = (prev + prev2) / 2;
-    let score = 0;
-    if (current >= recentMean) score += 0.8;
-    if (acceleration < 0) score += 0.6;
-    if (Math.abs(current - recentMean) <= 1.5) score += 0.5;
-    return score;
+function analyzeGapPattern(gaps, currentGap) {
+    if (!gaps.length) return 0;
+    const avgGap = gaps.reduce((sum, value) => sum + value, 0) / gaps.length;
+    const delta = currentGap - avgGap;
+    if (Math.abs(delta) <= 1) return 1.5;
+    if (delta > 1) return 0.7;
+    return 0.2;
 }
 
-function getAcValue(numbers) {
-    const diffs = new Set();
-    for (let i = 0; i < numbers.length; i += 1) {
-        for (let j = i + 1; j < numbers.length; j += 1) {
-            diffs.add(numbers[j] - numbers[i]);
-        }
-    }
-    return diffs.size - (numbers.length - 1);
-}
-
-function getMaxRepeatOverlap(prediction, history) {
-    let maxOverlap = 0;
-    history.forEach(draw => {
-        const overlap = draw.nums.filter(num => prediction.includes(num)).length;
-        if (overlap > maxOverlap) {
-            maxOverlap = overlap;
-        }
-    });
-    return maxOverlap;
-}
-
-function topNumbers(scoreMap, count) {
+function topNumbers(scoreMap) {
     return [...scoreMap.entries()]
         .sort((a, b) => b[1] - a[1] || a[0] - b[0])
-        .slice(0, count)
-        .map(item => item[0]);
-}
-
-function choose(items, size) {
-    const out = [];
-    const path = [];
-
-    function dfs(start) {
-        if (path.length === size) {
-            out.push(path.slice());
-            return;
-        }
-        for (let i = start; i < items.length; i += 1) {
-            path.push(items[i]);
-            dfs(i + 1);
-            path.pop();
-        }
-    }
-
-    dfs(0);
-    return out;
-}
-
-function meanStdev(values) {
-    if (!values.length) {
-        return { mean: 0, stdev: 1 };
-    }
-    const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
-    const variance = values.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / values.length;
-    return { mean, stdev: Math.sqrt(variance) || 1 };
+        .slice(0, 5)
+        .map(([num]) => num);
 }
 
 function summarizeConfig(config) {
     return [
-        `W${config.windowSize}`,
-        `D${config.historyDepth}`,
-        `R${config.recencyWeight.toFixed(2)}`,
-        `O${config.omissionWeight.toFixed(2)}`,
-        `V${config.velocityWeight.toFixed(2)}`,
-        `A${config.anchorWeight.toFixed(2)}`,
-        `Vote ${config.wa.toFixed(1)}/${config.wb.toFixed(1)}/${config.wc.toFixed(1)}`
-    ].join(" / ");
-}
-
-function clamp(value, min, max) {
-    return Math.min(max, Math.max(min, value));
-}
-
-function randomSigned(scale) {
-    return (Math.random() * 2 - 1) * scale;
-}
-
-function snap(value, options) {
-    let best = options[0];
-    let distance = Math.abs(value - best);
-    options.forEach(option => {
-        const nextDistance = Math.abs(value - option);
-        if (nextDistance < distance) {
-            best = option;
-            distance = nextDistance;
-        }
-    });
-    return best;
-}
-
-function round2(value) {
-    return Math.round(value * 100) / 100;
+        `Window ${config.windowSize}`,
+        `投票 ${config.wa.toFixed(1)}/${config.wb.toFixed(1)}/${config.wc.toFixed(1)}`,
+        `Hot ${config.a.depth}`,
+        `Slot ${config.b.depth}`,
+        `Velocity ${config.c.depth}`
+    ].join(" | ");
 }
     </script>
 
@@ -699,11 +457,11 @@ function round2(value) {
         const API_URL = "https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec";
         let worker = null;
 
-        function addLog(msg, color = "gray-500") {
+        function addLog(message, color = "gray-500") {
             const logBox = document.getElementById("logBox");
             const span = document.createElement("span");
             span.className = `text-${color}`;
-            span.innerHTML = `&gt; ${msg}<br>`;
+            span.innerHTML = `&gt; ${message}<br>`;
             logBox.appendChild(span);
             logBox.scrollTop = logBox.scrollHeight;
         }
@@ -714,32 +472,23 @@ function round2(value) {
 
         function setStatus(mode, dotClass) {
             document.getElementById("strategyMode").innerText = mode;
-            document.getElementById("statusDot").className = `w-2 h-2 ${dotClass} rounded-full mr-1`;
+            document.getElementById("statusDot").className = dotClass;
         }
 
         function ensureWorker() {
-            if (worker) {
-                return worker;
-            }
+            if (worker) return worker;
 
-            try {
-                const workerSource = document.getElementById("worker-source").textContent;
-                const blob = new Blob([workerSource], { type: "text/javascript" });
-                const workerUrl = URL.createObjectURL(blob);
-                worker = new Worker(workerUrl);
-            } catch (error) {
-                addLog(`Worker 初始化失敗：${error.message}`, "red-500");
-                setStatus("ERROR", "bg-red-500");
-                throw error;
-            }
+            const source = document.getElementById("worker-source").textContent;
+            const blob = new Blob([source], { type: "application/javascript" });
+            const url = URL.createObjectURL(blob);
+            worker = new Worker(url);
 
             worker.onmessage = (event) => {
-                const { type, payload } = event.data;
+                const { type, payload } = event.data || {};
                 if (type === "log") {
-                    addLog(payload.message, payload.color);
+                    addLog(payload.message, payload.color || "gray-500");
                     return;
                 }
-
                 if (type === "analysis") {
                     updateUI(payload);
                 }
@@ -747,104 +496,114 @@ function round2(value) {
 
             worker.onerror = (event) => {
                 addLog(`Worker 執行錯誤：${event.message || "未知錯誤"}`, "red-500");
-                setStatus("ERROR", "bg-red-500");
+                setStatus("ERROR", "w-2 h-2 bg-red-500 rounded-full mr-1");
             };
 
             worker.onmessageerror = () => {
-                addLog("Worker 訊息解析失敗", "red-500");
-                setStatus("ERROR", "bg-red-500");
+                addLog("Worker 訊息解析失敗。", "red-500");
+                setStatus("ERROR", "w-2 h-2 bg-red-500 rounded-full mr-1");
             };
 
-            addLog("Worker 初始化完成", "gray-400");
+            addLog("Worker 已建立。", "green-500");
             return worker;
         }
 
         async function fetchSheetData() {
-            addLog("開始連線 Google Sheet API...", "orange-500");
-            setStatus("同步中", "bg-orange-500 animate-pulse");
+            addLog("開始同步 Google Sheet 資料...", "orange-500");
+            setStatus("SYNC", "w-2 h-2 bg-orange-500 rounded-full mr-1 animate-pulse");
 
             try {
-                const activeWorker = ensureWorker();
                 const response = await fetch(API_URL);
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);
                 }
 
                 const result = await response.json();
-                const rawData = typeof result === "string" ? result : (result.data || "");
+                const rawData = typeof result === "string" ? result : (typeof result.data === "string" ? result.data : "");
                 if (!rawData.trim()) {
-                    throw new Error("EMPTY_DATA");
+                    throw new Error("API 沒有回傳可用資料。");
                 }
 
-                const draws = rawData
-                    .split(/\r?\n/)
-                    .map(line => line.trim())
-                    .filter(line => line && !/^date\b/i.test(line))
-                    .map((line, idx) => {
+                const lines = rawData.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+                const draws = lines
+                    .map((line) => {
                         const tokens = line.split(/\s+/);
                         const nums = tokens.slice(-5).map(Number);
-                        if (
-                            nums.length !== 5 ||
-                            nums.some(num => !Number.isInteger(num) || num < 1 || num > 39) ||
-                            new Set(nums).size !== 5
-                        ) {
+                        if (nums.length !== 5 || nums.some((num) => !Number.isInteger(num) || num < 1 || num > 39)) {
                             return null;
                         }
-
-                        return {
-                            label: `Draw ${String(idx + 1).padStart(3, "0")}`,
-                            nums
-                        };
+                        if (new Set(nums).size !== 5) {
+                            return null;
+                        }
+                        return { nums };
                     })
                     .filter(Boolean)
-                    .reverse();
+                    .reverse()
+                    .map((draw, index) => ({
+                        label: `第 ${String(index + 1).padStart(3, "0")} 期`,
+                        nums: draw.nums
+                    }));
 
-                addLog(`已載入 ${draws.length} 期資料，送入 Worker 分析`, "green-500");
-                activeWorker.postMessage({ type: "analyze", payload: { draws } });
+                if (draws.length < 36) {
+                    throw new Error("有效資料不足 36 期。");
+                }
+
+                addLog(`同步完成，共載入 ${draws.length} 期。`, "green-500");
+                ensureWorker().postMessage({ type: "analyze", payload: { draws } });
             } catch (error) {
                 addLog(`同步失敗：${error.message}`, "red-500");
-                setStatus("ERROR", "bg-red-500");
+                setStatus("ERROR", "w-2 h-2 bg-red-500 rounded-full mr-1");
             }
         }
 
         function updateUI(payload) {
-            payload.nextPrediction.forEach((num, idx) => {
-                document.getElementById(`p${idx + 1}`).innerText = formatNumber(num);
+            const { modelName, configSummary, filterSummary, nextPrediction, metrics, visibleResults } = payload;
+
+            nextPrediction.forEach((num, index) => {
+                document.getElementById(`p${index + 1}`).innerText = num ? formatNumber(num) : "--";
             });
 
             document.getElementById("hitRate").innerText =
-                `2星/3星/4星/5星：${payload.metrics.rate2.toFixed(1)} / ${payload.metrics.rate3.toFixed(1)} / ${payload.metrics.rate4.toFixed(1)} / ${payload.metrics.rate5.toFixed(1)}`;
+                `2星/3星/4星/5星：${metrics.rate2.toFixed(1)} / ${metrics.rate3.toFixed(1)} / ${metrics.rate4.toFixed(1)} / ${metrics.rate5.toFixed(1)}`;
 
-            const mode = payload.metrics.rate2 < 100
-                ? "警戒"
-                : payload.metrics.rate3 > 50
-                    ? "穩定"
-                    : "優化中";
-            const dotClass = payload.metrics.rate2 < 100
-                ? "bg-red-500"
-                : payload.metrics.rate3 > 50
-                    ? "bg-green-500 animate-pulse"
-                    : "bg-orange-500 animate-pulse";
-            setStatus(mode, dotClass);
-
-            const table = document.getElementById("historyTable");
-            table.innerHTML = payload.visibleResults.length ? payload.visibleResults.map(result => `
-                <tr class="border-b border-white/5">
-                    <td class="py-3 text-gray-500 font-mono">${result.label}</td>
-                    <td class="font-mono text-white">${result.actual.map(formatNumber).join(" ")}</td>
-                    <td class="text-[11px] text-gray-400 font-mono">${result.prediction.map(num => result.actual.includes(num) ? `<span class="hit-num">${formatNumber(num)}</span>` : formatNumber(num)).join(" ")}</td>
-                    <td>${result.hitFlags.map(hit => `<span class="slot-dot ${hit ? "slot-hit" : "slot-miss"}">${hit ? "H" : "M"}</span>`).join("")}</td>
-                    <td class="text-right font-black ${result.hits >= 3 ? "text-orange-500" : "text-gray-500"}">${result.hits}</td>
-                </tr>
-            `).join("") : `<tr><td colspan="5" class="text-center py-10 text-gray-600 font-mono italic">資料不足</td></tr>`;
+            if (metrics.rate2 < 100) {
+                setStatus("警戒", "w-2 h-2 bg-red-500 rounded-full mr-1");
+            } else if (metrics.rate2 === 100 && metrics.rate3 > 50) {
+                setStatus("穩定", "w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse");
+            } else {
+                setStatus("優化中", "w-2 h-2 bg-orange-500 rounded-full mr-1 animate-pulse");
+            }
 
             document.getElementById("modelMeta").innerText =
-                `模型：${payload.modelName} | 視窗：${payload.config.windowSize} | 深度：${payload.config.historyDepth} | 目標分數：${payload.metrics.objective.toFixed(1)} | 全量回測：${payload.metrics.testCount} 期`;
+                `${modelName} | ${configSummary} | ${filterSummary} | 回測樣本 ${metrics.testCount} 期`;
 
-            addLog(`下一期預測：${payload.nextPrediction.map(formatNumber).join(", ")}`, "orange-400");
-            addLog(`最佳參數：${payload.configSummary}`, "green-500");
-            addLog(`過濾條件：${payload.filterSummary}`, "gray-400");
+            const rows = visibleResults.length
+                ? visibleResults.map((result) => {
+                    const hitSet = new Set(result.hitNums);
+                    const predictionHtml = result.prediction
+                        .map((num) => hitSet.has(num) ? `<span class="hit-num">${formatNumber(num)}</span>` : formatNumber(num))
+                        .join(" ");
+                    const dotHtml = result.prediction
+                        .map((num) => `<span class="slot-dot ${hitSet.has(num) ? "slot-hit" : "slot-miss"}">${hitSet.has(num) ? "●" : "○"}</span>`)
+                        .join("");
+                    return `
+                        <tr class="border-b border-white/5">
+                            <td class="py-3 text-gray-500 font-mono">${result.label}</td>
+                            <td class="font-mono text-white">${result.actual.map(formatNumber).join(" ")}</td>
+                            <td class="text-[11px] text-gray-400 font-mono">${predictionHtml}</td>
+                            <td>${dotHtml}</td>
+                            <td class="text-right font-black ${result.hits >= 3 ? "text-orange-500" : result.hits >= 2 ? "text-white" : "text-gray-500"}">${result.hits}</td>
+                        </tr>
+                    `;
+                }).join("")
+                : `<tr><td colspan="5" class="text-center py-10 text-gray-600 font-mono italic">沒有可顯示的回測資料</td></tr>`;
+
+            document.getElementById("historyTable").innerHTML = rows;
+            addLog(`回測完成：2星 ${metrics.rate2.toFixed(1)}%，3星 ${metrics.rate3.toFixed(1)}%。`, "green-500");
+            addLog(`下一期推薦：${nextPrediction.map(formatNumber).join(" ")}`, "orange-400");
         }
+
+        ensureWorker();
     </script>
 </body>
 </html>
