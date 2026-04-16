@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE EVO v9.20 中文強化版</title>
+    <title>ULTIMATE EVO v9.30 中文強化版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root { --ios-orange: #f97316; --ios-bg: #000000; --ios-panel: #1c1c1e; }
@@ -23,7 +23,7 @@
 <body class="min-h-screen flex flex-col p-4">
     <div class="flex justify-between items-center mb-5">
         <h1 class="text-2xl font-black italic tracking-tighter text-orange-500">
-            ULTIMATE <span class="text-white">EVO 9.20</span>
+            ULTIMATE <span class="text-white">EVO 9.30</span>
         </h1>
         <div class="flex bg-[#2c2c2e] p-1 rounded-xl flex-nowrap shrink-0">
             <button id="btnSync" onclick="fetchSheetData()" class="px-4 py-1.5 rounded-lg text-sm btn-active whitespace-nowrap">開始同步</button>
@@ -35,12 +35,12 @@
             <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">Panel 1: 引擎狀態</label>
             <div class="flex items-center text-[10px] text-orange-500 font-bold uppercase">
                 <span id="statusDot" class="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></span>
-                v9.20 <span id="strategyMode" class="ml-1 text-white">READY</span>
+                v9.30 <span id="strategyMode" class="ml-1 text-white">READY</span>
             </div>
         </div>
         <div id="logBox" class="bg-black/50 p-3 rounded-lg text-[11px] h-24 overflow-y-auto font-mono border border-white/5 leading-relaxed">
             <span class="text-gray-500">&gt; Worker 已初始化，等待同步資料...</span><br>
-            <span class="text-gray-500">&gt; 模式：投票模型 + 嚴格滾動回測</span>
+            <span class="text-gray-500">&gt; 模式：動態配號 + 物理過濾（總和/奇偶比）</span>
         </div>
     </div>
 
@@ -72,11 +72,27 @@
     </div>
 
     <div class="ios-panel p-4 flex-grow overflow-hidden flex flex-col">
-        <div class="flex justify-between items-center mb-2">
-            <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Panel 3: 回測結果</label>
-            <div id="hitRate" class="text-[10px] font-black text-orange-500">2星/3星/4星/5星：0.0 / 0.0 / 0.0 / 0.0</div>
+        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-2">Panel 3: 回測結果</label>
+        <div id="hitRateGrid" class="grid grid-cols-4 gap-2 mb-3">
+            <div class="bg-orange-500/10 border border-orange-500/30 rounded-lg p-2 text-center">
+                <div class="text-[9px] text-gray-400 font-bold uppercase">2星命中</div>
+                <div class="text-base font-black text-orange-500" id="rate2">0.0%</div>
+            </div>
+            <div class="bg-white/5 border border-white/10 rounded-lg p-2 text-center">
+                <div class="text-[9px] text-gray-400 font-bold uppercase">3星命中</div>
+                <div class="text-base font-black text-white" id="rate3">0.0%</div>
+            </div>
+            <div class="bg-white/5 border border-white/10 rounded-lg p-2 text-center">
+                <div class="text-[9px] text-gray-400 font-bold uppercase">4星命中</div>
+                <div class="text-base font-black text-white" id="rate4">0.0%</div>
+            </div>
+            <div class="bg-white/5 border border-white/10 rounded-lg p-2 text-center">
+                <div class="text-[9px] text-gray-400 font-bold uppercase">5星命中</div>
+                <div class="text-base font-black text-white" id="rate5">0.0%</div>
+            </div>
         </div>
-        <div class="overflow-y-auto flex-grow">
+        
+        <div class="overflow-y-auto flex-grow mt-2">
             <table class="w-full text-[12px]">
                 <thead class="sticky top-0 bg-[#1c1c1e] text-gray-500 z-10">
                     <tr class="text-left border-b border-white/10">
@@ -103,22 +119,19 @@ self.onmessage = (event) => {
 
     try {
         const draws = Array.isArray(payload?.draws) ? payload.draws : [];
-        if (draws.length < 36) {
-            throw new Error("資料不足，至少需要 36 期才能分析。");
-        }
+        if (draws.length < 36) throw new Error("資料不足，至少需要 36 期才能分析。");
 
         log("Worker 已啟動，開始進行嚴格滾動回測。", "orange-500");
-        const stats = buildHistoricalStats(draws);
-        const best = heuristicSearch(draws, stats);
+        const best = heuristicSearch(draws);
         const nextPrediction = buildPrediction(draws.slice(0, best.config.windowSize), best.config);
 
         self.postMessage({
             type: "analysis",
             payload: {
-                modelName: "v9.20 中文強化版",
+                modelName: "v9.30 中文強化版",
                 config: best.config,
                 configSummary: summarizeConfig(best.config),
-                filterSummary: "投票模型：熱號 + Slot + 遺漏速度",
+                filterSummary: "過濾：總和 75-125 + 奇偶比 2:3/3:2",
                 nextPrediction,
                 metrics: best.metrics,
                 visibleResults: best.results.slice(0, DISPLAY_ROWS)
@@ -129,7 +142,7 @@ self.onmessage = (event) => {
         self.postMessage({
             type: "analysis",
             payload: {
-                modelName: "v9.20 中文強化版",
+                modelName: "v9.30 錯誤",
                 config: defaultConfig(),
                 configSummary: "已退回預設參數",
                 filterSummary: "Worker 錯誤",
@@ -147,55 +160,28 @@ function log(message, color) {
 
 function defaultConfig() {
     return {
-        windowSize: 36,
-        wa: 1.2,
-        wb: 1.2,
-        wc: 0.8,
+        windowSize: 36, wa: 1.2, wb: 1.2, wc: 0.8,
         a: { depth: 10, hot: 2.0, omitThreshold: 5, omitWeight: 0.20, recentDepth: 3, recentWeight: 1.0, nearWeight: 0.3 },
         b: { depth: 16, slotWeight: 2.6, omitThreshold: 6, omitWeight: 0.15, nearRange: 4, nearWeight: 0.4, anchorWeight: 2.0 },
         c: { depth: 8, hot: 2.0, omitThreshold: 5, omitWeight: 0.15, velocityWeight: 0.8 }
     };
 }
 
-function buildHistoricalStats(draws) {
-    const omissionSums = [];
-    for (let i = 0; i < Math.max(0, draws.length - 1); i += 1) {
-        const train = draws.slice(i + 1);
-        if (train.length < 5) continue;
-        const omitMap = getOmissions(train);
-        const omissionSum = draws[i].nums.reduce((sum, num) => sum + omitMap[num], 0);
-        omissionSums.push(omissionSum);
-    }
-    const mean = omissionSums.length ? omissionSums.reduce((sum, value) => sum + value, 0) / omissionSums.length : 0;
-    const variance = omissionSums.length
-        ? omissionSums.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / omissionSums.length
-        : 0;
-    return { omissionSum: { mean, stdev: Math.sqrt(variance) } };
-}
-
 function heuristicSearch(draws) {
     const hotConfigs = [
         { depth: 8, hot: 2.0, omitThreshold: 5, omitWeight: 0.25, recentDepth: 4, recentWeight: 1.0, nearWeight: 0.3 },
-        { depth: 10, hot: 2.0, omitThreshold: 5, omitWeight: 0.20, recentDepth: 3, recentWeight: 1.0, nearWeight: 0.3 },
-        { depth: 8, hot: 1.2, omitThreshold: 7, omitWeight: 0.15, recentDepth: 4, recentWeight: 0.6, nearWeight: 0.1 }
+        { depth: 10, hot: 2.0, omitThreshold: 5, omitWeight: 0.20, recentDepth: 3, recentWeight: 1.0, nearWeight: 0.3 }
     ];
     const slotConfigs = [
         { depth: 20, slotWeight: 3.2, omitThreshold: 7, omitWeight: 0.25, nearRange: 4, nearWeight: 0.4, anchorWeight: 1.0 },
-        { depth: 12, slotWeight: 2.6, omitThreshold: 7, omitWeight: 0.15, nearRange: 3, nearWeight: 0.0, anchorWeight: 4.0 },
         { depth: 16, slotWeight: 2.6, omitThreshold: 6, omitWeight: 0.15, nearRange: 4, nearWeight: 0.4, anchorWeight: 2.0 }
     ];
     const velocityConfigs = [
         { depth: 8, hot: 2.0, omitThreshold: 5, omitWeight: 0.15, velocityWeight: 1.0 },
-        { depth: 16, hot: 1.6, omitThreshold: 9, omitWeight: 0.2, velocityWeight: 1.4 },
-        { depth: 8, hot: 2.0, omitThreshold: 5, omitWeight: 0.15, velocityWeight: 0.8 }
+        { depth: 16, hot: 1.6, omitThreshold: 9, omitWeight: 0.2, velocityWeight: 1.4 }
     ];
-    const weights = [
-        [1.0, 1.2, 0.8],
-        [1.2, 1.0, 1.2],
-        [0.8, 1.2, 0.8],
-        [1.2, 1.2, 0.8]
-    ];
-    const windowSizes = [24, 36];
+    const weights = [[1.0, 1.2, 0.8], [1.2, 1.0, 1.2]];
+    const windowSizes = [36]; // 聚焦更大視窗減少噪訊
 
     let best = null;
     let tested = 0;
@@ -205,23 +191,10 @@ function heuristicSearch(draws) {
             slotConfigs.forEach((b) => {
                 velocityConfigs.forEach((c) => {
                     weights.forEach((weightSet) => {
-                        const config = {
-                            windowSize,
-                            wa: weightSet[0],
-                            wb: weightSet[1],
-                            wc: weightSet[2],
-                            a: { ...a },
-                            b: { ...b },
-                            c: { ...c }
-                        };
+                        const config = { windowSize, wa: weightSet[0], wb: weightSet[1], wc: weightSet[2], a, b, c };
                         const evaluation = evaluateConfig(draws, config);
                         tested += 1;
-                        if (
-                            !best ||
-                            evaluation.metrics.rate2 > best.metrics.rate2 ||
-                            (evaluation.metrics.rate2 === best.metrics.rate2 && evaluation.metrics.rate3 > best.metrics.rate3) ||
-                            (evaluation.metrics.rate2 === best.metrics.rate2 && evaluation.metrics.rate3 === best.metrics.rate3 && evaluation.metrics.objective > best.metrics.objective)
-                        ) {
+                        if (!best || evaluation.metrics.objective > best.metrics.objective) {
                             best = { config, ...evaluation };
                         }
                     });
@@ -231,16 +204,12 @@ function heuristicSearch(draws) {
     });
 
     log(`參數搜尋完成，共測試 ${tested} 組。`, "green-500");
-    log(`最佳結果：2星 ${best.metrics.rate2.toFixed(1)}%，3星 ${best.metrics.rate3.toFixed(1)}%。`, "orange-400");
     return best;
 }
 
 function evaluateConfig(draws, config) {
     const results = [];
-    let hit2 = 0;
-    let hit3 = 0;
-    let hit4 = 0;
-    let hit5 = 0;
+    let hit2 = 0, hit3 = 0, hit4 = 0, hit5 = 0;
     const testCount = Math.max(0, draws.length - config.windowSize - 1);
 
     for (let i = 0; i < testCount; i += 1) {
@@ -257,13 +226,7 @@ function evaluateConfig(draws, config) {
         if (hits >= 4) hit4 += 1;
         if (hits >= 5) hit5 += 1;
 
-        results.push({
-            label: actual.label,
-            actual: actual.nums,
-            prediction,
-            hits,
-            hitNums
-        });
+        results.push({ label: actual.label, actual: actual.nums, prediction, hits, hitNums });
     }
 
     const divisor = results.length || 1;
@@ -279,33 +242,51 @@ function evaluateConfig(draws, config) {
     return { results, metrics };
 }
 
+// v9.30：確定性多重過濾取號
 function buildPrediction(train, config) {
-    const voteMap = new Map();
-    for (let n = 1; n <= 39; n += 1) {
-        voteMap.set(n, 0);
-    }
+    const scores = new Map();
+    for (let n = 1; n <= 39; n += 1) scores.set(n, 0);
 
     const modelA = predictHotOmit(train, config.a);
     const modelB = predictSlotModel(train, config.b);
     const modelC = predictVelocityModel(train, config.c);
 
-    modelA.forEach((num, index) => voteMap.set(num, voteMap.get(num) + config.wa * (6 - index)));
-    modelB.forEach((num, index) => voteMap.set(num, voteMap.get(num) + config.wb * (6 - index)));
-    modelC.forEach((num, index) => voteMap.set(num, voteMap.get(num) + config.wc * (6 - index)));
+    // 權重衰減計分
+    modelA.forEach((num, index) => scores.set(num, scores.get(num) + config.wa * (10 - index)));
+    modelB.forEach((num, index) => scores.set(num, scores.get(num) + config.wb * (10 - index)));
+    modelC.forEach((num, index) => scores.set(num, scores.get(num) + config.wc * (10 - index)));
 
-    train.slice(0, 10).forEach((draw, index) => {
-        draw.nums.forEach((num) => {
-            voteMap.set(num, voteMap.get(num) + ((10 - index) * 0.05));
-        });
-    });
-
-    return [...voteMap.entries()]
+    // 取得分數最高的 Top 15 進入候選池
+    const pool = [...scores.entries()]
         .sort((a, b) => b[1] - a[1] || a[0] - b[0])
-        .slice(0, 5)
-        .map(([num]) => num)
-        .sort((a, b) => a - b);
+        .slice(0, 15)
+        .map(([num]) => num);
+
+    // 窮舉候選池組合，尋找符合過濾條件的第一組（因陣列已按分數排序，最先找到的組合分數最高）
+    for (let i = 0; i < pool.length - 4; i++) {
+        for (let j = i + 1; j < pool.length - 3; j++) {
+            for (let k = j + 1; k < pool.length - 2; k++) {
+                for (let l = k + 1; l < pool.length - 1; l++) {
+                    for (let m = l + 1; m < pool.length; m++) {
+                        const combo = [pool[i], pool[j], pool[k], pool[l], pool[m]];
+                        const sum = combo.reduce((a, b) => a + b, 0);
+                        const odds = combo.filter(n => n % 2 !== 0).length;
+
+                        // 物理過濾：總和介於 75-125 之間，且奇偶比為 2:3 或 3:2
+                        if (sum >= 75 && sum <= 125 && (odds === 2 || odds === 3)) {
+                            return combo.sort((a, b) => a - b);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 若極端情況下無符合條件，則退回原始前五碼
+    return pool.slice(0, 5).sort((a, b) => a - b);
 }
 
+// 保留原始的特徵預測模型...
 function predictHotOmit(train, cfg) {
     const scores = new Map();
     const omitMap = getOmissions(train);
@@ -313,17 +294,11 @@ function predictHotOmit(train, cfg) {
 
     train.slice(0, cfg.depth).forEach((draw, index) => {
         const weight = (cfg.depth - index) / cfg.depth;
-        draw.nums.forEach((num) => {
-            scores.set(num, scores.get(num) + (cfg.hot * weight));
-        });
+        draw.nums.forEach((num) => { scores.set(num, scores.get(num) + (cfg.hot * weight)); });
     });
-
     for (let n = 1; n <= 39; n += 1) {
-        if (omitMap[n] > cfg.omitThreshold) {
-            scores.set(n, scores.get(n) + (omitMap[n] * cfg.omitWeight));
-        }
+        if (omitMap[n] > cfg.omitThreshold) scores.set(n, scores.get(n) + (omitMap[n] * cfg.omitWeight));
     }
-
     train.slice(0, cfg.recentDepth).forEach((draw) => {
         draw.nums.forEach((num) => {
             scores.set(num, scores.get(num) + cfg.recentWeight);
@@ -331,7 +306,6 @@ function predictHotOmit(train, cfg) {
             if (num < 39) scores.set(num + 1, scores.get(num + 1) + cfg.nearWeight);
         });
     });
-
     return topNumbers(scores);
 }
 
@@ -346,7 +320,6 @@ function predictSlotModel(train, cfg) {
             const value = draw.nums[slot];
             scores.set(value, scores.get(value) + (cfg.slotWeight * weight));
         });
-
         const anchor = train[0].nums[slot];
         for (let i = 1; i < train.length; i += 1) {
             if (train[i].nums[slot] === anchor && i > 0) {
@@ -355,21 +328,9 @@ function predictSlotModel(train, cfg) {
             }
         }
     }
-
     for (let n = 1; n <= 39; n += 1) {
-        if (omitMap[n] > cfg.omitThreshold) {
-            scores.set(n, scores.get(n) + (omitMap[n] * cfg.omitWeight));
-        }
+        if (omitMap[n] > cfg.omitThreshold) scores.set(n, scores.get(n) + (omitMap[n] * cfg.omitWeight));
     }
-
-    const recent = train[0].nums;
-    for (let n = 1; n <= 39; n += 1) {
-        const minDistance = Math.min(...recent.map((value) => Math.abs(value - n)));
-        if (minDistance <= cfg.nearRange) {
-            scores.set(n, scores.get(n) + cfg.nearWeight);
-        }
-    }
-
     return topNumbers(scores);
 }
 
@@ -380,25 +341,18 @@ function predictVelocityModel(train, cfg) {
 
     train.slice(0, cfg.depth).forEach((draw, index) => {
         const weight = (cfg.depth - index) / cfg.depth;
-        draw.nums.forEach((num) => {
-            scores.set(num, scores.get(num) + (cfg.hot * weight));
-        });
+        draw.nums.forEach((num) => { scores.set(num, scores.get(num) + (cfg.hot * weight)); });
     });
-
     for (let n = 1; n <= 39; n += 1) {
-        if (omitMap[n] > cfg.omitThreshold) {
-            scores.set(n, scores.get(n) + (omitMap[n] * cfg.omitWeight));
-        }
+        if (omitMap[n] > cfg.omitThreshold) scores.set(n, scores.get(n) + (omitMap[n] * cfg.omitWeight));
         scores.set(n, scores.get(n) + (getOmissionVelocity(n, train) * cfg.velocityWeight));
     }
-
     return topNumbers(scores);
 }
 
 function getOmissions(history) {
     const omit = {};
     for (let n = 1; n <= 39; n += 1) omit[n] = 0;
-
     for (let n = 1; n <= 39; n += 1) {
         let gap = 0;
         for (const draw of history) {
@@ -413,16 +367,10 @@ function getOmissions(history) {
 function getOmissionVelocity(num, history) {
     const gaps = [];
     let currentGap = 0;
-
     for (const draw of history) {
-        if (draw.nums.includes(num)) {
-            gaps.push(currentGap);
-            currentGap = 0;
-        } else {
-            currentGap += 1;
-        }
+        if (draw.nums.includes(num)) { gaps.push(currentGap); currentGap = 0; } 
+        else { currentGap += 1; }
     }
-
     return analyzeGapPattern(gaps, currentGap);
 }
 
@@ -438,18 +386,11 @@ function analyzeGapPattern(gaps, currentGap) {
 function topNumbers(scoreMap) {
     return [...scoreMap.entries()]
         .sort((a, b) => b[1] - a[1] || a[0] - b[0])
-        .slice(0, 5)
         .map(([num]) => num);
 }
 
 function summarizeConfig(config) {
-    return [
-        `Window ${config.windowSize}`,
-        `投票 ${config.wa.toFixed(1)}/${config.wb.toFixed(1)}/${config.wc.toFixed(1)}`,
-        `Hot ${config.a.depth}`,
-        `Slot ${config.b.depth}`,
-        `Velocity ${config.c.depth}`
-    ].join(" | ");
+    return `Win ${config.windowSize} | W ${config.wa.toFixed(1)}/${config.wb.toFixed(1)}/${config.wc.toFixed(1)}`;
 }
     </script>
 
@@ -477,7 +418,6 @@ function summarizeConfig(config) {
 
         function ensureWorker() {
             if (worker) return worker;
-
             const source = document.getElementById("worker-source").textContent;
             const blob = new Blob([source], { type: "application/javascript" });
             const url = URL.createObjectURL(blob);
@@ -485,22 +425,12 @@ function summarizeConfig(config) {
 
             worker.onmessage = (event) => {
                 const { type, payload } = event.data || {};
-                if (type === "log") {
-                    addLog(payload.message, payload.color || "gray-500");
-                    return;
-                }
-                if (type === "analysis") {
-                    updateUI(payload);
-                }
+                if (type === "log") return addLog(payload.message, payload.color || "gray-500");
+                if (type === "analysis") updateUI(payload);
             };
 
             worker.onerror = (event) => {
                 addLog(`Worker 執行錯誤：${event.message || "未知錯誤"}`, "red-500");
-                setStatus("ERROR", "w-2 h-2 bg-red-500 rounded-full mr-1");
-            };
-
-            worker.onmessageerror = () => {
-                addLog("Worker 訊息解析失敗。", "red-500");
                 setStatus("ERROR", "w-2 h-2 bg-red-500 rounded-full mr-1");
             };
 
@@ -514,39 +444,25 @@ function summarizeConfig(config) {
 
             try {
                 const response = await fetch(API_URL);
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
                 const result = await response.json();
                 const rawData = typeof result === "string" ? result : (typeof result.data === "string" ? result.data : "");
-                if (!rawData.trim()) {
-                    throw new Error("API 沒有回傳可用資料。");
-                }
+                if (!rawData.trim()) throw new Error("API 沒有回傳可用資料。");
 
                 const lines = rawData.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
                 const draws = lines
                     .map((line) => {
                         const tokens = line.split(/\s+/);
                         const nums = tokens.slice(-5).map(Number);
-                        if (nums.length !== 5 || nums.some((num) => !Number.isInteger(num) || num < 1 || num > 39)) {
-                            return null;
-                        }
-                        if (new Set(nums).size !== 5) {
-                            return null;
-                        }
+                        if (nums.length !== 5 || nums.some((num) => !Number.isInteger(num) || num < 1 || num > 39)) return null;
+                        if (new Set(nums).size !== 5) return null;
                         return { nums };
                     })
-                    .filter(Boolean)
-                    .reverse()
-                    .map((draw, index) => ({
-                        label: `第 ${String(index + 1).padStart(3, "0")} 期`,
-                        nums: draw.nums
-                    }));
+                    .filter(Boolean).reverse()
+                    .map((draw, index) => ({ label: `第 ${String(index + 1).padStart(3, "0")} 期`, nums: draw.nums }));
 
-                if (draws.length < 36) {
-                    throw new Error("有效資料不足 36 期。");
-                }
+                if (draws.length < 36) throw new Error("有效資料不足 36 期。");
 
                 addLog(`同步完成，共載入 ${draws.length} 期。`, "green-500");
                 ensureWorker().postMessage({ type: "analyze", payload: { draws } });
@@ -563,40 +479,34 @@ function summarizeConfig(config) {
                 document.getElementById(`p${index + 1}`).innerText = num ? formatNumber(num) : "--";
             });
 
-            document.getElementById("hitRate").innerText =
-                `2星/3星/4星/5星：${metrics.rate2.toFixed(1)} / ${metrics.rate3.toFixed(1)} / ${metrics.rate4.toFixed(1)} / ${metrics.rate5.toFixed(1)}`;
+            // 更新網格 UI
+            document.getElementById("rate2").innerText = `${metrics.rate2.toFixed(1)}%`;
+            document.getElementById("rate3").innerText = `${metrics.rate3.toFixed(1)}%`;
+            document.getElementById("rate4").innerText = `${metrics.rate4.toFixed(1)}%`;
+            document.getElementById("rate5").innerText = `${metrics.rate5.toFixed(1)}%`;
 
-            if (metrics.rate2 < 100) {
-                setStatus("警戒", "w-2 h-2 bg-red-500 rounded-full mr-1");
-            } else if (metrics.rate2 === 100 && metrics.rate3 > 50) {
-                setStatus("穩定", "w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse");
-            } else {
-                setStatus("優化中", "w-2 h-2 bg-orange-500 rounded-full mr-1 animate-pulse");
-            }
+            if (metrics.rate2 < 100) setStatus("警戒", "w-2 h-2 bg-red-500 rounded-full mr-1");
+            else if (metrics.rate2 === 100 && metrics.rate3 > 50) setStatus("穩定", "w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse");
+            else setStatus("優化中", "w-2 h-2 bg-orange-500 rounded-full mr-1 animate-pulse");
 
-            document.getElementById("modelMeta").innerText =
-                `${modelName} | ${configSummary} | ${filterSummary} | 回測樣本 ${metrics.testCount} 期`;
+            document.getElementById("modelMeta").innerText = `${modelName} | ${configSummary} | ${filterSummary} | 回測 ${metrics.testCount} 期`;
 
-            const rows = visibleResults.length
-                ? visibleResults.map((result) => {
-                    const hitSet = new Set(result.hitNums);
-                    const predictionHtml = result.prediction
-                        .map((num) => hitSet.has(num) ? `<span class="hit-num">${formatNumber(num)}</span>` : formatNumber(num))
-                        .join(" ");
-                    const dotHtml = result.prediction
-                        .map((num) => `<span class="slot-dot ${hitSet.has(num) ? "slot-hit" : "slot-miss"}">${hitSet.has(num) ? "●" : "○"}</span>`)
-                        .join("");
-                    return `
-                        <tr class="border-b border-white/5">
-                            <td class="py-3 text-gray-500 font-mono">${result.label}</td>
-                            <td class="font-mono text-white">${result.actual.map(formatNumber).join(" ")}</td>
-                            <td class="text-[11px] text-gray-400 font-mono">${predictionHtml}</td>
-                            <td>${dotHtml}</td>
-                            <td class="text-right font-black ${result.hits >= 3 ? "text-orange-500" : result.hits >= 2 ? "text-white" : "text-gray-500"}">${result.hits}</td>
-                        </tr>
-                    `;
-                }).join("")
-                : `<tr><td colspan="5" class="text-center py-10 text-gray-600 font-mono italic">沒有可顯示的回測資料</td></tr>`;
+            const rows = visibleResults.length ? visibleResults.map((result) => {
+                const hitSet = new Set(result.hitNums);
+                const predictionHtml = result.prediction
+                    .map((num) => hitSet.has(num) ? `<span class="hit-num">${formatNumber(num)}</span>` : formatNumber(num)).join(" ");
+                const dotHtml = result.prediction
+                    .map((num) => `<span class="slot-dot ${hitSet.has(num) ? "slot-hit" : "slot-miss"}">${hitSet.has(num) ? "●" : "○"}</span>`).join("");
+                return `
+                    <tr class="border-b border-white/5">
+                        <td class="py-3 text-gray-500 font-mono">${result.label}</td>
+                        <td class="font-mono text-white">${result.actual.map(formatNumber).join(" ")}</td>
+                        <td class="text-[11px] text-gray-400 font-mono">${predictionHtml}</td>
+                        <td>${dotHtml}</td>
+                        <td class="text-right font-black ${result.hits >= 3 ? "text-orange-500" : result.hits >= 2 ? "text-white" : "text-gray-500"}">${result.hits}</td>
+                    </tr>
+                `;
+            }).join("") : `<tr><td colspan="5" class="text-center py-10 text-gray-600 font-mono italic">沒有可顯示的回測資料</td></tr>`;
 
             document.getElementById("historyTable").innerHTML = rows;
             addLog(`回測完成：2星 ${metrics.rate2.toFixed(1)}%，3星 ${metrics.rate3.toFixed(1)}%。`, "green-500");
