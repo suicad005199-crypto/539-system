@@ -3,79 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE EVO v9.60 | 結構化特徵版</title>
+    <title>ULTIMATE EVO v9.70 | 強攻結構版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        :root { --ios-blue: #007aff; --ios-bg: #000; --ios-card: #1c1c1e; }
-        body { background: var(--ios-bg); color: #fff; font-family: -apple-system, sans-serif; }
-        .ios-card { background: var(--ios-card); border-radius: 12px; border: 1px solid #333; }
-        .num-ball { width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #2c2c2e; font-weight: 900; border: 2px solid #444; }
-        .num-hit { background: #007aff; border-color: #0a84ff; box-shadow: 0 0 15px rgba(0,122,255,0.5); }
-        .status-bar { height: 4px; border-radius: 2px; background: #333; }
-        .status-fill { height: 100%; background: var(--ios-blue); transition: width 0.8s ease; }
+        :root { --ios-orange: #f97316; --ios-bg: #000000; --ios-panel: #1c1c1e; }
+        body { background-color: var(--ios-bg); color: #fff; font-family: -apple-system, sans-serif; }
+        .ios-panel { background: var(--ios-panel); border-radius: 12px; border: 1px solid rgba(249, 115, 22, 0.2); }
+        .orange-glow { box-shadow: 0 0 25px rgba(249, 115, 22, 0.15); }
+        .hit-num { background: var(--ios-orange); color: #000; font-weight: 900; padding: 2px 5px; border-radius: 4px; }
+        #logBox::-webkit-scrollbar { display: none; }
     </style>
 </head>
-<body class="p-4 flex flex-col min-h-screen">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-black italic tracking-tighter">EVO <span class="text-blue-500">9.60</span></h1>
-        <button onclick="fetchSheetData()" class="bg-blue-600 px-6 py-2 rounded-full font-bold text-sm">數據注資</button>
+<body class="p-4 max-w-md mx-auto min-h-screen flex flex-col">
+    <div class="flex justify-between items-center mb-5">
+        <h1 class="text-2xl font-black italic tracking-tighter text-orange-500 underline decoration-2">EVO 9.70</h1>
+        <button onclick="fetchData()" class="bg-orange-500 text-black px-6 py-1.5 rounded-full font-bold text-sm shadow-lg active:scale-95 transition-transform">注入數據</button>
     </div>
 
-    <div class="ios-card p-6 mb-4">
-        <div class="flex justify-between text-[10px] text-gray-500 font-bold mb-4">
-            <span>STRUCTURED SELECTION (2熱+2溫+1冷)</span>
-            <span id="aiState" class="text-blue-500 animate-pulse">STANDBY</span>
+    <div class="ios-panel p-4 mb-4 orange-glow">
+        <div class="flex justify-between items-center mb-2">
+            <span class="text-[10px] text-orange-500 font-bold tracking-widest uppercase">物理失衡監控</span>
+            <span id="aiState" class="text-[10px] bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">READY</span>
         </div>
-        <div class="flex justify-around" id="predRow">
-            <div class="num-ball">--</div><div class="num-ball">--</div><div class="num-ball">--</div><div class="num-ball">--</div><div class="num-ball">--</div>
-        </div>
-    </div>
-
-    <div class="ios-card p-4 mb-4">
-        <label class="text-[10px] text-gray-500 font-bold mb-2 block">OMIT QUANTILE (遺漏值分佈指標)</label>
-        <div class="grid grid-cols-3 gap-4">
-            <div><p class="text-[9px] text-gray-400">熱區 (0-2期)</p><div class="status-bar mt-1"><div id="bar-hot" class="status-fill" style="width:0%"></div></div></div>
-            <div><p class="text-[9px] text-gray-400">溫區 (3-8期)</p><div class="status-bar mt-1"><div id="bar-warm" class="status-fill" style="width:0%"></div></div></div>
-            <div><p class="text-[9px] text-gray-400">冷區 (9期+)</p><div class="status-bar mt-1"><div id="bar-cold" class="status-fill" style="width:0%"></div></div></div>
+        <div id="logBox" class="h-20 overflow-y-auto text-[11px] font-mono text-gray-500 leading-relaxed">
+            > 核心就緒。等待歷史數據進行結構化分位分析...
         </div>
     </div>
 
-    <div class="ios-card flex-grow p-4 overflow-hidden flex flex-col">
-        <div class="flex justify-around mb-4 border-b border-gray-800 pb-4">
-            <div class="text-center"><p class="text-[10px] text-gray-500 uppercase">2星保底率</p><p id="rate2" class="text-xl font-black text-blue-500">0%</p></div>
-            <div class="text-center"><p class="text-[10px] text-gray-500 uppercase">結構匹配度</p><p id="structMatch" class="text-xl font-black">0%</p></div>
+    <div class="ios-panel p-5 mb-4 border-l-4 border-orange-600">
+        <label class="text-[10px] text-gray-400 font-bold block mb-4">PREDICTION (2H+2W+1C STRUCTURE)</label>
+        <div class="flex justify-between" id="predRow">
+            <div class="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 text-xl font-black text-white">--</div>
+            <div class="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 text-xl font-black text-white">--</div>
+            <div class="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 text-xl font-black text-white">--</div>
+            <div class="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 text-xl font-black text-white">--</div>
+            <div class="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 text-xl font-black text-white">--</div>
         </div>
-        <div class="overflow-y-auto flex-grow text-xs font-mono">
-            <table class="w-full">
-                <tbody id="historyTable" class="divide-y divide-gray-800">
+    </div>
+
+    <div class="ios-panel flex-grow p-4 overflow-hidden flex flex-col">
+        <div class="grid grid-cols-2 gap-4 mb-4 text-center border-b border-white/5 pb-4">
+            <div><p class="text-[10px] text-gray-500">2星命中率</p><p id="rate2" class="text-xl font-black text-orange-500">0%</p></div>
+            <div><p class="text-[10px] text-gray-500">結構匹配度</p><p id="match" class="text-xl font-black text-green-500">0%</p></div>
+        </div>
+        <div class="overflow-y-auto flex-grow">
+            <table class="w-full text-xs font-mono">
+                <tbody id="historyTable" class="divide-y divide-white/5">
                     </tbody>
             </table>
         </div>
     </div>
 
-    <script id="worker-source" type="text/plain">
+    <script id="worker-src" type="text/plain">
         self.onmessage = (e) => {
             const { draws } = e.data;
-            const testSize = Math.min(draws.length - 50, 30);
-            let h2 = 0;
             const results = [];
+            let h2 = 0;
+            const testSize = 25; // 專注於近期回測，避免過度擬合
 
-            for(let i=0; i<testSize; i++) {
-                const training = draws.slice(i+1, i+60);
+            for(let i=0; i < testSize; i++) {
+                const train = draws.slice(i+1, i+50);
                 const actual = draws[i].nums;
-                const pred = generateV96(training);
+                const pred = predatorLogic(train);
                 const hits = pred.filter(n => actual.includes(n)).length;
                 if(hits >= 2) h2++;
                 results.push({ label: draws[i].label, actual, pred, hits });
             }
 
-            const nextPred = generateV96(draws.slice(0, 60));
-            const metrics = { rate2: (h2/testSize)*100, testSize };
-
-            self.postMessage({ nextPred, metrics, results });
+            const nextPred = predatorLogic(draws.slice(0, 50));
+            self.postMessage({ nextPred, metrics: { rate2: (h2/testSize)*100 }, results });
         };
 
-        function generateV96(history) {
+        function predatorLogic(history) {
             const omits = {};
             for(let i=1; i<=39; i++) {
                 let g = 0;
@@ -83,29 +82,30 @@
                 omits[i] = g;
             }
 
-            // 分類號碼池
-            const poolHot = [], poolWarm = [], poolCold = [];
+            // 1. 定義三區號碼池
+            const pools = { hot: [], warm: [], cold: [] };
             for(let i=1; i<=39; i++) {
-                if(omits[i] <= 2) poolHot.push(i);
-                else if(omits[i] <= 8) poolWarm.push(i);
-                else poolCold.push(i);
+                if(omits[i] <= 2) pools.hot.push(i);
+                else if(omits[i] <= 8) pools.warm.push(i);
+                else pools.cold.push(i);
             }
 
-            // 結構化抽取：2熱 + 2溫 + 1冷
-            // 這裡不再亂數，而是取各池中「尾數最頻繁」或「鄰號加分最高」的
-            const pickHot = sortTails(poolHot, history).slice(0, 2);
-            const pickWarm = sortTails(poolWarm, history).slice(0, 2);
-            const pickCold = sortTails(poolCold, history).slice(0, 1);
-
-            return [...pickHot, ...pickWarm, ...pickCold].sort((a,b)=>a-b);
-        }
-
-        function sortTails(pool, history) {
+            // 2. 尾數加權
             const tailScore = {};
-            history.slice(0, 10).forEach(d => {
+            history.slice(0, 5).forEach(d => {
                 d.nums.forEach(n => { tailScore[n%10] = (tailScore[n%10]||0)+1; });
             });
-            return pool.sort((a,b) => (tailScore[b%10]||0) - (tailScore[a%10]||0));
+
+            const sortByTail = (arr) => arr.sort((a,b) => (tailScore[b%10]||0) - (tailScore[a%10]||0));
+
+            // 3. 執行 2-2-1 強制結構抽取
+            const res = [
+                ...sortByTail(pools.hot).slice(0, 2),
+                ...sortByTail(pools.warm).slice(0, 2),
+                ...sortByTail(pools.cold).slice(0, 1)
+            ];
+
+            return res.sort((a,b)=>a-b);
         }
     </script>
 
@@ -114,43 +114,36 @@
         let worker = null;
 
         function init() {
-            const b = new Blob([document.getElementById('worker-source').textContent], {type: 'text/javascript'});
-            worker = new Worker(URL.createObjectURL(b));
+            const blob = new Blob([document.getElementById('worker-src').textContent], {type:'text/javascript'});
+            worker = new Worker(URL.createObjectURL(blob));
             worker.onmessage = (e) => {
                 const { nextPred, metrics, results } = e.data;
-                updateUI(nextPred, metrics, results);
+                document.getElementById('predRow').innerHTML = nextPred.map(n => `<div class="w-12 h-12 flex items-center justify-center rounded-xl bg-orange-500/20 border border-orange-500/40 text-xl font-black text-orange-500">${String(n).padStart(2,'0')}</div>`).join('');
+                document.getElementById('rate2').innerText = metrics.rate2.toFixed(1) + '%';
+                document.getElementById('aiState').innerText = "CALCULATED";
+                document.getElementById('historyTable').innerHTML = results.map(r => `
+                    <tr class="h-10 border-b border-white/5">
+                        <td class="text-gray-500">${r.label}</td>
+                        <td class="text-gray-300">${r.actual.map(n => String(n).padStart(2,'0')).join(' ')}</td>
+                        <td class="text-orange-500 font-bold">${r.pred.map(n => r.actual.includes(n) ? `<span class="hit-num">${String(n).padStart(2,'0')}</span>` : String(n).padStart(2,'0')).join(' ')}</td>
+                        <td class="text-right">${r.hits}★</td>
+                    </tr>
+                `).join('');
             };
         }
 
-        async function fetchSheetData() {
+        async function fetchData() {
             document.getElementById('aiState').innerText = "SYNCING";
             try {
                 const r = await fetch(API_URL);
                 const j = await r.json();
                 const draws = j.data.split('\n').filter(l => l.trim()).reverse().map((l, i) => ({
-                    label: `T-${i}`,
+                    label: `Draw-${i}`,
                     nums: l.trim().split(/\s+/).slice(-5).map(Number).sort((a,b)=>a-b)
                 }));
                 worker.postMessage({ draws });
             } catch(e) { console.error(e); }
         }
-
-        function updateUI(pred, mt, res) {
-            document.getElementById('aiState').innerText = "COMPUTED";
-            document.getElementById('predRow').innerHTML = pred.map(n => `<div class="num-ball num-hit">${String(n).padStart(2,'0')}</div>`).join('');
-            document.getElementById('rate2').innerText = mt.rate2.toFixed(1) + '%';
-            document.getElementById('structMatch').innerText = (mt.rate2 * 1.2).toFixed(0) + '%';
-
-            document.getElementById('historyTable').innerHTML = res.map(r => `
-                <tr class="h-10 border-b border-gray-900">
-                    <td class="text-gray-600">${r.label}</td>
-                    <td class="text-gray-400">${r.actual.map(n => String(n).padStart(2,'0')).join(' ')}</td>
-                    <td class="text-blue-400 font-bold">${r.pred.map(n => r.actual.includes(n) ? `<span class="underline">${String(n).padStart(2,'0')}</span>` : String(n).padStart(2,'0')).join(' ')}</td>
-                    <td class="text-right">${r.hits}★</td>
-                </tr>
-            `).join('');
-        }
-
         init();
     </script>
 </body>
