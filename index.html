@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE EVO v9.10 HEURISTIC ENGINE</title>
+    <title>ULTIMATE EVO v9.20 中文強化版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root { --ios-orange: #f97316; --ios-bg: #000000; --ios-panel: #1c1c1e; }
@@ -23,72 +23,72 @@
 <body class="min-h-screen flex flex-col p-4">
     <div class="flex justify-between items-center mb-5">
         <h1 class="text-2xl font-black italic tracking-tighter text-orange-500">
-            ULTIMATE <span class="text-white">EVO 9.10</span>
+            ULTIMATE <span class="text-white">EVO 9.20</span>
         </h1>
         <div class="flex bg-[#2c2c2e] p-1 rounded-xl flex-nowrap shrink-0">
-            <button id="btnSync" onclick="fetchSheetData()" class="px-4 py-1.5 rounded-lg text-sm btn-active whitespace-nowrap">SYNC</button>
+            <button id="btnSync" onclick="fetchSheetData()" class="px-4 py-1.5 rounded-lg text-sm btn-active whitespace-nowrap">開始同步</button>
         </div>
     </div>
 
     <div class="ios-panel p-4 mb-4 orange-glow border border-orange-500/50">
         <div class="flex justify-between items-end mb-2">
-            <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">Panel 1: Engine Status</label>
+            <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">Panel 1: 引擎狀態</label>
             <div class="flex items-center text-[10px] text-orange-500 font-bold uppercase">
                 <span id="statusDot" class="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></span>
-                v9.10 <span id="strategyMode" class="ml-1 text-white">READY</span>
+                v9.20 <span id="strategyMode" class="ml-1 text-white">待命</span>
             </div>
         </div>
         <div id="logBox" class="bg-black/50 p-3 rounded-lg text-[11px] h-24 overflow-y-auto font-mono border border-white/5 leading-relaxed">
-            <span class="text-gray-500">&gt; Worker engine idle...</span><br>
-            <span class="text-gray-500">&gt; Mode: strict rolling, heuristic search, spatial filters</span>
+            <span class="text-gray-500">&gt; Worker 引擎待命中...</span><br>
+            <span class="text-gray-500">&gt; 模式：嚴格滾動回測、投票優化、空間過濾</span>
         </div>
     </div>
 
     <div class="ios-panel p-4 mb-4 border-t-2 border-orange-600">
-        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-3">Panel 2: Prediction Grid (5 picks)</label>
+        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-3">Panel 2: 預測面板（固定 5 碼）</label>
         <div class="grid grid-cols-5 gap-2" id="predictionGrid">
             <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
-                <div class="text-[9px] text-orange-500 font-bold">Pick 1</div>
+                <div class="text-[9px] text-orange-500 font-bold">預測 1</div>
                 <div class="text-lg font-black text-white grid-val" id="p1">--</div>
             </div>
             <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
-                <div class="text-[9px] text-orange-500 font-bold">Pick 2</div>
+                <div class="text-[9px] text-orange-500 font-bold">預測 2</div>
                 <div class="text-lg font-black text-white grid-val" id="p2">--</div>
             </div>
             <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
-                <div class="text-[9px] text-gray-400 font-bold">Pick 3</div>
+                <div class="text-[9px] text-gray-400 font-bold">預測 3</div>
                 <div class="text-lg font-black text-white" id="p3">--</div>
             </div>
             <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
-                <div class="text-[9px] text-gray-400 font-bold">Pick 4</div>
+                <div class="text-[9px] text-gray-400 font-bold">預測 4</div>
                 <div class="text-lg font-black text-white" id="p4">--</div>
             </div>
             <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
-                <div class="text-[9px] text-gray-400 font-bold">Pick 5</div>
+                <div class="text-[9px] text-gray-400 font-bold">預測 5</div>
                 <div class="text-lg font-black text-white" id="p5">--</div>
             </div>
         </div>
-        <div id="modelMeta" class="mt-3 text-[11px] text-gray-500 leading-6">Waiting for data...</div>
+        <div id="modelMeta" class="mt-3 text-[11px] text-gray-500 leading-6">等待資料同步中...</div>
     </div>
 
     <div class="ios-panel p-4 flex-grow overflow-hidden flex flex-col">
         <div class="flex justify-between items-center mb-2">
-            <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Panel 3: Backtest</label>
-            <div id="hitRate" class="text-[10px] font-black text-orange-500">2+/3+/4+/5+: 0.0 / 0.0 / 0.0 / 0.0</div>
+            <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Panel 3: 回測結果</label>
+            <div id="hitRate" class="text-[10px] font-black text-orange-500">2星/3星/4星/5星：0.0 / 0.0 / 0.0 / 0.0</div>
         </div>
         <div class="overflow-y-auto flex-grow">
             <table class="w-full text-[12px]">
                 <thead class="sticky top-0 bg-[#1c1c1e] text-gray-500 z-10">
                     <tr class="text-left border-b border-white/10">
-                        <th class="pb-2">Draw</th>
-                        <th class="pb-2">Actual</th>
-                        <th class="pb-2">Prediction</th>
-                        <th class="pb-2">Hits</th>
-                        <th class="pb-2 text-right">Count</th>
+                        <th class="pb-2">期別</th>
+                        <th class="pb-2">實際開獎</th>
+                        <th class="pb-2">預測號碼</th>
+                        <th class="pb-2">命中點</th>
+                        <th class="pb-2 text-right">命中</th>
                     </tr>
                 </thead>
                 <tbody id="historyTable" class="divide-y divide-white/5">
-                    <tr><td colspan="5" class="text-center py-10 text-gray-600 font-mono italic">NO DATA SYNCED</td></tr>
+                    <tr><td colspan="5" class="text-center py-10 text-gray-600 font-mono italic">尚未同步資料</td></tr>
                 </tbody>
             </table>
         </div>
@@ -107,10 +107,10 @@ self.onmessage = (event) => {
     try {
         const draws = payload.draws || [];
         if (draws.length < 36) {
-            throw new Error("Need at least 36 draws for heuristic backtest.");
+            throw new Error("至少需要 36 期資料才能進行回測。");
         }
 
-        log("Worker started strict rolling search", "orange-500");
+        log("Worker 已啟動，開始嚴格滾動搜尋", "orange-500");
         const historicalStats = buildHistoricalStats(draws);
         const { config, metrics, results } = heuristicSearch(draws, historicalStats);
         const nextPrediction = buildPrediction(draws.slice(0, config.windowSize), draws, config, historicalStats);
@@ -118,24 +118,24 @@ self.onmessage = (event) => {
         self.postMessage({
             type: "analysis",
             payload: {
-                modelName: "v9.10 Heuristic Worker",
+                modelName: "v9.20 中文強化版",
                 config,
                 configSummary: summarizeConfig(config),
-                filterSummary: `AC>=6 | Sum 75-125 | OmitSum ${historicalStats.omissionSum.mean.toFixed(1)} +/- ${(historicalStats.omissionSum.stdev * 1.5).toFixed(1)} | Recent rows ${DISPLAY_ROWS}`,
+                filterSummary: `AC>=4 | 總和 75-125 | 遺漏總和 ${historicalStats.omissionSum.mean.toFixed(1)} ± ${(historicalStats.omissionSum.stdev * 1.5).toFixed(1)} | 顯示最近 ${DISPLAY_ROWS} 期`,
                 nextPrediction,
                 metrics,
                 visibleResults: results.slice(0, DISPLAY_ROWS)
             }
         });
     } catch (error) {
-        log(`Worker failed: ${error.message}`, "red-500");
+        log(`Worker 執行失敗：${error.message}`, "red-500");
         self.postMessage({
             type: "analysis",
             payload: {
-                modelName: "v9.10 Heuristic Worker",
+                modelName: "v9.20 中文強化版",
                 config: defaultConfig(),
-                configSummary: "fallback",
-                filterSummary: "worker error",
+                configSummary: "使用備援設定",
+                filterSummary: "Worker 錯誤",
                 nextPrediction: [0, 0, 0, 0, 0],
                 metrics: { rate2: 0, rate3: 0, rate4: 0, rate5: 0, objective: 0, testCount: 0 },
                 visibleResults: []
@@ -150,84 +150,125 @@ function log(message, color) {
 
 function defaultConfig() {
     return {
-        windowSize: 30,
-        historyDepth: 18,
-        recencyWeight: 2.6,
+        windowSize: 36,
+        historyDepth: 20,
+        recencyWeight: 3.2,
         omissionThreshold: 7,
-        omissionWeight: 0.18,
-        velocityWeight: 1.2,
-        anchorWeight: 2.6,
-        recentUnionWeight: 0.35,
-        nearWeight: 0.45,
-        pairWeight: 0.15,
-        sumPenalty: 14,
-        acPenalty: 18,
-        omissionPenalty: 12,
-        repeatPenalty: 16
+        omissionWeight: 0.25,
+        velocityWeight: 1.0,
+        anchorWeight: 1.0,
+        recentUnionWeight: 1.0,
+        nearWeight: 0.4,
+        pairWeight: 0.6,
+        wa: 1.2,
+        wb: 1.2,
+        wc: 0.8,
+        a: {
+            depth: 8,
+            hot: 2.0,
+            omit_t: 5,
+            omit: 0.25,
+            recent_n: 4,
+            recent: 1.0,
+            near1: 0.0,
+            near2: 0.3
+        },
+        b: {
+            depth: 20,
+            recency: 3.2,
+            omit_t: 7,
+            omit: 0.25,
+            odd_trigger: 4,
+            even: 0.0,
+            near_r: 4,
+            near: 0.4,
+            union: 0.0,
+            anchor: 1.0,
+            pair_depth: 24,
+            pair_need: 3,
+            pair: 0.6,
+            recent_window: 5
+        },
+        c: {
+            depth: 8,
+            hot: 2.0,
+            omit_t: 5,
+            omit: 0.15,
+            vel: 1.0
+        }
     };
 }
 
 function heuristicSearch(draws, historicalStats) {
-    const seeds = [
-        defaultConfig(),
-        { ...defaultConfig(), windowSize: 24, historyDepth: 16, recencyWeight: 2.2, omissionWeight: 0.22, velocityWeight: 1.6 },
-        { ...defaultConfig(), windowSize: 36, historyDepth: 20, recencyWeight: 3.1, anchorWeight: 3.2, recentUnionWeight: 0.2 },
-        { ...defaultConfig(), windowSize: 30, historyDepth: 20, pairWeight: 0.3, nearWeight: 0.2, omissionPenalty: 9 },
-        { ...defaultConfig(), windowSize: 24, historyDepth: 18, recencyWeight: 2.9, recentUnionWeight: 0.55, repeatPenalty: 22 }
+    const hotConfigs = [
+        { depth: 8, hot: 2.0, omit_t: 5, omit: 0.25, recent_n: 4, recent: 1.0, near1: 0.0, near2: 0.3 },
+        { depth: 8, hot: 1.2, omit_t: 7, omit: 0.15, recent_n: 4, recent: 0.6, near1: 0.0, near2: 0.1 },
+        { depth: 10, hot: 2.0, omit_t: 5, omit: 0.20, recent_n: 3, recent: 1.0, near1: 0.3, near2: 0.3 }
     ];
+    const slotConfigs = [
+        { depth: 20, recency: 3.2, omit_t: 7, omit: 0.25, odd_trigger: 4, even: 0.0, near_r: 4, near: 0.4, union: 0.0, anchor: 1.0, pair_depth: 24, pair_need: 3, pair: 0.6, recent_window: 5 },
+        { depth: 12, recency: 2.6, omit_t: 7, omit: 0.15, odd_trigger: 3, even: 0.0, near_r: 3, near: 0.0, union: 0.4, anchor: 4.0, pair_depth: 24, pair_need: 3, pair: 0.4, recent_window: 2 },
+        { depth: 16, recency: 2.6, omit_t: 6, omit: 0.15, odd_trigger: 3, even: 0.6, near_r: 4, near: 0.4, union: 0.0, anchor: 2.0, pair_depth: 24, pair_need: 2, pair: 0.2, recent_window: 3 }
+    ];
+    const velocityConfigs = [
+        { depth: 8, hot: 2.0, omit_t: 5, omit: 0.15, vel: 1.0 },
+        { depth: 16, hot: 1.6, omit_t: 9, omit: 0.2, vel: 1.4 },
+        { depth: 8, hot: 2.0, omit_t: 5, omit: 0.15, vel: 0.8 }
+    ];
+    const weights = [
+        [1.0, 1.2, 0.8],
+        [1.2, 1.0, 1.2],
+        [0.8, 1.2, 0.8],
+        [1.2, 1.2, 0.8]
+    ];
+    const windowSizes = [24, 36];
 
     let best = null;
-    let current = seeds[0];
+    let tested = 0;
 
-    seeds.forEach((seed, index) => {
-        log(`Evaluating seed ${index + 1}/${seeds.length}`, "gray-400");
-        const evaluation = evaluateConfig(draws, seed, historicalStats);
-        if (!best || evaluation.metrics.objective > best.metrics.objective) {
-            best = { config: seed, ...evaluation };
-            current = seed;
-        }
+    windowSizes.forEach(windowSize => {
+        hotConfigs.forEach(a => {
+            slotConfigs.forEach(b => {
+                velocityConfigs.forEach(c => {
+                    weights.forEach(weightSet => {
+                        const config = {
+                            ...defaultConfig(),
+                            windowSize,
+                            historyDepth: b.depth,
+                            recencyWeight: b.recency,
+                            omissionThreshold: b.omit_t,
+                            omissionWeight: b.omit,
+                            velocityWeight: c.vel,
+                            anchorWeight: b.anchor,
+                            recentUnionWeight: a.recent,
+                            nearWeight: b.near,
+                            pairWeight: b.pair,
+                            wa: weightSet[0],
+                            wb: weightSet[1],
+                            wc: weightSet[2],
+                            a: { ...a },
+                            b: { ...b },
+                            c: { ...c }
+                        };
+                        const evaluation = evaluateConfig(draws, config, historicalStats);
+                        tested += 1;
+                        if (
+                            !best ||
+                            evaluation.metrics.rate2 > best.metrics.rate2 ||
+                            (evaluation.metrics.rate2 === best.metrics.rate2 && evaluation.metrics.rate3 > best.metrics.rate3) ||
+                            (evaluation.metrics.rate2 === best.metrics.rate2 && evaluation.metrics.rate3 === best.metrics.rate3 && evaluation.metrics.objective > best.metrics.objective)
+                        ) {
+                            best = { config, ...evaluation };
+                        }
+                    });
+                });
+            });
+        });
     });
 
-    let step = 1;
-    for (let round = 0; round < 5; round += 1) {
-        const candidates = [];
-        for (let i = 0; i < 22; i += 1) {
-            candidates.push(mutateConfig(current, step));
-        }
-        candidates.push(current);
-
-        candidates.forEach(candidate => {
-            const evaluation = evaluateConfig(draws, candidate, historicalStats);
-            if (!best || evaluation.metrics.objective > best.metrics.objective) {
-                best = { config: candidate, ...evaluation };
-                current = candidate;
-            }
-        });
-
-        log(`Round ${round + 1}: objective ${best.metrics.objective.toFixed(1)} | 2+ ${best.metrics.rate2.toFixed(1)} | 3+ ${best.metrics.rate3.toFixed(1)}`, "green-500");
-        step *= 0.72;
-    }
-
+    log(`已測試 ${tested} 組投票模型`, "gray-400");
+    log(`最佳結果：2星 ${best.metrics.rate2.toFixed(1)}% / 3星 ${best.metrics.rate3.toFixed(1)}%`, "green-500");
     return best;
-}
-
-function mutateConfig(config, step) {
-    const next = { ...config };
-    next.windowSize = clamp(snap(next.windowSize + randomSigned(12 * step), [24, 30, 36, 42]), 24, 42);
-    next.historyDepth = clamp(Math.round(next.historyDepth + randomSigned(6 * step)), 12, Math.min(24, next.windowSize));
-    next.recencyWeight = clamp(round2(next.recencyWeight + randomSigned(1.2 * step)), 1.2, 4.5);
-    next.omissionThreshold = clamp(Math.round(next.omissionThreshold + randomSigned(3 * step)), 4, 12);
-    next.omissionWeight = clamp(round2(next.omissionWeight + randomSigned(0.12 * step)), 0.0, 0.4);
-    next.velocityWeight = clamp(round2(next.velocityWeight + randomSigned(0.9 * step)), 0.0, 3.0);
-    next.anchorWeight = clamp(round2(next.anchorWeight + randomSigned(1.4 * step)), 0.0, 5.0);
-    next.recentUnionWeight = clamp(round2(next.recentUnionWeight + randomSigned(0.5 * step)), 0.0, 1.0);
-    next.nearWeight = clamp(round2(next.nearWeight + randomSigned(0.6 * step)), 0.0, 1.5);
-    next.pairWeight = clamp(round2(next.pairWeight + randomSigned(0.5 * step)), 0.0, 1.0);
-    next.sumPenalty = clamp(round2(next.sumPenalty + randomSigned(8 * step)), 4, 40);
-    next.acPenalty = clamp(round2(next.acPenalty + randomSigned(8 * step)), 4, 40);
-    next.omissionPenalty = clamp(round2(next.omissionPenalty + randomSigned(8 * step)), 4, 40);
-    next.repeatPenalty = clamp(round2(next.repeatPenalty + randomSigned(8 * step)), 4, 40);
-    return next;
 }
 
 function evaluateConfig(draws, config, historicalStats) {
@@ -272,72 +313,174 @@ function evaluateConfig(draws, config, historicalStats) {
 }
 
 function buildPrediction(train, allTrainHistory, config, historicalStats) {
-    const omitMap = getOmissions(train);
-    const velocities = buildVelocityMap(allTrainHistory);
-    const recentUnion = new Set();
-    train.slice(0, 3).forEach(draw => draw.nums.forEach(num => recentUnion.add(num)));
-    const overlapContext = new Set([...(train[0]?.nums || []), ...(train[1]?.nums || [])]);
-    const baseScores = new Map();
+    const pickA = predictHotOmit(train, config.a);
+    const pickB = predictSlotModel(train, config.b);
+    const pickC = predictVelocityModel(train, config.c);
+    const votes = {};
 
     for (let n = 1; n <= 39; n += 1) {
-        baseScores.set(n, 0);
+        votes[n] = 0;
     }
 
-    train.slice(0, config.historyDepth).forEach((draw, idx) => {
-        const weight = (config.historyDepth - idx) / config.historyDepth;
+    pickA.forEach(num => { votes[num] += config.wa; });
+    pickB.forEach(num => { votes[num] += config.wb; });
+    pickC.forEach(num => { votes[num] += config.wc; });
+
+    train.slice(0, 10).forEach((draw, idx) => {
         draw.nums.forEach(num => {
-            baseScores.set(num, baseScores.get(num) + (config.recencyWeight * weight));
+            votes[num] += 0.05 * (10 - idx);
+        });
+    });
+
+    return topNumbers(votes, 5).sort((a, b) => a - b);
+}
+
+function predictHotOmit(train, config) {
+    const omit = getOmissions(train);
+    const scores = {};
+    for (let n = 1; n <= 39; n += 1) {
+        scores[n] = 0;
+    }
+
+    const depth = Math.min(config.depth, train.length);
+    train.slice(0, depth).forEach((draw, idx) => {
+        const weight = (depth - idx) / depth;
+        draw.nums.forEach(num => {
+            scores[num] += config.hot * weight;
+        });
+    });
+
+    Object.keys(omit).forEach(key => {
+        const num = Number(key);
+        if (omit[num] >= config.omit_t) {
+            scores[num] += omit[num] * config.omit;
+        }
+    });
+
+    const recent = new Set();
+    train.slice(0, config.recent_n).forEach(draw => draw.nums.forEach(num => recent.add(num)));
+    recent.forEach(num => {
+        scores[num] += config.recent;
+    });
+
+    for (let n = 1; n <= 39; n += 1) {
+        const near = Math.min(...train[0].nums.map(value => Math.abs(value - n)));
+        if (near <= 1) {
+            scores[n] += config.near1;
+        } else if (near <= 2) {
+            scores[n] += config.near2;
+        }
+    }
+
+    return topNumbers(scores, 5);
+}
+
+function predictSlotModel(train, config) {
+    const omit = getOmissions(train);
+    const used = new Set();
+    const prediction = [];
+    const recentUnion = new Set();
+    train.slice(0, config.recent_window).forEach(draw => draw.nums.forEach(num => recentUnion.add(num)));
+    const overlapContext = new Set([...(train[0]?.nums || []), ...(train[1]?.nums || [])]);
+
+    for (let slot = 0; slot < SLOT_COUNT; slot += 1) {
+        const scores = {};
+        for (let n = 1; n <= 39; n += 1) {
+            scores[n] = 0;
+        }
+
+        const depth = Math.min(config.depth, train.length);
+        train.slice(0, depth).forEach((draw, idx) => {
+            const weight = (depth - idx) / depth;
+            scores[draw.nums[slot]] += config.recency * weight;
+        });
+
+        Object.keys(omit).forEach(key => {
+            const num = Number(key);
+            if (omit[num] > config.omit_t) {
+                scores[num] += omit[num] * config.omit;
+            }
+        });
+
+        const last = train[0].nums[slot];
+        let consecutiveOdd = 0;
+        for (const draw of train) {
+            if (draw.nums[slot] % 2 !== 0) {
+                consecutiveOdd += 1;
+            } else {
+                break;
+            }
+        }
+
+        for (let n = 1; n <= 39; n += 1) {
+            if (consecutiveOdd >= config.odd_trigger && n % 2 === 0) {
+                scores[n] += config.even;
+            }
+            if (Math.abs(n - last) <= config.near_r) {
+                scores[n] += config.near;
+            }
+            if (recentUnion.has(n)) {
+                scores[n] += config.union;
+            }
+        }
+
+        const anchor = train[0].nums[slot];
+        for (let i = 1; i < train.length - 1; i += 1) {
+            if (train[i].nums[slot] === anchor) {
+                scores[train[i - 1].nums[slot]] += config.anchor;
+            }
+        }
+
+        for (let i = 2; i < Math.min(train.length - 1, config.pair_depth); i += 1) {
+            const overlap = train[i].nums.filter(num => overlapContext.has(num)).length;
+            if (overlap >= config.pair_need) {
+                scores[train[i - 1].nums[slot]] += config.pair * overlap;
+            }
+        }
+
+        const ranked = Object.entries(scores)
+            .map(([num, score]) => ({ num: Number(num), score }))
+            .sort((a, b) => b.score - a.score || a.num - b.num);
+        const pick = ranked.find(item => !used.has(item.num)) || ranked[0];
+        prediction.push(pick.num);
+        used.add(pick.num);
+    }
+
+    return prediction.sort((a, b) => a - b);
+}
+
+function predictVelocityModel(train, config) {
+    const omit = getOmissions(train);
+    const scores = {};
+    for (let n = 1; n <= 39; n += 1) {
+        scores[n] = 0;
+    }
+
+    const depth = Math.min(config.depth, train.length);
+    train.slice(0, depth).forEach((draw, idx) => {
+        const weight = (depth - idx) / depth;
+        draw.nums.forEach(num => {
+            scores[num] += config.hot * weight;
         });
     });
 
     for (let n = 1; n <= 39; n += 1) {
-        if (omitMap[n] > config.omissionThreshold) {
-            baseScores.set(n, baseScores.get(n) + (omitMap[n] * config.omissionWeight));
+        if (omit[n] >= config.omit_t) {
+            scores[n] += omit[n] * config.omit;
         }
-        baseScores.set(n, baseScores.get(n) + (velocities[n] * config.velocityWeight));
-        if (recentUnion.has(n)) {
-            baseScores.set(n, baseScores.get(n) + config.recentUnionWeight);
-        }
-
-        const nearDistance = Math.min(...train[0].nums.map(value => Math.abs(value - n)));
-        if (nearDistance <= 2) {
-            baseScores.set(n, baseScores.get(n) + config.nearWeight);
-        }
+        scores[n] += getOmissionVelocity(n, train) * config.vel;
     }
 
-    for (let slot = 0; slot < SLOT_COUNT; slot += 1) {
-        const anchor = train[0].nums[slot];
-        for (let i = 1; i < train.length - 1; i += 1) {
-            if (train[i].nums[slot] === anchor) {
-                const prev = train[i - 1].nums[slot];
-                baseScores.set(prev, baseScores.get(prev) + config.anchorWeight);
-            }
-        }
-
-        for (let i = 2; i < Math.min(train.length - 1, 18); i += 1) {
-            const overlap = train[i].nums.filter(num => overlapContext.has(num)).length;
-            if (overlap >= 3) {
-                const prev = train[i - 1].nums[slot];
-                baseScores.set(prev, baseScores.get(prev) + (config.pairWeight * overlap));
-            }
-        }
-    }
-
-    const ranked = [...baseScores.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]);
-    const topHot = ranked.slice(0, 10).map(item => item[0]);
-    const topCold = ranked
-        .slice(-10)
-        .sort((a, b) => omitMap[b[0]] - omitMap[a[0]])
+    const ranked = Object.entries(scores)
+        .map(([num, score]) => ({ num: Number(num), score }))
+        .sort((a, b) => b.score - a.score || a.num - b.num);
+    const hot = ranked.slice(0, 8).map(item => item.num);
+    const cold = ranked.slice(-10)
+        .sort((a, b) => omit[b.num] - omit[a.num])
         .slice(0, 2)
-        .map(item => item[0]);
-    const candidatePool = [...new Set([...topHot, ...topCold])];
-
-    let prediction = applySpatialFilters(candidatePool, baseScores, omitMap, historicalStats, train, config);
-    if (prediction.length < 5) {
-        prediction = topHot.slice(0, 5);
-    }
-
-    return prediction.sort((a, b) => a - b);
+        .map(item => item.num);
+    const pool = [...new Set([...hot, ...cold])];
+    return pool.slice(0, 5).sort((a, b) => a - b);
 }
 
 function applySpatialFilters(candidatePool, scores, omitMap, historicalStats, train, config) {
@@ -521,7 +664,8 @@ function summarizeConfig(config) {
         `R${config.recencyWeight.toFixed(2)}`,
         `O${config.omissionWeight.toFixed(2)}`,
         `V${config.velocityWeight.toFixed(2)}`,
-        `A${config.anchorWeight.toFixed(2)}`
+        `A${config.anchorWeight.toFixed(2)}`,
+        `Vote ${config.wa.toFixed(1)}/${config.wb.toFixed(1)}/${config.wc.toFixed(1)}`
     ].join(" / ");
 }
 
@@ -584,7 +728,7 @@ function round2(value) {
                 const workerUrl = URL.createObjectURL(blob);
                 worker = new Worker(workerUrl);
             } catch (error) {
-                addLog(`Worker init failed: ${error.message}`, "red-500");
+                addLog(`Worker 初始化失敗：${error.message}`, "red-500");
                 setStatus("ERROR", "bg-red-500");
                 throw error;
             }
@@ -602,22 +746,22 @@ function round2(value) {
             };
 
             worker.onerror = (event) => {
-                addLog(`Worker runtime error: ${event.message || "unknown error"}`, "red-500");
+                addLog(`Worker 執行錯誤：${event.message || "未知錯誤"}`, "red-500");
                 setStatus("ERROR", "bg-red-500");
             };
 
             worker.onmessageerror = () => {
-                addLog("Worker message error", "red-500");
+                addLog("Worker 訊息解析失敗", "red-500");
                 setStatus("ERROR", "bg-red-500");
             };
 
-            addLog("Worker initialized", "gray-400");
+            addLog("Worker 初始化完成", "gray-400");
             return worker;
         }
 
         async function fetchSheetData() {
-            addLog("Connecting to Google Sheet API...", "orange-500");
-            setStatus("SYNC", "bg-orange-500 animate-pulse");
+            addLog("開始連線 Google Sheet API...", "orange-500");
+            setStatus("同步中", "bg-orange-500 animate-pulse");
 
             try {
                 const activeWorker = ensureWorker();
@@ -655,10 +799,10 @@ function round2(value) {
                     .filter(Boolean)
                     .reverse();
 
-                addLog(`Loaded ${draws.length} draws, dispatching worker`, "green-500");
+                addLog(`已載入 ${draws.length} 期資料，送入 Worker 分析`, "green-500");
                 activeWorker.postMessage({ type: "analyze", payload: { draws } });
             } catch (error) {
-                addLog(`Sync failed: ${error.message}`, "red-500");
+                addLog(`同步失敗：${error.message}`, "red-500");
                 setStatus("ERROR", "bg-red-500");
             }
         }
@@ -669,13 +813,13 @@ function round2(value) {
             });
 
             document.getElementById("hitRate").innerText =
-                `2+/3+/4+/5+: ${payload.metrics.rate2.toFixed(1)} / ${payload.metrics.rate3.toFixed(1)} / ${payload.metrics.rate4.toFixed(1)} / ${payload.metrics.rate5.toFixed(1)}`;
+                `2星/3星/4星/5星：${payload.metrics.rate2.toFixed(1)} / ${payload.metrics.rate3.toFixed(1)} / ${payload.metrics.rate4.toFixed(1)} / ${payload.metrics.rate5.toFixed(1)}`;
 
             const mode = payload.metrics.rate2 < 100
-                ? "CRITICAL"
+                ? "警戒"
                 : payload.metrics.rate3 > 50
-                    ? "STABLE"
-                    : "TUNED";
+                    ? "穩定"
+                    : "優化中";
             const dotClass = payload.metrics.rate2 < 100
                 ? "bg-red-500"
                 : payload.metrics.rate3 > 50
@@ -692,14 +836,14 @@ function round2(value) {
                     <td>${result.hitFlags.map(hit => `<span class="slot-dot ${hit ? "slot-hit" : "slot-miss"}">${hit ? "H" : "M"}</span>`).join("")}</td>
                     <td class="text-right font-black ${result.hits >= 3 ? "text-orange-500" : "text-gray-500"}">${result.hits}</td>
                 </tr>
-            `).join("") : `<tr><td colspan="5" class="text-center py-10 text-gray-600 font-mono italic">NOT ENOUGH DATA</td></tr>`;
+            `).join("") : `<tr><td colspan="5" class="text-center py-10 text-gray-600 font-mono italic">資料不足</td></tr>`;
 
             document.getElementById("modelMeta").innerText =
-                `Model: ${payload.modelName} | Window: ${payload.config.windowSize} | Depth: ${payload.config.historyDepth} | Objective: ${payload.metrics.objective.toFixed(1)} | Full Backtest: ${payload.metrics.testCount} draws`;
+                `模型：${payload.modelName} | 視窗：${payload.config.windowSize} | 深度：${payload.config.historyDepth} | 目標分數：${payload.metrics.objective.toFixed(1)} | 全量回測：${payload.metrics.testCount} 期`;
 
-            addLog(`Next prediction: ${payload.nextPrediction.map(formatNumber).join(", ")}`, "orange-400");
-            addLog(`Best config: ${payload.configSummary}`, "green-500");
-            addLog(`Filters: ${payload.filterSummary}`, "gray-400");
+            addLog(`下一期預測：${payload.nextPrediction.map(formatNumber).join(", ")}`, "orange-400");
+            addLog(`最佳參數：${payload.configSummary}`, "green-500");
+            addLog(`過濾條件：${payload.filterSummary}`, "gray-400");
         }
     </script>
 </body>
