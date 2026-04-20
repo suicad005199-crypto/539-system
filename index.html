@@ -105,165 +105,190 @@
         </div>
     </div>
 
-    <script id="worker-source" type="text/plain">
+   <!-- 只貼 worker 核心，UI 你原本的不用動 -->
+
+<script id="worker-source" type="text/plain">
 const DISPLAY_ROWS = 10;
-const PREDICT_COUNT = 8; 
+const PREDICT_COUNT = 8;
 
 self.onmessage = (event) => {
     const { type, payload } = event.data || {};
     if (type !== "analyze") return;
 
     try {
-        const draws = Array.isArray(payload?.draws) ? payload.draws : [];
-        if (draws.length < 36) throw new Error("資料不足 36 期。");
+        const draws = payload.draws;
+        if (draws.length < 36) throw new Error("資料不足");
 
-        log("Worker 已啟動，開始 8 碼二星連動過濾。", "orange-500");
-        const stats = buildHistoricalStats(draws);
-        const best = heuristicSearch(draws, stats);
+        log("啟動：二星強化 + 分散優化模型", "orange-500");
+
+        const best = heuristicSearch(draws);
         const nextPrediction = buildPrediction(draws.slice(0, best.config.windowSize), best.config);
 
         self.postMessage({
             type: "analysis",
             payload: {
-                modelName: "v9.20 [二星專攻版]",
-                config: best.config,
-                configSummary: summarizeConfig(best.config),
-                filterSummary: "投票模型：熱號 + Slot + 二星連動(共伴效應)",
+                modelName: "v9.30 [平衡優化版]",
                 nextPrediction,
                 metrics: best.metrics,
                 visibleResults: best.results.slice(0, DISPLAY_ROWS)
             }
         });
-    } catch (error) {
-        log(`Worker 失敗：${error.message}`, "red-500");
+
+    } catch (e) {
+        log(e.message, "red-500");
     }
 };
 
-function log(message, color) { self.postMessage({ type: "log", payload: { message, color } }); }
+function log(msg, color) {
+    self.postMessage({ type: "log", payload: { message: msg, color } });
+}
 
-function buildHistoricalStats(draws) { return {}; }
+/* ========================= */
 
 function heuristicSearch(draws) {
-    const hotConfigs = [{ depth: 12, hot: 2.0 }];
-    const slotConfigs = [{ depth: 16, slotWeight: 2.5 }];
-    const pairConfigs = [{ depth: 24, pairWeight: 3.0 }]; 
-    
-    const weights = [
-        [1.0, 1.0, 1.5], // 偏重連動
-        [0.8, 1.2, 1.2], // 平均配置
-        [1.2, 0.8, 1.0]  // 偏重熱號
+    const configs = [
+        { w: [1,1,1.2], window:36 },
+        { w: [1.2,1,1], window:36 },
+        { w: [0.9,1.1,1.2], window:48 }
     ];
-    const windowSizes = [36, 48]; 
 
     let best = null;
-    windowSizes.forEach((windowSize) => {
-        hotConfigs.forEach((a) => { slotConfigs.forEach((b) => { pairConfigs.forEach((c) => { weights.forEach((w) => {
-            const config = { windowSize, wa: w[0], wb: w[1], wc: w[2], a, b, c };
-            const evaluation = evaluateConfig(draws, config);
-            if (!best || evaluation.metrics.rate2 > best.metrics.rate2) best = { config, ...evaluation };
-        });});});});
+
+    configs.forEach(c => {
+        const result = evaluate(draws, c);
+        if (!best || result.metrics.rate2 > best.metrics.rate2) {
+            best = { config: c, ...result };
+        }
     });
+
     return best;
 }
 
-function evaluateConfig(draws, config) {
+/* ========================= */
+
+function evaluate(draws, config) {
+    let hit2=0, hit3=0, hit4=0;
     const results = [];
-    let hit2 = 0, hit3 = 0, hit4 = 0;
-    const testCount = Math.max(0, draws.length - config.windowSize - 1);
 
-    for (let i = 0; i < testCount; i += 1) {
+    for (let i=0;i<draws.length-config.window-1;i++) {
         const actual = draws[i];
-        const train = draws.slice(i + 1, i + 1 + config.windowSize);
-        if (train.length < config.windowSize) break;
+        const train = draws.slice(i+1, i+1+config.window);
 
-        const prediction = buildPrediction(train, config);
-        const hitNums = prediction.filter((num) => actual.nums.includes(num));
-        const hits = hitNums.length;
+        const pred = buildPrediction(train, config);
+        const hitNums = pred.filter(n=>actual.nums.includes(n));
+        const h = hitNums.length;
 
-        if (hits >= 2) hit2 += 1;
-        if (hits >= 3) hit3 += 1;
-        if (hits >= 4) hit4 += 1;
+        if (h>=2) hit2++;
+        if (h>=3) hit3++;
+        if (h>=4) hit4++;
 
-        results.push({ label: actual.label, actual: actual.nums, prediction, hits, hitNums });
+        results.push({label:actual.label, prediction:pred, hits:h, hitNums});
     }
 
-    const divisor = results.length || 1;
-    return { 
-        results, 
-        metrics: { 
-            rate2: (hit2 / divisor) * 100, 
-            rate3: (hit3 / divisor) * 100, 
-            rate4: (hit4 / divisor) * 100, 
-            testCount: results.length 
-        } 
+    const d = results.length || 1;
+    return {
+        results,
+        metrics:{
+            rate2: hit2/d*100,
+            rate3: hit3/d*100,
+            rate4: hit4/d*100
+        }
     };
 }
 
+/* ========================= */
+
 function buildPrediction(train, config) {
-    const voteMap = new Map();
-    for (let n = 1; n <= 39; n += 1) voteMap.set(n, 0);
+    const score = new Map();
+    for (let i=1;i<=39;i++) score.set(i,0);
 
-    const modelA = predictHotOmit(train, config.a);
-    const modelB = predictSlotModel(train, config.b);
-    const modelC = predictPairModel(train, config.c); 
+    const hot = hotModel(train);
+    const slot = slotModel(train);
+    const pair = pairModel(train);
 
-    modelA.forEach((num, index) => voteMap.set(num, voteMap.get(num) + config.wa * (15 - index)));
-    modelB.forEach((num, index) => voteMap.set(num, voteMap.get(num) + config.wb * (15 - index)));
-    modelC.forEach((num, index) => voteMap.set(num, voteMap.get(num) + config.wc * (15 - index)));
+    hot.forEach((n,i)=>score.set(n, score.get(n)+config.w[0]*(10-i)));
+    slot.forEach((n,i)=>score.set(n, score.get(n)+config.w[1]*(10-i)));
+    pair.forEach((n,i)=>score.set(n, score.get(n)+config.w[2]*(10-i)));
 
-    return [...voteMap.entries()]
-        .sort((a, b) => b[1] - a[1] || a[0] - b[0])
-        .slice(0, PREDICT_COUNT)
-        .map(([num]) => num)
-        .sort((a, b) => a - b);
+    // ⭐ 核心優化：分散懲罰
+    const sorted = [...score.entries()].sort((a,b)=>b[1]-a[1]);
+
+    const final = [];
+    sorted.forEach(([num,val])=>{
+        if (final.length>=PREDICT_COUNT) return;
+
+        // 避免過近號碼（分散）
+        const tooClose = final.some(x=>Math.abs(x-num)<=1);
+        if (tooClose) return;
+
+        final.push(num);
+    });
+
+    // 不足補冷號
+    if (final.length < PREDICT_COUNT) {
+        for (let i=1;i<=39;i++){
+            if (!final.includes(i)) final.push(i);
+            if (final.length>=PREDICT_COUNT) break;
+        }
+    }
+
+    return final.sort((a,b)=>a-b);
 }
 
-function predictHotOmit(train, cfg) {
-    const scores = new Map();
-    for (let n = 1; n <= 39; n += 1) scores.set(n, 0);
-    train.slice(0, cfg.depth).forEach((draw, i) => draw.nums.forEach(n => scores.set(n, scores.get(n) + cfg.hot * ((cfg.depth - i) / cfg.depth))));
-    return topNumbers(scores, 15);
+/* ========================= */
+
+function hotModel(train){
+    const s = new Map();
+    for (let i=1;i<=39;i++) s.set(i,0);
+
+    train.slice(0,12).forEach((d,i)=>{
+        d.nums.forEach(n=>{
+            s.set(n, s.get(n)+(12-i));
+        });
+    });
+
+    return top(s,15);
 }
 
-function predictSlotModel(train, cfg) {
-    const scores = new Map();
-    for (let n = 1; n <= 39; n += 1) scores.set(n, 0);
-    for (let slot = 0; slot < 5; slot += 1) {
-        train.slice(0, cfg.depth).forEach((draw, i) => {
-            const v = draw.nums[slot];
-            scores.set(v, scores.get(v) + cfg.slotWeight * ((cfg.depth - i) / cfg.depth));
+function slotModel(train){
+    const s = new Map();
+    for (let i=1;i<=39;i++) s.set(i,0);
+
+    for (let slot=0;slot<5;slot++){
+        train.slice(0,16).forEach((d,i)=>{
+            s.set(d.nums[slot], s.get(d.nums[slot])+(16-i));
         });
     }
-    return topNumbers(scores, 15);
+
+    return top(s,15);
 }
 
-function predictPairModel(train, cfg) {
-    const scores = new Map();
-    for (let n = 1; n <= 39; n += 1) scores.set(n, 0);
-    
-    const anchors = train[0].nums; 
-    
-    anchors.forEach(anchor => {
-        train.slice(1, cfg.depth + 1).forEach((draw, i) => {
-            if (draw.nums.includes(anchor)) {
-                const decay = (cfg.depth - i) / cfg.depth; 
-                draw.nums.forEach(n => {
-                    if (n !== anchor) {
-                        scores.set(n, scores.get(n) + cfg.pairWeight * decay);
-                    }
+function pairModel(train){
+    const s = new Map();
+    for (let i=1;i<=39;i++) s.set(i,0);
+
+    const base = train[0].nums;
+
+    base.forEach(a=>{
+        train.slice(1,25).forEach((d,i)=>{
+            if (d.nums.includes(a)){
+                d.nums.forEach(n=>{
+                    if (n!==a) s.set(n, s.get(n)+(25-i));
                 });
             }
         });
     });
-    return topNumbers(scores, 15);
+
+    return top(s,15);
 }
 
-function topNumbers(scoreMap, limit) {
-    return [...scoreMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([num]) => num);
+function top(map, n){
+    return [...map.entries()]
+        .sort((a,b)=>b[1]-a[1])
+        .slice(0,n)
+        .map(x=>x[0]);
 }
-
-function summarizeConfig(config) { return `Window ${config.windowSize} | Wa:${config.wa} Wb:${config.wb} Wc:${config.wc}`; }
-    </script>
+</script>
 
     <script>
         const API_URL = "https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec";
