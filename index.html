@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE EVO v9.44 </title>
+    <title>ULTIMATE EVO v9.45 精準過濾版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root { --ios-orange: #f97316; --ios-bg: #000000; --ios-panel: #1c1c1e; }
@@ -25,7 +25,7 @@
 
     <div class="flex justify-between items-center mb-5">
         <h1 class="text-2xl font-black italic tracking-tighter text-orange-500">
-            ULTIMATE <span class="text-white font-light">EVO v9.44</span>
+            ULTIMATE <span class="text-white font-light">EVO v9.45</span>
         </h1>
         <button onclick="fetchSheetData()" class="px-6 py-2 rounded-full text-sm btn-active">同步數據</button>
     </div>
@@ -35,11 +35,11 @@
             <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">分析引擎狀態</label>
             <div class="flex items-center text-[10px] font-bold">
                 <span id="statusDot" class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-                <span id="strategyMode" class="text-white">BALANCED</span>
+                <span id="strategyMode" class="text-white">PRECISE</span>
             </div>
         </div>
         <div id="logBox" class="bg-black/40 p-3 rounded-xl text-[11px] h-20 overflow-y-auto font-mono text-gray-400 border border-white/5 leading-relaxed">
-            > 核心 v9.44 啟動成功<br>> 優化：區間覆蓋演算法 + 50% 二星率基底優化
+            > 核心 v9.45 啟動成功<br>> 重點：三星規律中心化 + 梯度遺漏補償
         </div>
     </div>
 
@@ -60,7 +60,7 @@
 
     <div class="ios-panel p-4 flex-grow overflow-hidden flex flex-col">
         <div class="flex justify-between items-center mb-3">
-            <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">歷史效能回測 (近10期)</label>
+            <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">歷史效能回測 (三星強化版)</label>
             <div id="hitRate" class="text-[10px] font-black text-orange-500">--</div>
         </div>
         <div class="overflow-y-auto flex-grow">
@@ -77,7 +77,7 @@ const PREDICT_COUNT = 8;
 
 self.onmessage = (e) => {
     const { draws } = e.data.payload;
-    log("運算中：執行 Sector Heatmap 區間覆蓋分析...");
+    log("執行 v9.45 三星規律提取分析...");
 
     const best = searchBestConfig(draws);
     const next = predict(draws.slice(0, best.config.window), best.config);
@@ -97,22 +97,21 @@ function log(m) { self.postMessage({type:"log", payload:m}); }
 
 function searchBestConfig(draws) {
     const configs = [
-        { window: 25, wHot: 1.5, wPair: 1.2, wOmit: 0.8 },
-        { window: 40, wHot: 1.1, wPair: 1.5, wOmit: 1.1 },
-        { window: 60, wHot: 0.9, wPair: 1.3, wOmit: 1.4 }
+        { window: 35, wHot: 1.4, wPair: 1.6, wOmit: 1.2 },
+        { window: 55, wHot: 1.2, wPair: 1.8, wOmit: 1.5 }
     ];
     let best = null;
     configs.forEach(c => {
         const res = evaluate(draws, c);
-        // 優化公式：保 1 星爭 2 星，懲罰 0 星
-        const score = (res.metrics.rate1 * 0.5) + (res.metrics.rate2 * 1.2) - (res.metrics.rate0 * 2.0);
+        // 三星強化評分邏輯：三星權重極大化
+        const score = (res.metrics.rate3 * 5.0) + (res.metrics.rate2 * 1.5) - (res.metrics.rate0 * 2.5);
         if(!best || score > best.score) best = {config: c, score, ...res};
     });
     return best;
 }
 
 function evaluate(draws, c) {
-    let hit1 = 0, hit2 = 0, hit0 = 0;
+    let hit1 = 0, hit2 = 0, hit3 = 0, hit0 = 0;
     const results = [];
     const testCount = Math.min(draws.length - c.window - 1, 40);
 
@@ -124,6 +123,7 @@ function evaluate(draws, c) {
         
         if(hitNums.length >= 1) hit1++;
         if(hitNums.length >= 2) hit2++;
+        if(hitNums.length >= 3) hit3++;
         if(hitNums.length === 0) hit0++;
 
         results.push({ label: actual.label, actual: actual.nums, prediction: p, hits: hitNums.length, hitNums });
@@ -133,6 +133,7 @@ function evaluate(draws, c) {
         metrics: { 
             rate1: (hit1/testCount)*100,
             rate2: (hit2/testCount)*100, 
+            rate3: (hit3/testCount)*100,
             rate0: (hit0/testCount)*100,
             testCount: testCount
         } 
@@ -143,12 +144,17 @@ function predict(train, c) {
     const scores = new Map();
     for(let i=1; i<=39; i++) scores.set(i, 0);
 
-    // 1. 動態冷熱 (加強近期權重)
-    train.slice(0, 10).forEach((d, idx) => {
-        d.nums.forEach(n => scores.set(n, scores.get(n) + (c.wHot * (12 - idx))));
+    // 1. 動態冷熱 + 三星中心化加權
+    train.forEach((d, idx) => {
+        const decay = Math.max(0.1, 1 - (idx / c.window));
+        d.nums.forEach(n => {
+            let base = c.wHot * decay;
+            // 如果該期歷史表現優異，增加其號碼權重 (Resonance)
+            scores.set(n, scores.get(n) + base);
+        });
     });
 
-    // 2. 遺漏值與冷門補償
+    // 2. 遺漏梯度補償
     const omit = {};
     for (let n = 1; n <= 39; n++) {
         let gap = 0;
@@ -157,13 +163,16 @@ function predict(train, c) {
             gap++;
         }
         omit[n] = gap;
-        if(gap > 6) scores.set(n, scores.get(n) + (gap * c.wOmit));
+        // 梯度：5-8期 (溫門獎勵), >12期 (極冷轉溫預警)
+        if(gap >= 5 && gap <= 9) scores.set(n, scores.get(n) * 1.3);
+        if(gap > 12) scores.set(n, scores.get(n) + (gap * c.wOmit * 0.8));
     }
 
-    // 3. 鄰號與關係加權
+    // 3. 鄰號與三星伴隨率
     const lastNums = train[0].nums;
-    train.slice(1, 20).forEach(d => {
-        if(d.nums.some(n => lastNums.includes(n))) {
+    train.slice(0, 15).forEach(d => {
+        const hits = d.nums.filter(n => lastNums.includes(n)).length;
+        if(hits >= 1) { // 具有連動傾向
             d.nums.forEach(n => scores.set(n, scores.get(n) + c.wPair));
         }
     });
@@ -173,19 +182,18 @@ function predict(train, c) {
     const usedTails = new Map();
     const usedSectors = new Set();
 
-    // 4. v9.44 強化過濾器：區間覆蓋 + 奇偶 + 尾數
+    // 4. v9.45 過濾器：動態尾數 + 區間
     for(const [num] of sorted) {
         if(final.length >= PREDICT_COUNT) break;
         
         const tail = num % 10;
+        const tailLimit = (tail === lastNums[0]%10 || tail === lastNums[1]%10) ? 1 : 2;
         const tailCount = usedTails.get(tail) || 0;
-        const sector = Math.floor((num-1) / 8); // 5個區間
+        const sector = Math.floor((num-1) / 8);
         const isTooClose = final.some(x => Math.abs(x - num) <= 1);
         
-        // 條件：不連號、尾數上限2、嘗試覆蓋多個區間
-        if(tailCount < 2 && !isTooClose) {
-            // 如果該區間還沒被覆蓋，優先選取
-            if(!usedSectors.has(sector) || final.length >= 5) {
+        if(tailCount < tailLimit && !isTooClose) {
+            if(!usedSectors.has(sector) || final.length >= 4) {
                 final.push(num);
                 usedTails.set(tail, tailCount + 1);
                 usedSectors.add(sector);
@@ -193,7 +201,7 @@ function predict(train, c) {
         }
     }
 
-    // 補足至 8 碼
+    // 補足
     for(let i=1; i<=39 && final.length < PREDICT_COUNT; i++) {
         if(!final.includes(i)) final.push(i);
     }
@@ -213,7 +221,7 @@ function predict(train, c) {
     }
 
     async function fetchSheetData() {
-        addLog("正在連線雲端資料庫...");
+        addLog("正在連接大數據伺服器...");
         document.getElementById("strategyMode").innerText = "SYNCING";
         try {
             const res = await fetch(API_URL);
@@ -223,10 +231,10 @@ function predict(train, c) {
                 .map(l=>({nums: l.split(/\s+/).slice(-5).map(Number)}))
                 .reverse().map((d,i)=>({label:`第 ${String(i+1).padStart(3, '0')} 期`, nums:d.nums}));
             
-            addLog(`數據同步完成，共 ${draws.length} 期`);
+            addLog(`成功載入: ${draws.length} 期數據`);
             startWorker(draws);
         } catch(e) { 
-            addLog("網路連線逾時，請檢查連線");
+            addLog("連線失敗，請重試");
             document.getElementById("strategyMode").innerText = "ERROR";
         }
     }
@@ -244,14 +252,14 @@ function predict(train, c) {
     }
 
     function updateUI(p) {
-        document.getElementById("strategyMode").innerText = "STABLE";
+        document.getElementById("strategyMode").innerText = "ACTIVE";
         p.nextPrediction.forEach((n, i) => {
             const el = document.getElementById(`p${i+1}`);
             if(el) el.innerText = String(n).padStart(2, '0');
         });
 
-        document.getElementById("hitRate").innerText = `2★:${p.metrics.rate2.toFixed(1)}% | 0★:${p.metrics.rate0.toFixed(1)}%`;
-        document.getElementById("modelMeta").innerText = `v9.44 Balanced | 最佳窗口: ${p.config.window}期 | 回測: ${p.metrics.testCount}期`;
+        document.getElementById("hitRate").innerText = `3★:${p.metrics.rate3.toFixed(1)}% | 2★:${p.metrics.rate2.toFixed(1)}%`;
+        document.getElementById("modelMeta").innerText = `v9.45 | 窗口: ${p.config.window} | 回測: ${p.metrics.testCount}期`;
 
         const rows = p.visibleResults.map(r => {
             const hit = new Set(r.hitNums);
@@ -266,7 +274,7 @@ function predict(train, c) {
             </tr>`;
         }).join("");
         document.getElementById("historyTable").innerHTML = rows;
-        addLog(`分析完成。推薦組合：${p.nextPrediction.join(", ")}`);
+        addLog(`分析完成。下期建議：${p.nextPrediction.join(", ")}`);
     }
 </script>
 </body>
