@@ -1,377 +1,259 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE EVO v9.20 [二星專攻版]</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        :root { --ios-orange: #f97316; --ios-bg: #000000; --ios-panel: #1c1c1e; }
-        body { background-color: var(--ios-bg); color: #fff; font-family: -apple-system, system-ui, sans-serif; overflow-x: hidden; }
-        .ios-panel { background: var(--ios-panel); border-radius: 12px; }
-        .orange-glow { box-shadow: 0 0 35px rgba(249, 115, 22, 0.3); }
-        .btn-active { background: var(--ios-orange); color: #000; font-weight: 700; }
-        #logBox { font-variant-numeric: tabular-nums; scrollbar-width: none; }
-        #logBox::-webkit-scrollbar { display: none; }
-        .hit-num { color: #fff; font-weight: 900; background: var(--ios-orange); padding: 1px 4px; border-radius: 4px; }
-        .grid-val { text-shadow: 0 0 10px rgba(249, 115, 22, 0.5); }
-        .slot-dot { display: inline-flex; width: 16px; height: 16px; align-items: center; justify-content: center; border-radius: 999px; font-size: 9px; font-weight: 800; margin-right: 2px; }
-        .slot-hit { background: rgba(34, 197, 94, 0.18); color: #4ade80; }
-        .slot-miss { background: rgba(255, 255, 255, 0.08); color: #6b7280; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ULTIMATE EVO v9.31</title>
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+:root { --ios-orange:#f97316; --ios-bg:#000; --ios-panel:#1c1c1e; }
+body { background:var(--ios-bg); color:#fff; font-family:system-ui; }
+.ios-panel { background:var(--ios-panel); border-radius:12px; border:1px solid rgba(255,255,255,0.1); }
+.hit-num { background:var(--ios-orange); padding:1px 5px; border-radius:4px; }
+.grid-num { font-size:1.25rem; font-weight:800; }
+.label-mini { font-size:9px; color:#f97316; font-weight:bold; }
+</style>
 </head>
-<body class="min-h-screen flex flex-col p-4">
-    <div class="flex justify-between items-center mb-5">
-        <h1 class="text-2xl font-black italic tracking-tighter text-orange-500">
-            ULTIMATE <span class="text-white">EVO 9.2</span><span class="text-xs text-gray-400 ml-1">PAIR MODEL</span>
-        </h1>
-        <div class="flex bg-[#2c2c2e] p-1 rounded-xl flex-nowrap shrink-0">
-            <button id="btnSync" onclick="fetchSheetData()" class="px-4 py-1.5 rounded-lg text-sm btn-active whitespace-nowrap">開始同步</button>
-        </div>
-    </div>
 
-    <div class="ios-panel p-4 mb-4 orange-glow border border-orange-500/50">
-        <div class="flex justify-between items-end mb-2">
-            <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">Panel 1: 引擎狀態</label>
-            <div class="flex items-center text-[10px] text-orange-500 font-bold uppercase">
-                <span id="statusDot" class="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></span>
-                v9.20 <span id="strategyMode" class="ml-1 text-white">READY</span>
-            </div>
-        </div>
-        <div id="logBox" class="bg-black/50 p-3 rounded-lg text-[11px] h-24 overflow-y-auto font-mono border border-white/5 leading-relaxed">
-            <span class="text-gray-500">&gt; Worker 已初始化，等待同步資料...</span><br>
-            <span class="text-gray-500">&gt; 模式：技術過濾 (8碼輸出) + 二星連動</span>
-        </div>
-    </div>
+<body class="p-4 min-h-screen flex flex-col">
 
-    <div class="ios-panel p-4 mb-4 border-t-2 border-orange-600">
-        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-3">Panel 2: 技術過濾選號（8碼建議立柱）</label>
-        <div class="grid grid-cols-4 gap-2" id="predictionGrid">
-            <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
-                <div class="text-[9px] text-orange-500 font-bold">主 1</div>
-                <div class="text-lg font-black text-white grid-val" id="p1">--</div>
-            </div>
-            <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
-                <div class="text-[9px] text-orange-500 font-bold">主 2</div>
-                <div class="text-lg font-black text-white grid-val" id="p2">--</div>
-            </div>
-            <div class="bg-white/10 p-2 rounded-lg text-center border border-white/20">
-                <div class="text-[9px] text-gray-300 font-bold">副 1</div>
-                <div class="text-lg font-black text-white" id="p3">--</div>
-            </div>
-            <div class="bg-white/10 p-2 rounded-lg text-center border border-white/20">
-                <div class="text-[9px] text-gray-300 font-bold">副 2</div>
-                <div class="text-lg font-black text-white" id="p4">--</div>
-            </div>
-            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/5">
-                <div class="text-[9px] text-gray-500 font-bold">濾網 1</div>
-                <div class="text-lg font-black text-white" id="p5">--</div>
-            </div>
-            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/5">
-                <div class="text-[9px] text-gray-500 font-bold">濾網 2</div>
-                <div class="text-lg font-black text-white" id="p6">--</div>
-            </div>
-            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/5">
-                <div class="text-[9px] text-gray-500 font-bold">濾網 3</div>
-                <div class="text-lg font-black text-white" id="p7">--</div>
-            </div>
-            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/5">
-                <div class="text-[9px] text-gray-500 font-bold">濾網 4</div>
-                <div class="text-lg font-black text-white" id="p8">--</div>
-            </div>
-        </div>
-        <div id="modelMeta" class="mt-3 text-[11px] text-gray-500 leading-6">等待同步資料...</div>
-    </div>
+<div class="flex justify-between mb-6">
+<h1 class="text-xl font-black text-orange-500">EVO v9.31</h1>
+<button onclick="fetchSheetData()" class="bg-orange-500 px-6 py-2 rounded-full text-black font-bold">同步資料</button>
+</div>
 
-    <div class="ios-panel p-4 flex-grow overflow-hidden flex flex-col">
-        <div class="flex justify-between items-center mb-2">
-            <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Panel 3: 回測結果 (8碼基礎)</label>
-            <div id="hitRate" class="text-[10px] font-black text-orange-500">2星/3星/4星：0.0 / 0.0 / 0.0</div>
-        </div>
-        <div class="overflow-y-auto flex-grow">
-            <table class="w-full text-[12px]">
-                <thead class="sticky top-0 bg-[#1c1c1e] text-gray-500 z-10">
-                    <tr class="text-left border-b border-white/10">
-                        <th class="pb-2 w-1/5">期別</th>
-                        <th class="pb-2 w-2/5">8碼預測</th>
-                        <th class="pb-2 w-1/5 text-center">分佈</th>
-                        <th class="pb-2 w-1/5 text-right">命中</th>
-                    </tr>
-                </thead>
-                <tbody id="historyTable" class="divide-y divide-white/5">
-                    <tr><td colspan="4" class="text-center py-10 text-gray-600 font-mono italic">尚未同步資料</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
+<div id="logBox" class="ios-panel p-3 text-xs h-24 overflow-y-auto text-gray-400 mb-4">
+> 系統就緒
+</div>
 
-   <!-- 只貼 worker 核心，UI 你原本的不用動 -->
+<div class="ios-panel p-4 mb-4">
+<div class="label-mini mb-2">選號</div>
+<div class="grid grid-cols-4 gap-2 text-center">
+<div id="p1" class="grid-num">--</div>
+<div id="p2" class="grid-num">--</div>
+<div id="p3" class="grid-num">--</div>
+<div id="p4" class="grid-num">--</div>
+<div id="p5" class="grid-num">--</div>
+<div id="p6" class="grid-num">--</div>
+<div id="p7" class="grid-num">--</div>
+<div id="p8" class="grid-num">--</div>
+</div>
+</div>
 
+<div class="ios-panel p-4 flex-grow">
+<div id="hitRate" class="text-xs text-orange-400 mb-2"></div>
+<table class="w-full text-xs">
+<tbody id="historyTable"></tbody>
+</table>
+</div>
+
+<!-- Worker -->
 <script id="worker-source" type="text/plain">
-const DISPLAY_ROWS = 10;
 const PREDICT_COUNT = 8;
 
-self.onmessage = (event) => {
-    const { type, payload } = event.data || {};
-    if (type !== "analyze") return;
+self.onmessage = (e)=>{
+ const draws = e.data.payload.draws;
+ if(!draws || draws.length < 36){
+   log("資料不足");
+   return;
+ }
 
-    try {
-        const draws = payload.draws;
-        if (draws.length < 36) throw new Error("資料不足");
+ log("模型啟動 v9.31");
 
-        log("啟動：二星強化 + 分散優化模型", "orange-500");
+ const best = search(draws);
+ const next = predict(draws.slice(0,best.config.window), best.config);
 
-        const best = heuristicSearch(draws);
-        const nextPrediction = buildPrediction(draws.slice(0, best.config.windowSize), best.config);
-
-        self.postMessage({
-            type: "analysis",
-            payload: {
-                modelName: "v9.30 [平衡優化版]",
-                nextPrediction,
-                metrics: best.metrics,
-                visibleResults: best.results.slice(0, DISPLAY_ROWS)
-            }
-        });
-
-    } catch (e) {
-        log(e.message, "red-500");
-    }
+ self.postMessage({
+  type:"analysis",
+  payload:{
+   nextPrediction:next,
+   metrics:best.metrics,
+   visibleResults:best.results.slice(0,10)
+  }
+ });
 };
 
-function log(msg, color) {
-    self.postMessage({ type: "log", payload: { message: msg, color } });
+function log(m){
+ self.postMessage({type:"log",payload:{message:m}});
 }
 
-/* ========================= */
+function search(draws){
+ const configs=[
+  {w:[1,1,1.3],window:36},
+  {w:[1.2,1,1.1],window:48}
+ ];
 
-function heuristicSearch(draws) {
-    const configs = [
-        { w: [1,1,1.2], window:36 },
-        { w: [1.2,1,1], window:36 },
-        { w: [0.9,1.1,1.2], window:48 }
-    ];
+ let best=null;
+ configs.forEach(c=>{
+  const r=evaluate(draws,c);
+  if(!best || r.metrics.rate2 > best.metrics.rate2){
+    best={config:c,...r};
+  }
+ });
 
-    let best = null;
+ return best;
+}
 
-    configs.forEach(c => {
-        const result = evaluate(draws, c);
-        if (!best || result.metrics.rate2 > best.metrics.rate2) {
-            best = { config: c, ...result };
-        }
+function evaluate(draws,c){
+ let hit2=0,hit3=0,hit4=0;
+ const results=[];
+
+ for(let i=0;i<draws.length-c.window-1;i++){
+  const actual=draws[i];
+  const train=draws.slice(i+1,i+1+c.window);
+
+  const p=predict(train,c);
+  const hitNums=p.filter(n=>actual.nums.includes(n));
+
+  if(hitNums.length>=2)hit2++;
+  if(hitNums.length>=3)hit3++;
+  if(hitNums.length>=4)hit4++;
+
+  results.push({label:actual.label,prediction:p,hits:hitNums.length,hitNums});
+ }
+
+ const d=results.length||1;
+ return {
+  results,
+  metrics:{
+   rate2:hit2/d*100,
+   rate3:hit3/d*100,
+   rate4:hit4/d*100
+  }
+ };
+}
+
+function predict(train,c){
+ const score=new Map();
+ for(let i=1;i<=39;i++) score.set(i,0);
+
+ const hot=getTop(train,12,15);
+ const pair=getPair(train,24,15);
+
+ hot.forEach((n,i)=>score.set(n,score.get(n)+c.w[0]*(15-i)));
+ pair.forEach((n,i)=>score.set(n,score.get(n)+c.w[2]*(15-i)));
+
+ const sorted=[...score.entries()].sort((a,b)=>b[1]-a[1]);
+
+ const final=[];
+ for(const [num] of sorted){
+  if(final.length>=PREDICT_COUNT) break;
+  if(!final.some(x=>Math.abs(x-num)<=1)) final.push(num);
+ }
+
+ for(let i=1;i<=39 && final.length<PREDICT_COUNT;i++){
+  if(!final.includes(i)) final.push(i);
+ }
+
+ return final.sort((a,b)=>a-b);
+}
+
+function getTop(train,depth,limit){
+ const s=new Map();
+ for(let i=1;i<=39;i++) s.set(i,0);
+
+ train.slice(0,depth).forEach((d,i)=>{
+  d.nums.forEach(n=>s.set(n,s.get(n)+(depth-i)));
+ });
+
+ return [...s.entries()].sort((a,b)=>b[1]-a[1]).slice(0,limit).map(x=>x[0]);
+}
+
+function getPair(train,depth,limit){
+ const s=new Map();
+ for(let i=1;i<=39;i++) s.set(i,0);
+
+ const base=train[0].nums;
+
+ base.forEach(a=>{
+  train.slice(1,depth).forEach((d,i)=>{
+   if(d.nums.includes(a)){
+    d.nums.forEach(n=>{
+     if(n!==a) s.set(n,s.get(n)+(depth-i));
     });
+   }
+  });
+ });
 
-    return best;
-}
-
-/* ========================= */
-
-function evaluate(draws, config) {
-    let hit2=0, hit3=0, hit4=0;
-    const results = [];
-
-    for (let i=0;i<draws.length-config.window-1;i++) {
-        const actual = draws[i];
-        const train = draws.slice(i+1, i+1+config.window);
-
-        const pred = buildPrediction(train, config);
-        const hitNums = pred.filter(n=>actual.nums.includes(n));
-        const h = hitNums.length;
-
-        if (h>=2) hit2++;
-        if (h>=3) hit3++;
-        if (h>=4) hit4++;
-
-        results.push({label:actual.label, prediction:pred, hits:h, hitNums});
-    }
-
-    const d = results.length || 1;
-    return {
-        results,
-        metrics:{
-            rate2: hit2/d*100,
-            rate3: hit3/d*100,
-            rate4: hit4/d*100
-        }
-    };
-}
-
-/* ========================= */
-
-function buildPrediction(train, config) {
-    const score = new Map();
-    for (let i=1;i<=39;i++) score.set(i,0);
-
-    const hot = hotModel(train);
-    const slot = slotModel(train);
-    const pair = pairModel(train);
-
-    hot.forEach((n,i)=>score.set(n, score.get(n)+config.w[0]*(10-i)));
-    slot.forEach((n,i)=>score.set(n, score.get(n)+config.w[1]*(10-i)));
-    pair.forEach((n,i)=>score.set(n, score.get(n)+config.w[2]*(10-i)));
-
-    // ⭐ 核心優化：分散懲罰
-    const sorted = [...score.entries()].sort((a,b)=>b[1]-a[1]);
-
-    const final = [];
-    sorted.forEach(([num,val])=>{
-        if (final.length>=PREDICT_COUNT) return;
-
-        // 避免過近號碼（分散）
-        const tooClose = final.some(x=>Math.abs(x-num)<=1);
-        if (tooClose) return;
-
-        final.push(num);
-    });
-
-    // 不足補冷號
-    if (final.length < PREDICT_COUNT) {
-        for (let i=1;i<=39;i++){
-            if (!final.includes(i)) final.push(i);
-            if (final.length>=PREDICT_COUNT) break;
-        }
-    }
-
-    return final.sort((a,b)=>a-b);
-}
-
-/* ========================= */
-
-function hotModel(train){
-    const s = new Map();
-    for (let i=1;i<=39;i++) s.set(i,0);
-
-    train.slice(0,12).forEach((d,i)=>{
-        d.nums.forEach(n=>{
-            s.set(n, s.get(n)+(12-i));
-        });
-    });
-
-    return top(s,15);
-}
-
-function slotModel(train){
-    const s = new Map();
-    for (let i=1;i<=39;i++) s.set(i,0);
-
-    for (let slot=0;slot<5;slot++){
-        train.slice(0,16).forEach((d,i)=>{
-            s.set(d.nums[slot], s.get(d.nums[slot])+(16-i));
-        });
-    }
-
-    return top(s,15);
-}
-
-function pairModel(train){
-    const s = new Map();
-    for (let i=1;i<=39;i++) s.set(i,0);
-
-    const base = train[0].nums;
-
-    base.forEach(a=>{
-        train.slice(1,25).forEach((d,i)=>{
-            if (d.nums.includes(a)){
-                d.nums.forEach(n=>{
-                    if (n!==a) s.set(n, s.get(n)+(25-i));
-                });
-            }
-        });
-    });
-
-    return top(s,15);
-}
-
-function top(map, n){
-    return [...map.entries()]
-        .sort((a,b)=>b[1]-a[1])
-        .slice(0,n)
-        .map(x=>x[0]);
+ return [...s.entries()].sort((a,b)=>b[1]-a[1]).slice(0,limit).map(x=>x[0]);
 }
 </script>
 
-    <script>
-        const API_URL = "https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec";
-        let worker = null;
+<script>
+const API_URL="https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec";
+let worker;
 
-        function addLog(message, color = "gray-500") {
-            const logBox = document.getElementById("logBox");
-            logBox.innerHTML += `<span class="text-${color}">&gt; ${message}</span><br>`;
-            logBox.scrollTop = logBox.scrollHeight;
-        }
+function addLog(m){
+ const box=document.getElementById("logBox");
+ box.innerHTML+=`> ${m}<br>`;
+ box.scrollTop=box.scrollHeight;
+}
 
-        function formatNumber(num) { return String(num).padStart(2, "0"); }
-        function setStatus(mode, dotClass) {
-            document.getElementById("strategyMode").innerText = mode;
-            document.getElementById("statusDot").className = dotClass;
-        }
+function ensureWorker(){
+ if(worker) return worker;
 
-        function ensureWorker() {
-            if (worker) return worker;
-            const blob = new Blob([document.getElementById("worker-source").textContent], { type: "application/javascript" });
-            worker = new Worker(URL.createObjectURL(blob));
-            worker.onmessage = (e) => {
-                const { type, payload } = e.data || {};
-                if (type === "log") addLog(payload.message, payload.color || "gray-500");
-                if (type === "analysis") updateUI(payload);
-            };
-            return worker;
-        }
+ const blob=new Blob([document.getElementById("worker-source").textContent],{type:"application/javascript"});
+ worker=new Worker(URL.createObjectURL(blob));
 
-        async function fetchSheetData() {
-            addLog("開始同步 Google Sheet...", "orange-500");
-            setStatus("SYNC", "w-2 h-2 bg-orange-500 rounded-full mr-1 animate-pulse");
-            try {
-                const response = await fetch(API_URL);
-                const rawData = (await response.json()).data || await response.text();
-                const draws = rawData.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
-                    .map(line => ({ nums: line.split(/\s+/).slice(-5).map(Number) }))
-                    .filter(d => d.nums.length === 5 && new Set(d.nums).size === 5)
-                    .reverse().map((d, i) => ({ label: `第${String(i + 1).padStart(3,"0")}期`, nums: d.nums }));
-                if (draws.length < 36) throw new Error("資料不足 36 期。");
-                ensureWorker().postMessage({ type: "analyze", payload: { draws } });
-            } catch (error) {
-                addLog(`同步失敗：${error.message}`, "red-500");
-                setStatus("ERROR", "w-2 h-2 bg-red-500 rounded-full mr-1");
-            }
-        }
+ worker.onmessage=(e)=>{
+  if(e.data.type==="log") addLog(e.data.payload.message);
+  if(e.data.type==="analysis") updateUI(e.data.payload);
+ };
 
-        function updateUI(payload) {
-            const { nextPrediction, metrics, visibleResults, modelName, filterSummary } = payload;
-            
-            // 更新 UI 介面顯示 8 碼
-            for (let i = 0; i < 8; i++) {
-                const el = document.getElementById(`p${i + 1}`);
-                if (el) el.innerText = nextPrediction[i] ? formatNumber(nextPrediction[i]) : "--";
-            }
+ return worker;
+}
 
-            // 更新儀表板資訊
-            document.getElementById("hitRate").innerText = 
-                `2星/3星/4星：${metrics.rate2.toFixed(1)} / ${metrics.rate3.toFixed(1)} / ${metrics.rate4.toFixed(1)}`;
-            document.getElementById("modelMeta").innerText = `模型：${modelName} | ${filterSummary}`;
-            setStatus("優化完成", "w-2 h-2 bg-green-500 rounded-full mr-1");
+async function fetchSheetData(){
+ addLog("連線中...");
+ try{
+  const res=await fetch(API_URL);
+  let raw;
 
-            // 渲染回測歷史
-            const rows = visibleResults.map(result => {
-                const hitSet = new Set(result.hitNums);
-                const predictionHtml = result.prediction
-                    .map(num => hitSet.has(num) ? `<span class="hit-num">${formatNumber(num)}</span>` : formatNumber(num)).join(" ");
-                const dotHtml = result.prediction
-                    .map(num => `<span class="slot-dot ${hitSet.has(num) ? "slot-hit" : "slot-miss"}">${hitSet.has(num) ? "●" : "○"}</span>`).join("");
-                
-                return `
-                    <tr class="border-b border-white/5">
-                        <td class="py-2 text-[10px] text-gray-500 font-mono tracking-tighter">${result.label}</td>
-                        <td class="text-[11px] text-gray-400 font-mono leading-relaxed">${predictionHtml}</td>
-                        <td class="text-center">${dotHtml}</td>
-                        <td class="text-right font-black ${result.hits >= 3 ? "text-orange-500" : result.hits >= 2 ? "text-white" : "text-gray-600"}">${result.hits}</td>
-                    </tr>`;
-            }).join("");
+  try{
+    const j=await res.json();
+    raw=j.data;
+  }catch{
+    raw=await res.text();
+  }
 
-            document.getElementById("historyTable").innerHTML = rows || `<tr><td colspan="4" class="text-center py-10">無資料</td></tr>`;
-        }
+  const draws=raw.split("\n")
+   .map(l=>l.trim())
+   .filter(Boolean)
+   .map(l=>({nums:l.split(/\s+/).slice(-5).map(Number)}))
+   .reverse()
+   .map((d,i)=>({label:`${i+1}期`,nums:d.nums}));
 
-        ensureWorker();
-    </script>
+  addLog("資料載入完成");
+  ensureWorker().postMessage({payload:{draws}});
+
+ }catch(e){
+  addLog("同步失敗");
+ }
+}
+
+function updateUI(p){
+ p.nextPrediction.forEach((n,i)=>{
+  document.getElementById(`p${i+1}`).innerText=String(n).padStart(2,"0");
+ });
+
+ document.getElementById("hitRate").innerText=
+ `2★:${p.metrics.rate2.toFixed(1)}%  3★:${p.metrics.rate3.toFixed(1)}%`;
+
+ const rows=p.visibleResults.map(r=>{
+  const hit=new Set(r.hitNums);
+  return `<tr>
+  <td class="text-gray-500">${r.label}</td>
+  <td>${r.prediction.map(n=>hit.has(n)?`<span class="hit-num">${n}</span>`:n).join(" ")}</td>
+  <td class="text-orange-500 text-right">${r.hits}</td>
+  </tr>`;
+ }).join("");
+
+ document.getElementById("historyTable").innerHTML=rows;
+}
+
+ensureWorker();
+</script>
+
 </body>
 </html>
