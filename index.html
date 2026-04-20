@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE EVO v9.20 [技術過濾版]</title>
+    <title>ULTIMATE EVO v9.20 [二星專攻版]</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root { --ios-orange: #f97316; --ios-bg: #000000; --ios-panel: #1c1c1e; }
@@ -23,7 +23,7 @@
 <body class="min-h-screen flex flex-col p-4">
     <div class="flex justify-between items-center mb-5">
         <h1 class="text-2xl font-black italic tracking-tighter text-orange-500">
-            ULTIMATE <span class="text-white">EVO 9.2</span><span class="text-xs text-gray-400 ml-1">FILTER</span>
+            ULTIMATE <span class="text-white">EVO 9.2</span><span class="text-xs text-gray-400 ml-1">PAIR MODEL</span>
         </h1>
         <div class="flex bg-[#2c2c2e] p-1 rounded-xl flex-nowrap shrink-0">
             <button id="btnSync" onclick="fetchSheetData()" class="px-4 py-1.5 rounded-lg text-sm btn-active whitespace-nowrap">開始同步</button>
@@ -40,7 +40,7 @@
         </div>
         <div id="logBox" class="bg-black/50 p-3 rounded-lg text-[11px] h-24 overflow-y-auto font-mono border border-white/5 leading-relaxed">
             <span class="text-gray-500">&gt; Worker 已初始化，等待同步資料...</span><br>
-            <span class="text-gray-500">&gt; 模式：技術過濾 (8碼輸出) + 嚴格回測</span>
+            <span class="text-gray-500">&gt; 模式：技術過濾 (8碼輸出) + 二星連動</span>
         </div>
     </div>
 
@@ -107,7 +107,7 @@
 
     <script id="worker-source" type="text/plain">
 const DISPLAY_ROWS = 10;
-const PREDICT_COUNT = 8; // 改為 8 碼技術過濾
+const PREDICT_COUNT = 8; 
 
 self.onmessage = (event) => {
     const { type, payload } = event.data || {};
@@ -117,7 +117,7 @@ self.onmessage = (event) => {
         const draws = Array.isArray(payload?.draws) ? payload.draws : [];
         if (draws.length < 36) throw new Error("資料不足 36 期。");
 
-        log("Worker 已啟動，開始 8 碼過濾回測。", "orange-500");
+        log("Worker 已啟動，開始 8 碼二星連動過濾。", "orange-500");
         const stats = buildHistoricalStats(draws);
         const best = heuristicSearch(draws, stats);
         const nextPrediction = buildPrediction(draws.slice(0, best.config.windowSize), best.config);
@@ -125,10 +125,10 @@ self.onmessage = (event) => {
         self.postMessage({
             type: "analysis",
             payload: {
-                modelName: "v9.20 [技術過濾版]",
+                modelName: "v9.20 [二星專攻版]",
                 config: best.config,
                 configSummary: summarizeConfig(best.config),
-                filterSummary: "投票模型：熱號 + Slot + 遺漏速度",
+                filterSummary: "投票模型：熱號 + Slot + 二星連動(共伴效應)",
                 nextPrediction,
                 metrics: best.metrics,
                 visibleResults: best.results.slice(0, DISPLAY_ROWS)
@@ -141,29 +141,23 @@ self.onmessage = (event) => {
 
 function log(message, color) { self.postMessage({ type: "log", payload: { message, color } }); }
 
-function defaultConfig() {
-    return {
-        windowSize: 36, wa: 1.2, wb: 1.2, wc: 0.8,
-        a: { depth: 10, hot: 2.0, omitThreshold: 5, omitWeight: 0.20, recentDepth: 3, recentWeight: 1.0, nearWeight: 0.3 },
-        b: { depth: 16, slotWeight: 2.6, omitThreshold: 6, omitWeight: 0.15, nearRange: 4, nearWeight: 0.4, anchorWeight: 2.0 },
-        c: { depth: 8, hot: 2.0, omitThreshold: 5, omitWeight: 0.15, velocityWeight: 0.8 }
-    };
-}
-
-function buildHistoricalStats(draws) {
-    return { omissionSum: { mean: 0, stdev: 0 } }; // 簡化
-}
+function buildHistoricalStats(draws) { return {}; }
 
 function heuristicSearch(draws) {
-    const hotConfigs = [{ depth: 10, hot: 2.0, omitThreshold: 5, omitWeight: 0.20, recentDepth: 3, recentWeight: 1.0, nearWeight: 0.3 }];
-    const slotConfigs = [{ depth: 16, slotWeight: 2.6, omitThreshold: 6, omitWeight: 0.15, nearRange: 4, nearWeight: 0.4, anchorWeight: 2.0 }];
-    const velocityConfigs = [{ depth: 8, hot: 2.0, omitThreshold: 5, omitWeight: 0.15, velocityWeight: 0.8 }];
-    const weights = [[1.0, 1.2, 0.8]];
-    const windowSizes = [36];
+    const hotConfigs = [{ depth: 12, hot: 2.0 }];
+    const slotConfigs = [{ depth: 16, slotWeight: 2.5 }];
+    const pairConfigs = [{ depth: 24, pairWeight: 3.0 }]; 
+    
+    const weights = [
+        [1.0, 1.0, 1.5], // 偏重連動
+        [0.8, 1.2, 1.2], // 平均配置
+        [1.2, 0.8, 1.0]  // 偏重熱號
+    ];
+    const windowSizes = [36, 48]; 
 
     let best = null;
     windowSizes.forEach((windowSize) => {
-        hotConfigs.forEach((a) => { slotConfigs.forEach((b) => { velocityConfigs.forEach((c) => { weights.forEach((w) => {
+        hotConfigs.forEach((a) => { slotConfigs.forEach((b) => { pairConfigs.forEach((c) => { weights.forEach((w) => {
             const config = { windowSize, wa: w[0], wb: w[1], wc: w[2], a, b, c };
             const evaluation = evaluateConfig(draws, config);
             if (!best || evaluation.metrics.rate2 > best.metrics.rate2) best = { config, ...evaluation };
@@ -174,7 +168,7 @@ function heuristicSearch(draws) {
 
 function evaluateConfig(draws, config) {
     const results = [];
-    let hit2 = 0, hit3 = 0, hit4 = 0, hit5 = 0;
+    let hit2 = 0, hit3 = 0, hit4 = 0;
     const testCount = Math.max(0, draws.length - config.windowSize - 1);
 
     for (let i = 0; i < testCount; i += 1) {
@@ -189,7 +183,6 @@ function evaluateConfig(draws, config) {
         if (hits >= 2) hit2 += 1;
         if (hits >= 3) hit3 += 1;
         if (hits >= 4) hit4 += 1;
-        if (hits >= 5) hit5 += 1;
 
         results.push({ label: actual.label, actual: actual.nums, prediction, hits, hitNums });
     }
@@ -198,8 +191,9 @@ function evaluateConfig(draws, config) {
     return { 
         results, 
         metrics: { 
-            rate2: (hit2 / divisor) * 100, rate3: (hit3 / divisor) * 100, 
-            rate4: (hit4 / divisor) * 100, rate5: (hit5 / divisor) * 100, 
+            rate2: (hit2 / divisor) * 100, 
+            rate3: (hit3 / divisor) * 100, 
+            rate4: (hit4 / divisor) * 100, 
             testCount: results.length 
         } 
     };
@@ -211,16 +205,15 @@ function buildPrediction(train, config) {
 
     const modelA = predictHotOmit(train, config.a);
     const modelB = predictSlotModel(train, config.b);
-    const modelC = predictVelocityModel(train, config.c);
+    const modelC = predictPairModel(train, config.c); 
 
-    // 加重候選權重
-    modelA.forEach((num, index) => voteMap.set(num, voteMap.get(num) + config.wa * (10 - index)));
-    modelB.forEach((num, index) => voteMap.set(num, voteMap.get(num) + config.wb * (10 - index)));
-    modelC.forEach((num, index) => voteMap.set(num, voteMap.get(num) + config.wc * (10 - index)));
+    modelA.forEach((num, index) => voteMap.set(num, voteMap.get(num) + config.wa * (15 - index)));
+    modelB.forEach((num, index) => voteMap.set(num, voteMap.get(num) + config.wb * (15 - index)));
+    modelC.forEach((num, index) => voteMap.set(num, voteMap.get(num) + config.wc * (15 - index)));
 
     return [...voteMap.entries()]
         .sort((a, b) => b[1] - a[1] || a[0] - b[0])
-        .slice(0, PREDICT_COUNT) // 輸出 8 碼
+        .slice(0, PREDICT_COUNT)
         .map(([num]) => num)
         .sort((a, b) => a - b);
 }
@@ -229,7 +222,7 @@ function predictHotOmit(train, cfg) {
     const scores = new Map();
     for (let n = 1; n <= 39; n += 1) scores.set(n, 0);
     train.slice(0, cfg.depth).forEach((draw, i) => draw.nums.forEach(n => scores.set(n, scores.get(n) + cfg.hot * ((cfg.depth - i) / cfg.depth))));
-    return topNumbers(scores, 15); // 擴大子模型候選池
+    return topNumbers(scores, 15);
 }
 
 function predictSlotModel(train, cfg) {
@@ -244,10 +237,24 @@ function predictSlotModel(train, cfg) {
     return topNumbers(scores, 15);
 }
 
-function predictVelocityModel(train, cfg) {
+function predictPairModel(train, cfg) {
     const scores = new Map();
     for (let n = 1; n <= 39; n += 1) scores.set(n, 0);
-    train.slice(0, cfg.depth).forEach((draw, i) => draw.nums.forEach(n => scores.set(n, scores.get(n) + cfg.hot * ((cfg.depth - i) / cfg.depth))));
+    
+    const anchors = train[0].nums; 
+    
+    anchors.forEach(anchor => {
+        train.slice(1, cfg.depth + 1).forEach((draw, i) => {
+            if (draw.nums.includes(anchor)) {
+                const decay = (cfg.depth - i) / cfg.depth; 
+                draw.nums.forEach(n => {
+                    if (n !== anchor) {
+                        scores.set(n, scores.get(n) + cfg.pairWeight * decay);
+                    }
+                });
+            }
+        });
+    });
     return topNumbers(scores, 15);
 }
 
@@ -255,7 +262,7 @@ function topNumbers(scoreMap, limit) {
     return [...scoreMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([num]) => num);
 }
 
-function summarizeConfig(config) { return `Window ${config.windowSize} | 8碼混合模型`; }
+function summarizeConfig(config) { return `Window ${config.windowSize} | Wa:${config.wa} Wb:${config.wb} Wc:${config.wc}`; }
     </script>
 
     <script>
@@ -305,18 +312,21 @@ function summarizeConfig(config) { return `Window ${config.windowSize} | 8碼混
         }
 
         function updateUI(payload) {
-            const { nextPrediction, metrics, visibleResults } = payload;
+            const { nextPrediction, metrics, visibleResults, modelName, filterSummary } = payload;
             
-            // 填入 8 碼 UI
+            // 更新 UI 介面顯示 8 碼
             for (let i = 0; i < 8; i++) {
                 const el = document.getElementById(`p${i + 1}`);
                 if (el) el.innerText = nextPrediction[i] ? formatNumber(nextPrediction[i]) : "--";
             }
 
+            // 更新儀表板資訊
             document.getElementById("hitRate").innerText = 
                 `2星/3星/4星：${metrics.rate2.toFixed(1)} / ${metrics.rate3.toFixed(1)} / ${metrics.rate4.toFixed(1)}`;
+            document.getElementById("modelMeta").innerText = `模型：${modelName} | ${filterSummary}`;
             setStatus("優化完成", "w-2 h-2 bg-green-500 rounded-full mr-1");
 
+            // 渲染回測歷史
             const rows = visibleResults.map(result => {
                 const hitSet = new Set(result.hitNums);
                 const predictionHtml = result.prediction
