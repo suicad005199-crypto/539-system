@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE EVO v9.43 深度過濾版</title>
+    <title>ULTIMATE EVO v9.44 </title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root { --ios-orange: #f97316; --ios-bg: #000000; --ios-panel: #1c1c1e; }
@@ -25,21 +25,21 @@
 
     <div class="flex justify-between items-center mb-5">
         <h1 class="text-2xl font-black italic tracking-tighter text-orange-500">
-            ULTIMATE <span class="text-white font-light">EVO v9.43</span>
+            ULTIMATE <span class="text-white font-light">EVO v9.44</span>
         </h1>
         <button onclick="fetchSheetData()" class="px-6 py-2 rounded-full text-sm btn-active">同步數據</button>
     </div>
 
     <div class="ios-panel p-4 mb-4 orange-glow">
         <div class="flex justify-between items-center mb-2">
-            <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">系統引擎狀態</label>
+            <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">分析引擎狀態</label>
             <div class="flex items-center text-[10px] font-bold">
                 <span id="statusDot" class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-                <span id="strategyMode" class="text-white">EVOLVING</span>
+                <span id="strategyMode" class="text-white">BALANCED</span>
             </div>
         </div>
         <div id="logBox" class="bg-black/40 p-3 rounded-xl text-[11px] h-20 overflow-y-auto font-mono text-gray-400 border border-white/5 leading-relaxed">
-            > 核心 v9.43 深度過濾版啟動<br>> 優化重點：奇偶比均衡 + 極冷號防禦
+            > 核心 v9.44 啟動成功<br>> 優化：區間覆蓋演算法 + 50% 二星率基底優化
         </div>
     </div>
 
@@ -55,13 +55,13 @@
             <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-orange-500 font-bold">P7</div><div id="p7" class="text-xl font-black text-white grid-val">--</div></div>
             <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-orange-500 font-bold">P8</div><div id="p8" class="text-xl font-black text-white grid-val">--</div></div>
         </div>
-        <div id="modelMeta" class="mt-4 text-[10px] text-center text-gray-500">等待深度分析中...</div>
+        <div id="modelMeta" class="mt-4 text-[10px] text-center text-gray-500">等待大數據運算...</div>
     </div>
 
     <div class="ios-panel p-4 flex-grow overflow-hidden flex flex-col">
         <div class="flex justify-between items-center mb-3">
-            <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">歷史追蹤回測</label>
-            <div id="hitRate" class="text-[10px] font-black text-orange-500">INIT...</div>
+            <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">歷史效能回測 (近10期)</label>
+            <div id="hitRate" class="text-[10px] font-black text-orange-500">--</div>
         </div>
         <div class="overflow-y-auto flex-grow">
             <table class="w-full text-[11px]">
@@ -77,7 +77,7 @@ const PREDICT_COUNT = 8;
 
 self.onmessage = (e) => {
     const { draws } = e.data.payload;
-    log("執行 v9.43 深度優化引擎...");
+    log("運算中：執行 Sector Heatmap 區間覆蓋分析...");
 
     const best = searchBestConfig(draws);
     const next = predict(draws.slice(0, best.config.window), best.config);
@@ -97,24 +97,24 @@ function log(m) { self.postMessage({type:"log", payload:m}); }
 
 function searchBestConfig(draws) {
     const configs = [
-        { window: 30, wHot: 1.2, wPair: 1.4, wOmit: 1.0 },
-        { window: 50, wHot: 1.0, wPair: 1.8, wOmit: 1.2 },
-        { window: 80, wHot: 0.8, wPair: 1.2, wOmit: 1.5 }
+        { window: 25, wHot: 1.5, wPair: 1.2, wOmit: 0.8 },
+        { window: 40, wHot: 1.1, wPair: 1.5, wOmit: 1.1 },
+        { window: 60, wHot: 0.9, wPair: 1.3, wOmit: 1.4 }
     ];
     let best = null;
     configs.forEach(c => {
         const res = evaluate(draws, c);
-        // 優化目標：最大化 2星率，並對 0星進行強烈扣分
-        const score = res.metrics.rate2 - (res.metrics.rate0 * 1.5);
+        // 優化公式：保 1 星爭 2 星，懲罰 0 星
+        const score = (res.metrics.rate1 * 0.5) + (res.metrics.rate2 * 1.2) - (res.metrics.rate0 * 2.0);
         if(!best || score > best.score) best = {config: c, score, ...res};
     });
     return best;
 }
 
 function evaluate(draws, c) {
-    let hit2 = 0, hit3 = 0, hit0 = 0;
+    let hit1 = 0, hit2 = 0, hit0 = 0;
     const results = [];
-    const testCount = Math.min(draws.length - c.window - 1, 50);
+    const testCount = Math.min(draws.length - c.window - 1, 40);
 
     for(let i=0; i < testCount; i++) {
         const actual = draws[i];
@@ -122,8 +122,8 @@ function evaluate(draws, c) {
         const p = predict(train, c);
         const hitNums = p.filter(n => actual.nums.includes(n));
         
+        if(hitNums.length >= 1) hit1++;
         if(hitNums.length >= 2) hit2++;
-        if(hitNums.length >= 3) hit3++;
         if(hitNums.length === 0) hit0++;
 
         results.push({ label: actual.label, actual: actual.nums, prediction: p, hits: hitNums.length, hitNums });
@@ -131,47 +131,38 @@ function evaluate(draws, c) {
     return { 
         results, 
         metrics: { 
+            rate1: (hit1/testCount)*100,
             rate2: (hit2/testCount)*100, 
-            rate3: (hit3/testCount)*100,
             rate0: (hit0/testCount)*100,
             testCount: testCount
         } 
     };
 }
 
-function getOmissions(history) {
-    const omit = {};
-    for (let n = 1; n <= 39; n++) {
-        let gap = 0;
-        for (const draw of history) {
-            if (draw.nums.includes(n)) break;
-            gap++;
-        }
-        omit[n] = gap;
-    }
-    return omit;
-}
-
 function predict(train, c) {
     const scores = new Map();
     for(let i=1; i<=39; i++) scores.set(i, 0);
 
-    // 1. 動態冷熱 (近期權重遞減)
-    train.slice(0, 15).forEach((d, idx) => {
-        d.nums.forEach(n => scores.set(n, scores.get(n) + (c.wHot * (15-idx))));
+    // 1. 動態冷熱 (加強近期權重)
+    train.slice(0, 10).forEach((d, idx) => {
+        d.nums.forEach(n => scores.set(n, scores.get(n) + (c.wHot * (12 - idx))));
     });
 
-    // 2. 遺漏分級補償
-    const omitMap = getOmissions(train);
-    for(let i=1; i<=39; i++) {
-        const gap = omitMap[i];
-        if(gap > 10) scores.set(i, scores.get(i) + (gap * c.wOmit * 1.5)); // 極冷號防守
-        else if(gap > 5) scores.set(i, scores.get(i) + (gap * c.wOmit));
+    // 2. 遺漏值與冷門補償
+    const omit = {};
+    for (let n = 1; n <= 39; n++) {
+        let gap = 0;
+        for (const draw of train) {
+            if (draw.nums.includes(n)) break;
+            gap++;
+        }
+        omit[n] = gap;
+        if(gap > 6) scores.set(n, scores.get(n) + (gap * c.wOmit));
     }
 
-    // 3. 連動性修正
+    // 3. 鄰號與關係加權
     const lastNums = train[0].nums;
-    train.slice(1, 25).forEach(d => {
+    train.slice(1, 20).forEach(d => {
         if(d.nums.some(n => lastNums.includes(n))) {
             d.nums.forEach(n => scores.set(n, scores.get(n) + c.wPair));
         }
@@ -180,32 +171,29 @@ function predict(train, c) {
     const sorted = [...scores.entries()].sort((a,b) => b[1] - a[1]);
     const final = [];
     const usedTails = new Map();
-    let oddCount = 0;
-    let evenCount = 0;
+    const usedSectors = new Set();
 
-    // 4. 深度過濾器
+    // 4. v9.44 強化過濾器：區間覆蓋 + 奇偶 + 尾數
     for(const [num] of sorted) {
         if(final.length >= PREDICT_COUNT) break;
         
         const tail = num % 10;
         const tailCount = usedTails.get(tail) || 0;
+        const sector = Math.floor((num-1) / 8); // 5個區間
         const isTooClose = final.some(x => Math.abs(x - num) <= 1);
-        const isOdd = num % 2 !== 0;
-
-        // 規則：尾數上限2，不連號，奇偶比盡量不超過 5:3 或 3:5
-        const oddLimit = oddCount >= 5;
-        const evenLimit = evenCount >= 5;
-
+        
+        // 條件：不連號、尾數上限2、嘗試覆蓋多個區間
         if(tailCount < 2 && !isTooClose) {
-            if((isOdd && !oddLimit) || (!isOdd && !evenLimit)) {
+            // 如果該區間還沒被覆蓋，優先選取
+            if(!usedSectors.has(sector) || final.length >= 5) {
                 final.push(num);
                 usedTails.set(tail, tailCount + 1);
-                if(isOdd) oddCount++; else evenCount++;
+                usedSectors.add(sector);
             }
         }
     }
 
-    // 補足邏輯
+    // 補足至 8 碼
     for(let i=1; i<=39 && final.length < PREDICT_COUNT; i++) {
         if(!final.includes(i)) final.push(i);
     }
@@ -225,7 +213,7 @@ function predict(train, c) {
     }
 
     async function fetchSheetData() {
-        addLog("正在連接大數據伺服器...");
+        addLog("正在連線雲端資料庫...");
         document.getElementById("strategyMode").innerText = "SYNCING";
         try {
             const res = await fetch(API_URL);
@@ -235,10 +223,10 @@ function predict(train, c) {
                 .map(l=>({nums: l.split(/\s+/).slice(-5).map(Number)}))
                 .reverse().map((d,i)=>({label:`第 ${String(i+1).padStart(3, '0')} 期`, nums:d.nums}));
             
-            addLog(`載入成功: ${draws.length} 期`);
+            addLog(`數據同步完成，共 ${draws.length} 期`);
             startWorker(draws);
         } catch(e) { 
-            addLog("連線失敗，請稍後再試");
+            addLog("網路連線逾時，請檢查連線");
             document.getElementById("strategyMode").innerText = "ERROR";
         }
     }
@@ -263,7 +251,7 @@ function predict(train, c) {
         });
 
         document.getElementById("hitRate").innerText = `2★:${p.metrics.rate2.toFixed(1)}% | 0★:${p.metrics.rate0.toFixed(1)}%`;
-        document.getElementById("modelMeta").innerText = `v9.43 | 最佳窗口: ${p.config.window}期 | 樣本: ${p.metrics.testCount}期`;
+        document.getElementById("modelMeta").innerText = `v9.44 Balanced | 最佳窗口: ${p.config.window}期 | 回測: ${p.metrics.testCount}期`;
 
         const rows = p.visibleResults.map(r => {
             const hit = new Set(r.hitNums);
@@ -278,7 +266,7 @@ function predict(train, c) {
             </tr>`;
         }).join("");
         document.getElementById("historyTable").innerHTML = rows;
-        addLog(`分析完畢。本期建議：${p.nextPrediction.join(", ")}`);
+        addLog(`分析完成。推薦組合：${p.nextPrediction.join(", ")}`);
     }
 </script>
 </body>
