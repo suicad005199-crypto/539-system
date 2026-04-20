@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE EVO v9.40</title>
+    <title>ULTIMATE EVO v9.41 穩定強化版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root { --ios-orange: #f97316; --ios-bg: #000000; --ios-panel: #1c1c1e; }
@@ -25,7 +25,7 @@
 
     <div class="flex justify-between items-center mb-5">
         <h1 class="text-2xl font-black italic tracking-tighter text-orange-500">
-            ULTIMATE <span class="text-white font-light">EVO v9.40</span>
+            ULTIMATE <span class="text-white font-light">EVO v9.41</span>
         </h1>
         <button onclick="fetchSheetData()" class="px-6 py-2 rounded-full text-sm btn-active">同步數據</button>
     </div>
@@ -35,11 +35,11 @@
             <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">系統引擎狀態</label>
             <div class="flex items-center text-[10px] font-bold">
                 <span id="statusDot" class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-                <span id="strategyMode" class="text-white">STANDBY</span>
+                <span id="strategyMode" class="text-white">READY</span>
             </div>
         </div>
         <div id="logBox" class="bg-black/40 p-3 rounded-xl text-[11px] h-20 overflow-y-auto font-mono text-gray-400 border border-white/5 leading-relaxed">
-            > 核心 v9.40 已就緒<br>> 模式：二星穩定性強化 + 區間分散過濾
+            > 核心 v9.41 穩定強化版已就緒<br>> 模式：二星深挖 + 尾數過濾 + 冷號補償
         </div>
     </div>
 
@@ -77,9 +77,8 @@ const PREDICT_COUNT = 8;
 
 self.onmessage = (e) => {
     const { draws } = e.data.payload;
-    log("啟動 v9.40 分散穩定演算法...");
+    log("啟動 v9.41 穩定強化算法...");
 
-    // 尋找最佳配置（主要優化二星）
     const best = searchBestConfig(draws);
     const next = predict(draws.slice(0, best.config.window), best.config);
 
@@ -98,8 +97,9 @@ function log(m) { self.postMessage({type:"log", payload:m}); }
 
 function searchBestConfig(draws) {
     const configs = [
-        { window: 36, wHot: 1.2, wPair: 1.5, wOmit: 0.8 },
-        { window: 48, wHot: 1.0, wPair: 1.8, wOmit: 0.5 }
+        { window: 36, wHot: 1.0, wPair: 1.2, wOmit: 0.8 },
+        { window: 48, wHot: 0.8, wPair: 1.5, wOmit: 1.0 },
+        { window: 60, wHot: 1.0, wPair: 1.0, wOmit: 1.2 }
     ];
     let best = null;
     configs.forEach(c => {
@@ -135,37 +135,64 @@ function evaluate(draws, c) {
     };
 }
 
+function getOmissions(history) {
+    const omit = {};
+    for (let n = 1; n <= 39; n++) {
+        let gap = 0;
+        for (const draw of history) {
+            if (draw.nums.includes(n)) break;
+            gap++;
+        }
+        omit[n] = gap;
+    }
+    return omit;
+}
+
 function predict(train, c) {
     const scores = new Map();
     for(let i=1; i<=39; i++) scores.set(i, 0);
 
-    // 1. 熱度模型
-    train.slice(0, 12).forEach((d, idx) => {
-        d.nums.forEach(n => scores.set(n, scores.get(n) + (c.wHot * (12-idx))));
+    // 1. 冷熱平衡模型
+    train.slice(0, 15).forEach((d, idx) => {
+        d.nums.forEach(n => scores.set(n, scores.get(n) + (c.wHot * (15-idx))));
     });
 
-    // 2. 二星連動模型 (核心深挖)
+    // 2. 遺漏值加權 (針對 0 星痛點優化)
+    const omitMap = getOmissions(train);
+    for(let i=1; i<=39; i++) {
+        if(omitMap[i] > 4) {
+            scores.set(i, scores.get(i) + (omitMap[i] * c.wOmit));
+        }
+    }
+
+    // 3. 連動性修正
     const lastNums = train[0].nums;
-    const pairMap = new Map();
-    train.slice(1, 30).forEach(d => {
-        const hasMatch = d.nums.some(n => lastNums.includes(n));
-        if(hasMatch) {
+    train.slice(1, 20).forEach(d => {
+        if(d.nums.some(n => lastNums.includes(n))) {
             d.nums.forEach(n => scores.set(n, scores.get(n) + c.wPair));
         }
     });
 
     const sorted = [...scores.entries()].sort((a,b) => b[1] - a[1]);
     const final = [];
+    const usedTails = new Map();
 
-    // 3. 區間分散過濾 (確保二星覆蓋)
+    // 4. 複合過濾器：區間分散 + 尾數上限
     for(const [num] of sorted) {
         if(final.length >= PREDICT_COUNT) break;
-        // 不選太近的號碼，強制分散區間
+        
+        const tail = num % 10;
+        const tailCount = usedTails.get(tail) || 0;
         const isTooClose = final.some(x => Math.abs(x - num) <= 1);
-        if(!isTooClose) final.push(num);
+
+        // 規則：尾數不超過2個，不選鄰號
+        if(tailCount < 2 && !isTooClose) {
+            final.push(num);
+            usedTails.set(tail, tailCount + 1);
+        }
     }
 
-    // 補足
+    // 安全補足
     for(let i=1; i<=39 && final.length < PREDICT_COUNT; i++) {
         if(!final.includes(i)) final.push(i);
     }
@@ -190,9 +217,10 @@ function predict(train, c) {
         try {
             const res = await fetch(API_URL);
             const json = await res.json();
-            const draws = json.data.split("\n").map(l=>l.trim()).filter(Boolean)
+            const raw = typeof json === 'string' ? json : json.data;
+            const draws = raw.split("\n").map(l=>l.trim()).filter(Boolean)
                 .map(l=>({nums: l.split(/\s+/).slice(-5).map(Number)}))
-                .reverse().map((d,i)=>({label:`${i+1}期`, nums:d.nums}));
+                .reverse().map((d,i)=>({label:`第 ${String(i+1).padStart(3, '0')} 期`, nums:d.nums}));
             
             addLog(`載入成功: ${draws.length} 期`);
             startWorker(draws);
@@ -215,29 +243,29 @@ function predict(train, c) {
     }
 
     function updateUI(p) {
-        document.getElementById("strategyMode").innerText = "OPTIMIZED";
-        
+        document.getElementById("strategyMode").innerText = "STABLE";
         p.nextPrediction.forEach((n, i) => {
             const el = document.getElementById(`p${i+1}`);
             if(el) el.innerText = String(n).padStart(2, '0');
         });
 
         document.getElementById("hitRate").innerText = `2★:${p.metrics.rate2.toFixed(1)}% | 3★:${p.metrics.rate3.toFixed(1)}%`;
-        document.getElementById("modelMeta").innerText = `模型: v9.40 | Window: ${p.config.window} | 樣本: ${p.metrics.testCount}期`;
+        document.getElementById("modelMeta").innerText = `穩定版 v9.41 | Window: ${p.config.window} | 回測: ${p.metrics.testCount}期`;
 
         const rows = p.visibleResults.map(r => {
             const hit = new Set(r.hitNums);
             const dotHtml = r.prediction.map(n => `<span class="slot-dot ${hit.has(n)?'slot-hit':'slot-miss'}"></span>`).join("");
             
             return `<tr class="h-12 border-b border-white/5">
-                <td class="text-gray-500 font-mono w-12">${r.label}</td>
+                <td class="text-gray-500 font-mono w-16">${r.label}</td>
                 <td class="font-mono text-gray-400">${r.actual.map(n=>String(n).padStart(2,'0')).join(" ")}</td>
-                <td class="font-mono">${r.prediction.map(n => hit.has(n)?`<span class="hit-num">${String(n).padStart(2,'0')}</span>`:String(n).padStart(2,'0')).join(" ")}</td>
+                <td class="font-mono text-[10px]">${r.prediction.map(n => hit.has(n)?`<span class="hit-num">${String(n).padStart(2,'0')}</span>`:String(n).padStart(2,'0')).join(" ")}</td>
                 <td class="py-1 text-center">${dotHtml}</td>
-                <td class="text-right font-black text-orange-500 text-sm">${r.hits}</td>
+                <td class="text-right font-black ${r.hits >= 2 ? 'text-orange-500' : 'text-gray-600'} text-sm">${r.hits}</td>
             </tr>`;
         }).join("");
         document.getElementById("historyTable").innerHTML = rows;
+        addLog(`分析完成。下期建議：${p.nextPrediction.join(", ")}`);
     }
 </script>
 </body>
