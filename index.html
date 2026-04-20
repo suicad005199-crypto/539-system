@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE EVO v9.42 實測優化版</title>
+    <title>ULTIMATE EVO v9.43 深度過濾版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root { --ios-orange: #f97316; --ios-bg: #000000; --ios-panel: #1c1c1e; }
@@ -25,7 +25,7 @@
 
     <div class="flex justify-between items-center mb-5">
         <h1 class="text-2xl font-black italic tracking-tighter text-orange-500">
-            ULTIMATE <span class="text-white font-light">EVO v9.42</span>
+            ULTIMATE <span class="text-white font-light">EVO v9.43</span>
         </h1>
         <button onclick="fetchSheetData()" class="px-6 py-2 rounded-full text-sm btn-active">同步數據</button>
     </div>
@@ -35,16 +35,16 @@
             <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">系統引擎狀態</label>
             <div class="flex items-center text-[10px] font-bold">
                 <span id="statusDot" class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-                <span id="strategyMode" class="text-white">OPTIMIZING</span>
+                <span id="strategyMode" class="text-white">EVOLVING</span>
             </div>
         </div>
         <div id="logBox" class="bg-black/40 p-3 rounded-xl text-[11px] h-20 overflow-y-auto font-mono text-gray-400 border border-white/5 leading-relaxed">
-            > 核心 v9.42 已就緒<br>> 基於實測回饋優化：40% 二星率達成
+            > 核心 v9.43 深度過濾版啟動<br>> 優化重點：奇偶比均衡 + 極冷號防禦
         </div>
     </div>
 
     <div class="ios-panel p-4 mb-4 border-t-2 border-orange-500">
-        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-3 text-center">下一期 8 碼核心建議</label>
+        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-3 text-center">下一期核心建議 (8碼)</label>
         <div class="grid grid-cols-4 gap-2 text-center" id="predictionGrid">
             <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-orange-500 font-bold">P1</div><div id="p1" class="text-xl font-black text-white grid-val">--</div></div>
             <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-orange-500 font-bold">P2</div><div id="p2" class="text-xl font-black text-white grid-val">--</div></div>
@@ -55,13 +55,13 @@
             <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-orange-500 font-bold">P7</div><div id="p7" class="text-xl font-black text-white grid-val">--</div></div>
             <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-orange-500 font-bold">P8</div><div id="p8" class="text-xl font-black text-white grid-val">--</div></div>
         </div>
-        <div id="modelMeta" class="mt-4 text-[10px] text-center text-gray-500">等待大數據分析...</div>
+        <div id="modelMeta" class="mt-4 text-[10px] text-center text-gray-500">等待深度分析中...</div>
     </div>
 
     <div class="ios-panel p-4 flex-grow overflow-hidden flex flex-col">
         <div class="flex justify-between items-center mb-3">
-            <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">歷史追蹤 (近10期)</label>
-            <div id="hitRate" class="text-[10px] font-black text-orange-500">計算中...</div>
+            <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">歷史追蹤回測</label>
+            <div id="hitRate" class="text-[10px] font-black text-orange-500">INIT...</div>
         </div>
         <div class="overflow-y-auto flex-grow">
             <table class="w-full text-[11px]">
@@ -77,7 +77,7 @@ const PREDICT_COUNT = 8;
 
 self.onmessage = (e) => {
     const { draws } = e.data.payload;
-    log("分析中：穩定度優先模式...");
+    log("執行 v9.43 深度優化引擎...");
 
     const best = searchBestConfig(draws);
     const next = predict(draws.slice(0, best.config.window), best.config);
@@ -96,17 +96,17 @@ self.onmessage = (e) => {
 function log(m) { self.postMessage({type:"log", payload:m}); }
 
 function searchBestConfig(draws) {
-    // 增加不同窗口的敏感度測試
     const configs = [
-        { window: 30, wHot: 1.1, wPair: 1.3, wOmit: 0.9 },
-        { window: 45, wHot: 0.9, wPair: 1.6, wOmit: 1.1 },
-        { window: 60, wHot: 1.0, wPair: 1.2, wOmit: 1.4 }
+        { window: 30, wHot: 1.2, wPair: 1.4, wOmit: 1.0 },
+        { window: 50, wHot: 1.0, wPair: 1.8, wOmit: 1.2 },
+        { window: 80, wHot: 0.8, wPair: 1.2, wOmit: 1.5 }
     ];
     let best = null;
     configs.forEach(c => {
         const res = evaluate(draws, c);
-        // 評分邏輯：優先提升 2 星率，同時懲罰 0 星期數
-        if(!best || res.metrics.rate2 > best.metrics.rate2) best = {config: c, ...res};
+        // 優化目標：最大化 2星率，並對 0星進行強烈扣分
+        const score = res.metrics.rate2 - (res.metrics.rate0 * 1.5);
+        if(!best || score > best.score) best = {config: c, score, ...res};
     });
     return best;
 }
@@ -156,22 +156,23 @@ function predict(train, c) {
     const scores = new Map();
     for(let i=1; i<=39; i++) scores.set(i, 0);
 
-    // 1. 動態冷熱權重
+    // 1. 動態冷熱 (近期權重遞減)
     train.slice(0, 15).forEach((d, idx) => {
         d.nums.forEach(n => scores.set(n, scores.get(n) + (c.wHot * (15-idx))));
     });
 
-    // 2. 遺漏值補償 (防禦 0 星的核心邏輯)
+    // 2. 遺漏分級補償
     const omitMap = getOmissions(train);
     for(let i=1; i<=39; i++) {
-        const o = omitMap[i];
-        if(o > 5) scores.set(i, scores.get(i) + (o * c.wOmit));
+        const gap = omitMap[i];
+        if(gap > 10) scores.set(i, scores.get(i) + (gap * c.wOmit * 1.5)); // 極冷號防守
+        else if(gap > 5) scores.set(i, scores.get(i) + (gap * c.wOmit));
     }
 
-    // 3. 伴隨關係微調
-    const lastDraw = train[0].nums;
-    train.slice(1, 20).forEach(d => {
-        if(d.nums.some(n => lastDraw.includes(n))) {
+    // 3. 連動性修正
+    const lastNums = train[0].nums;
+    train.slice(1, 25).forEach(d => {
+        if(d.nums.some(n => lastNums.includes(n))) {
             d.nums.forEach(n => scores.set(n, scores.get(n) + c.wPair));
         }
     });
@@ -179,22 +180,32 @@ function predict(train, c) {
     const sorted = [...scores.entries()].sort((a,b) => b[1] - a[1]);
     const final = [];
     const usedTails = new Map();
+    let oddCount = 0;
+    let evenCount = 0;
 
-    // 4. 嚴格分散過濾：區間不相鄰 + 尾數上限
+    // 4. 深度過濾器
     for(const [num] of sorted) {
         if(final.length >= PREDICT_COUNT) break;
         
         const tail = num % 10;
         const tailCount = usedTails.get(tail) || 0;
         const isTooClose = final.some(x => Math.abs(x - num) <= 1);
+        const isOdd = num % 2 !== 0;
+
+        // 規則：尾數上限2，不連號，奇偶比盡量不超過 5:3 或 3:5
+        const oddLimit = oddCount >= 5;
+        const evenLimit = evenCount >= 5;
 
         if(tailCount < 2 && !isTooClose) {
-            final.push(num);
-            usedTails.set(tail, tailCount + 1);
+            if((isOdd && !oddLimit) || (!isOdd && !evenLimit)) {
+                final.push(num);
+                usedTails.set(tail, tailCount + 1);
+                if(isOdd) oddCount++; else evenCount++;
+            }
         }
     }
 
-    // 安全補足
+    // 補足邏輯
     for(let i=1; i<=39 && final.length < PREDICT_COUNT; i++) {
         if(!final.includes(i)) final.push(i);
     }
@@ -214,7 +225,7 @@ function predict(train, c) {
     }
 
     async function fetchSheetData() {
-        addLog("正在同步歷史開獎數據...");
+        addLog("正在連接大數據伺服器...");
         document.getElementById("strategyMode").innerText = "SYNCING";
         try {
             const res = await fetch(API_URL);
@@ -224,10 +235,10 @@ function predict(train, c) {
                 .map(l=>({nums: l.split(/\s+/).slice(-5).map(Number)}))
                 .reverse().map((d,i)=>({label:`第 ${String(i+1).padStart(3, '0')} 期`, nums:d.nums}));
             
-            addLog(`載入完畢: ${draws.length} 期數據`);
+            addLog(`載入成功: ${draws.length} 期`);
             startWorker(draws);
         } catch(e) { 
-            addLog("連線異常，請檢查網路狀態");
+            addLog("連線失敗，請稍後再試");
             document.getElementById("strategyMode").innerText = "ERROR";
         }
     }
@@ -245,14 +256,14 @@ function predict(train, c) {
     }
 
     function updateUI(p) {
-        document.getElementById("strategyMode").innerText = "ACTIVE";
+        document.getElementById("strategyMode").innerText = "STABLE";
         p.nextPrediction.forEach((n, i) => {
             const el = document.getElementById(`p${i+1}`);
             if(el) el.innerText = String(n).padStart(2, '0');
         });
 
         document.getElementById("hitRate").innerText = `2★:${p.metrics.rate2.toFixed(1)}% | 0★:${p.metrics.rate0.toFixed(1)}%`;
-        document.getElementById("modelMeta").innerText = `版本: v9.42 | 最佳窗口: ${p.config.window}期 | 樣本: ${p.metrics.testCount}期`;
+        document.getElementById("modelMeta").innerText = `v9.43 | 最佳窗口: ${p.config.window}期 | 樣本: ${p.metrics.testCount}期`;
 
         const rows = p.visibleResults.map(r => {
             const hit = new Set(r.hitNums);
@@ -267,7 +278,7 @@ function predict(train, c) {
             </tr>`;
         }).join("");
         document.getElementById("historyTable").innerHTML = rows;
-        addLog(`運算成功。推薦 8 碼：${p.nextPrediction.join(", ")}`);
+        addLog(`分析完畢。本期建議：${p.nextPrediction.join(", ")}`);
     }
 </script>
 </body>
