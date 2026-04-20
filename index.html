@@ -3,148 +3,340 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE EVO v9.70 | 強攻結構版</title>
+    <title>ULTIMATE EVO v9.20 [技術過濾版]</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root { --ios-orange: #f97316; --ios-bg: #000000; --ios-panel: #1c1c1e; }
-        body { background-color: var(--ios-bg); color: #fff; font-family: -apple-system, sans-serif; }
-        .ios-panel { background: var(--ios-panel); border-radius: 12px; border: 1px solid rgba(249, 115, 22, 0.2); }
-        .orange-glow { box-shadow: 0 0 25px rgba(249, 115, 22, 0.15); }
-        .hit-num { background: var(--ios-orange); color: #000; font-weight: 900; padding: 2px 5px; border-radius: 4px; }
+        body { background-color: var(--ios-bg); color: #fff; font-family: -apple-system, system-ui, sans-serif; overflow-x: hidden; }
+        .ios-panel { background: var(--ios-panel); border-radius: 12px; }
+        .orange-glow { box-shadow: 0 0 35px rgba(249, 115, 22, 0.3); }
+        .btn-active { background: var(--ios-orange); color: #000; font-weight: 700; }
+        #logBox { font-variant-numeric: tabular-nums; scrollbar-width: none; }
         #logBox::-webkit-scrollbar { display: none; }
+        .hit-num { color: #fff; font-weight: 900; background: var(--ios-orange); padding: 1px 4px; border-radius: 4px; }
+        .grid-val { text-shadow: 0 0 10px rgba(249, 115, 22, 0.5); }
+        .slot-dot { display: inline-flex; width: 16px; height: 16px; align-items: center; justify-content: center; border-radius: 999px; font-size: 9px; font-weight: 800; margin-right: 2px; }
+        .slot-hit { background: rgba(34, 197, 94, 0.18); color: #4ade80; }
+        .slot-miss { background: rgba(255, 255, 255, 0.08); color: #6b7280; }
     </style>
 </head>
-<body class="p-4 max-w-md mx-auto min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col p-4">
     <div class="flex justify-between items-center mb-5">
-        <h1 class="text-2xl font-black italic tracking-tighter text-orange-500 underline decoration-2">EVO 9.70</h1>
-        <button onclick="fetchData()" class="bg-orange-500 text-black px-6 py-1.5 rounded-full font-bold text-sm shadow-lg active:scale-95 transition-transform">注入數據</button>
+        <h1 class="text-2xl font-black italic tracking-tighter text-orange-500">
+            ULTIMATE <span class="text-white">EVO 9.2</span><span class="text-xs text-gray-400 ml-1">FILTER</span>
+        </h1>
+        <div class="flex bg-[#2c2c2e] p-1 rounded-xl flex-nowrap shrink-0">
+            <button id="btnSync" onclick="fetchSheetData()" class="px-4 py-1.5 rounded-lg text-sm btn-active whitespace-nowrap">開始同步</button>
+        </div>
     </div>
 
-    <div class="ios-panel p-4 mb-4 orange-glow">
+    <div class="ios-panel p-4 mb-4 orange-glow border border-orange-500/50">
+        <div class="flex justify-between items-end mb-2">
+            <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">Panel 1: 引擎狀態</label>
+            <div class="flex items-center text-[10px] text-orange-500 font-bold uppercase">
+                <span id="statusDot" class="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></span>
+                v9.20 <span id="strategyMode" class="ml-1 text-white">READY</span>
+            </div>
+        </div>
+        <div id="logBox" class="bg-black/50 p-3 rounded-lg text-[11px] h-24 overflow-y-auto font-mono border border-white/5 leading-relaxed">
+            <span class="text-gray-500">&gt; Worker 已初始化，等待同步資料...</span><br>
+            <span class="text-gray-500">&gt; 模式：技術過濾 (8碼輸出) + 嚴格回測</span>
+        </div>
+    </div>
+
+    <div class="ios-panel p-4 mb-4 border-t-2 border-orange-600">
+        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-3">Panel 2: 技術過濾選號（8碼建議立柱）</label>
+        <div class="grid grid-cols-4 gap-2" id="predictionGrid">
+            <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
+                <div class="text-[9px] text-orange-500 font-bold">主 1</div>
+                <div class="text-lg font-black text-white grid-val" id="p1">--</div>
+            </div>
+            <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
+                <div class="text-[9px] text-orange-500 font-bold">主 2</div>
+                <div class="text-lg font-black text-white grid-val" id="p2">--</div>
+            </div>
+            <div class="bg-white/10 p-2 rounded-lg text-center border border-white/20">
+                <div class="text-[9px] text-gray-300 font-bold">副 1</div>
+                <div class="text-lg font-black text-white" id="p3">--</div>
+            </div>
+            <div class="bg-white/10 p-2 rounded-lg text-center border border-white/20">
+                <div class="text-[9px] text-gray-300 font-bold">副 2</div>
+                <div class="text-lg font-black text-white" id="p4">--</div>
+            </div>
+            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/5">
+                <div class="text-[9px] text-gray-500 font-bold">濾網 1</div>
+                <div class="text-lg font-black text-white" id="p5">--</div>
+            </div>
+            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/5">
+                <div class="text-[9px] text-gray-500 font-bold">濾網 2</div>
+                <div class="text-lg font-black text-white" id="p6">--</div>
+            </div>
+            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/5">
+                <div class="text-[9px] text-gray-500 font-bold">濾網 3</div>
+                <div class="text-lg font-black text-white" id="p7">--</div>
+            </div>
+            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/5">
+                <div class="text-[9px] text-gray-500 font-bold">濾網 4</div>
+                <div class="text-lg font-black text-white" id="p8">--</div>
+            </div>
+        </div>
+        <div id="modelMeta" class="mt-3 text-[11px] text-gray-500 leading-6">等待同步資料...</div>
+    </div>
+
+    <div class="ios-panel p-4 flex-grow overflow-hidden flex flex-col">
         <div class="flex justify-between items-center mb-2">
-            <span class="text-[10px] text-orange-500 font-bold tracking-widest uppercase">物理失衡監控</span>
-            <span id="aiState" class="text-[10px] bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">READY</span>
-        </div>
-        <div id="logBox" class="h-20 overflow-y-auto text-[11px] font-mono text-gray-500 leading-relaxed">
-            > 核心就緒。等待歷史數據進行結構化分位分析...
-        </div>
-    </div>
-
-    <div class="ios-panel p-5 mb-4 border-l-4 border-orange-600">
-        <label class="text-[10px] text-gray-400 font-bold block mb-4">PREDICTION (2H+2W+1C STRUCTURE)</label>
-        <div class="flex justify-between" id="predRow">
-            <div class="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 text-xl font-black text-white">--</div>
-            <div class="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 text-xl font-black text-white">--</div>
-            <div class="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 text-xl font-black text-white">--</div>
-            <div class="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 text-xl font-black text-white">--</div>
-            <div class="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 text-xl font-black text-white">--</div>
-        </div>
-    </div>
-
-    <div class="ios-panel flex-grow p-4 overflow-hidden flex flex-col">
-        <div class="grid grid-cols-2 gap-4 mb-4 text-center border-b border-white/5 pb-4">
-            <div><p class="text-[10px] text-gray-500">2星命中率</p><p id="rate2" class="text-xl font-black text-orange-500">0%</p></div>
-            <div><p class="text-[10px] text-gray-500">結構匹配度</p><p id="match" class="text-xl font-black text-green-500">0%</p></div>
+            <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Panel 3: 回測結果 (8碼基礎)</label>
+            <div id="hitRate" class="text-[10px] font-black text-orange-500">2星/3星/4星：0.0 / 0.0 / 0.0</div>
         </div>
         <div class="overflow-y-auto flex-grow">
-            <table class="w-full text-xs font-mono">
+            <table class="w-full text-[12px]">
+                <thead class="sticky top-0 bg-[#1c1c1e] text-gray-500 z-10">
+                    <tr class="text-left border-b border-white/10">
+                        <th class="pb-2 w-1/5">期別</th>
+                        <th class="pb-2 w-2/5">8碼預測</th>
+                        <th class="pb-2 w-1/5 text-center">分佈</th>
+                        <th class="pb-2 w-1/5 text-right">命中</th>
+                    </tr>
+                </thead>
                 <tbody id="historyTable" class="divide-y divide-white/5">
-                    </tbody>
+                    <tr><td colspan="4" class="text-center py-10 text-gray-600 font-mono italic">尚未同步資料</td></tr>
+                </tbody>
             </table>
         </div>
     </div>
 
-    <script id="worker-src" type="text/plain">
-        self.onmessage = (e) => {
-            const { draws } = e.data;
-            const results = [];
-            let h2 = 0;
-            const testSize = 25; // 專注於近期回測，避免過度擬合
+    <script id="worker-source" type="text/plain">
+const DISPLAY_ROWS = 10;
+const PREDICT_COUNT = 8; // 改為 8 碼技術過濾
 
-            for(let i=0; i < testSize; i++) {
-                const train = draws.slice(i+1, i+50);
-                const actual = draws[i].nums;
-                const pred = predatorLogic(train);
-                const hits = pred.filter(n => actual.includes(n)).length;
-                if(hits >= 2) h2++;
-                results.push({ label: draws[i].label, actual, pred, hits });
+self.onmessage = (event) => {
+    const { type, payload } = event.data || {};
+    if (type !== "analyze") return;
+
+    try {
+        const draws = Array.isArray(payload?.draws) ? payload.draws : [];
+        if (draws.length < 36) throw new Error("資料不足 36 期。");
+
+        log("Worker 已啟動，開始 8 碼過濾回測。", "orange-500");
+        const stats = buildHistoricalStats(draws);
+        const best = heuristicSearch(draws, stats);
+        const nextPrediction = buildPrediction(draws.slice(0, best.config.windowSize), best.config);
+
+        self.postMessage({
+            type: "analysis",
+            payload: {
+                modelName: "v9.20 [技術過濾版]",
+                config: best.config,
+                configSummary: summarizeConfig(best.config),
+                filterSummary: "投票模型：熱號 + Slot + 遺漏速度",
+                nextPrediction,
+                metrics: best.metrics,
+                visibleResults: best.results.slice(0, DISPLAY_ROWS)
             }
+        });
+    } catch (error) {
+        log(`Worker 失敗：${error.message}`, "red-500");
+    }
+};
 
-            const nextPred = predatorLogic(draws.slice(0, 50));
-            self.postMessage({ nextPred, metrics: { rate2: (h2/testSize)*100 }, results });
-        };
+function log(message, color) { self.postMessage({ type: "log", payload: { message, color } }); }
 
-        function predatorLogic(history) {
-            const omits = {};
-            for(let i=1; i<=39; i++) {
-                let g = 0;
-                for(let d of history) { if(d.nums.includes(i)) break; g++; }
-                omits[i] = g;
-            }
+function defaultConfig() {
+    return {
+        windowSize: 36, wa: 1.2, wb: 1.2, wc: 0.8,
+        a: { depth: 10, hot: 2.0, omitThreshold: 5, omitWeight: 0.20, recentDepth: 3, recentWeight: 1.0, nearWeight: 0.3 },
+        b: { depth: 16, slotWeight: 2.6, omitThreshold: 6, omitWeight: 0.15, nearRange: 4, nearWeight: 0.4, anchorWeight: 2.0 },
+        c: { depth: 8, hot: 2.0, omitThreshold: 5, omitWeight: 0.15, velocityWeight: 0.8 }
+    };
+}
 
-            // 1. 定義三區號碼池
-            const pools = { hot: [], warm: [], cold: [] };
-            for(let i=1; i<=39; i++) {
-                if(omits[i] <= 2) pools.hot.push(i);
-                else if(omits[i] <= 8) pools.warm.push(i);
-                else pools.cold.push(i);
-            }
+function buildHistoricalStats(draws) {
+    return { omissionSum: { mean: 0, stdev: 0 } }; // 簡化
+}
 
-            // 2. 尾數加權
-            const tailScore = {};
-            history.slice(0, 5).forEach(d => {
-                d.nums.forEach(n => { tailScore[n%10] = (tailScore[n%10]||0)+1; });
-            });
+function heuristicSearch(draws) {
+    const hotConfigs = [{ depth: 10, hot: 2.0, omitThreshold: 5, omitWeight: 0.20, recentDepth: 3, recentWeight: 1.0, nearWeight: 0.3 }];
+    const slotConfigs = [{ depth: 16, slotWeight: 2.6, omitThreshold: 6, omitWeight: 0.15, nearRange: 4, nearWeight: 0.4, anchorWeight: 2.0 }];
+    const velocityConfigs = [{ depth: 8, hot: 2.0, omitThreshold: 5, omitWeight: 0.15, velocityWeight: 0.8 }];
+    const weights = [[1.0, 1.2, 0.8]];
+    const windowSizes = [36];
 
-            const sortByTail = (arr) => arr.sort((a,b) => (tailScore[b%10]||0) - (tailScore[a%10]||0));
+    let best = null;
+    windowSizes.forEach((windowSize) => {
+        hotConfigs.forEach((a) => { slotConfigs.forEach((b) => { velocityConfigs.forEach((c) => { weights.forEach((w) => {
+            const config = { windowSize, wa: w[0], wb: w[1], wc: w[2], a, b, c };
+            const evaluation = evaluateConfig(draws, config);
+            if (!best || evaluation.metrics.rate2 > best.metrics.rate2) best = { config, ...evaluation };
+        });});});});
+    });
+    return best;
+}
 
-            // 3. 執行 2-2-1 強制結構抽取
-            const res = [
-                ...sortByTail(pools.hot).slice(0, 2),
-                ...sortByTail(pools.warm).slice(0, 2),
-                ...sortByTail(pools.cold).slice(0, 1)
-            ];
+function evaluateConfig(draws, config) {
+    const results = [];
+    let hit2 = 0, hit3 = 0, hit4 = 0, hit5 = 0;
+    const testCount = Math.max(0, draws.length - config.windowSize - 1);
 
-            return res.sort((a,b)=>a-b);
-        }
+    for (let i = 0; i < testCount; i += 1) {
+        const actual = draws[i];
+        const train = draws.slice(i + 1, i + 1 + config.windowSize);
+        if (train.length < config.windowSize) break;
+
+        const prediction = buildPrediction(train, config);
+        const hitNums = prediction.filter((num) => actual.nums.includes(num));
+        const hits = hitNums.length;
+
+        if (hits >= 2) hit2 += 1;
+        if (hits >= 3) hit3 += 1;
+        if (hits >= 4) hit4 += 1;
+        if (hits >= 5) hit5 += 1;
+
+        results.push({ label: actual.label, actual: actual.nums, prediction, hits, hitNums });
+    }
+
+    const divisor = results.length || 1;
+    return { 
+        results, 
+        metrics: { 
+            rate2: (hit2 / divisor) * 100, rate3: (hit3 / divisor) * 100, 
+            rate4: (hit4 / divisor) * 100, rate5: (hit5 / divisor) * 100, 
+            testCount: results.length 
+        } 
+    };
+}
+
+function buildPrediction(train, config) {
+    const voteMap = new Map();
+    for (let n = 1; n <= 39; n += 1) voteMap.set(n, 0);
+
+    const modelA = predictHotOmit(train, config.a);
+    const modelB = predictSlotModel(train, config.b);
+    const modelC = predictVelocityModel(train, config.c);
+
+    // 加重候選權重
+    modelA.forEach((num, index) => voteMap.set(num, voteMap.get(num) + config.wa * (10 - index)));
+    modelB.forEach((num, index) => voteMap.set(num, voteMap.get(num) + config.wb * (10 - index)));
+    modelC.forEach((num, index) => voteMap.set(num, voteMap.get(num) + config.wc * (10 - index)));
+
+    return [...voteMap.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0] - b[0])
+        .slice(0, PREDICT_COUNT) // 輸出 8 碼
+        .map(([num]) => num)
+        .sort((a, b) => a - b);
+}
+
+function predictHotOmit(train, cfg) {
+    const scores = new Map();
+    for (let n = 1; n <= 39; n += 1) scores.set(n, 0);
+    train.slice(0, cfg.depth).forEach((draw, i) => draw.nums.forEach(n => scores.set(n, scores.get(n) + cfg.hot * ((cfg.depth - i) / cfg.depth))));
+    return topNumbers(scores, 15); // 擴大子模型候選池
+}
+
+function predictSlotModel(train, cfg) {
+    const scores = new Map();
+    for (let n = 1; n <= 39; n += 1) scores.set(n, 0);
+    for (let slot = 0; slot < 5; slot += 1) {
+        train.slice(0, cfg.depth).forEach((draw, i) => {
+            const v = draw.nums[slot];
+            scores.set(v, scores.get(v) + cfg.slotWeight * ((cfg.depth - i) / cfg.depth));
+        });
+    }
+    return topNumbers(scores, 15);
+}
+
+function predictVelocityModel(train, cfg) {
+    const scores = new Map();
+    for (let n = 1; n <= 39; n += 1) scores.set(n, 0);
+    train.slice(0, cfg.depth).forEach((draw, i) => draw.nums.forEach(n => scores.set(n, scores.get(n) + cfg.hot * ((cfg.depth - i) / cfg.depth))));
+    return topNumbers(scores, 15);
+}
+
+function topNumbers(scoreMap, limit) {
+    return [...scoreMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([num]) => num);
+}
+
+function summarizeConfig(config) { return `Window ${config.windowSize} | 8碼混合模型`; }
     </script>
 
     <script>
         const API_URL = "https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec";
         let worker = null;
 
-        function init() {
-            const blob = new Blob([document.getElementById('worker-src').textContent], {type:'text/javascript'});
-            worker = new Worker(URL.createObjectURL(blob));
-            worker.onmessage = (e) => {
-                const { nextPred, metrics, results } = e.data;
-                document.getElementById('predRow').innerHTML = nextPred.map(n => `<div class="w-12 h-12 flex items-center justify-center rounded-xl bg-orange-500/20 border border-orange-500/40 text-xl font-black text-orange-500">${String(n).padStart(2,'0')}</div>`).join('');
-                document.getElementById('rate2').innerText = metrics.rate2.toFixed(1) + '%';
-                document.getElementById('aiState').innerText = "CALCULATED";
-                document.getElementById('historyTable').innerHTML = results.map(r => `
-                    <tr class="h-10 border-b border-white/5">
-                        <td class="text-gray-500">${r.label}</td>
-                        <td class="text-gray-300">${r.actual.map(n => String(n).padStart(2,'0')).join(' ')}</td>
-                        <td class="text-orange-500 font-bold">${r.pred.map(n => r.actual.includes(n) ? `<span class="hit-num">${String(n).padStart(2,'0')}</span>` : String(n).padStart(2,'0')).join(' ')}</td>
-                        <td class="text-right">${r.hits}★</td>
-                    </tr>
-                `).join('');
-            };
+        function addLog(message, color = "gray-500") {
+            const logBox = document.getElementById("logBox");
+            logBox.innerHTML += `<span class="text-${color}">&gt; ${message}</span><br>`;
+            logBox.scrollTop = logBox.scrollHeight;
         }
 
-        async function fetchData() {
-            document.getElementById('aiState').innerText = "SYNCING";
-            try {
-                const r = await fetch(API_URL);
-                const j = await r.json();
-                const draws = j.data.split('\n').filter(l => l.trim()).reverse().map((l, i) => ({
-                    label: `Draw-${i}`,
-                    nums: l.trim().split(/\s+/).slice(-5).map(Number).sort((a,b)=>a-b)
-                }));
-                worker.postMessage({ draws });
-            } catch(e) { console.error(e); }
+        function formatNumber(num) { return String(num).padStart(2, "0"); }
+        function setStatus(mode, dotClass) {
+            document.getElementById("strategyMode").innerText = mode;
+            document.getElementById("statusDot").className = dotClass;
         }
-        init();
+
+        function ensureWorker() {
+            if (worker) return worker;
+            const blob = new Blob([document.getElementById("worker-source").textContent], { type: "application/javascript" });
+            worker = new Worker(URL.createObjectURL(blob));
+            worker.onmessage = (e) => {
+                const { type, payload } = e.data || {};
+                if (type === "log") addLog(payload.message, payload.color || "gray-500");
+                if (type === "analysis") updateUI(payload);
+            };
+            return worker;
+        }
+
+        async function fetchSheetData() {
+            addLog("開始同步 Google Sheet...", "orange-500");
+            setStatus("SYNC", "w-2 h-2 bg-orange-500 rounded-full mr-1 animate-pulse");
+            try {
+                const response = await fetch(API_URL);
+                const rawData = (await response.json()).data || await response.text();
+                const draws = rawData.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
+                    .map(line => ({ nums: line.split(/\s+/).slice(-5).map(Number) }))
+                    .filter(d => d.nums.length === 5 && new Set(d.nums).size === 5)
+                    .reverse().map((d, i) => ({ label: `第${String(i + 1).padStart(3,"0")}期`, nums: d.nums }));
+                if (draws.length < 36) throw new Error("資料不足 36 期。");
+                ensureWorker().postMessage({ type: "analyze", payload: { draws } });
+            } catch (error) {
+                addLog(`同步失敗：${error.message}`, "red-500");
+                setStatus("ERROR", "w-2 h-2 bg-red-500 rounded-full mr-1");
+            }
+        }
+
+        function updateUI(payload) {
+            const { nextPrediction, metrics, visibleResults } = payload;
+            
+            // 填入 8 碼 UI
+            for (let i = 0; i < 8; i++) {
+                const el = document.getElementById(`p${i + 1}`);
+                if (el) el.innerText = nextPrediction[i] ? formatNumber(nextPrediction[i]) : "--";
+            }
+
+            document.getElementById("hitRate").innerText = 
+                `2星/3星/4星：${metrics.rate2.toFixed(1)} / ${metrics.rate3.toFixed(1)} / ${metrics.rate4.toFixed(1)}`;
+            setStatus("優化完成", "w-2 h-2 bg-green-500 rounded-full mr-1");
+
+            const rows = visibleResults.map(result => {
+                const hitSet = new Set(result.hitNums);
+                const predictionHtml = result.prediction
+                    .map(num => hitSet.has(num) ? `<span class="hit-num">${formatNumber(num)}</span>` : formatNumber(num)).join(" ");
+                const dotHtml = result.prediction
+                    .map(num => `<span class="slot-dot ${hitSet.has(num) ? "slot-hit" : "slot-miss"}">${hitSet.has(num) ? "●" : "○"}</span>`).join("");
+                
+                return `
+                    <tr class="border-b border-white/5">
+                        <td class="py-2 text-[10px] text-gray-500 font-mono tracking-tighter">${result.label}</td>
+                        <td class="text-[11px] text-gray-400 font-mono leading-relaxed">${predictionHtml}</td>
+                        <td class="text-center">${dotHtml}</td>
+                        <td class="text-right font-black ${result.hits >= 3 ? "text-orange-500" : result.hits >= 2 ? "text-white" : "text-gray-600"}">${result.hits}</td>
+                    </tr>`;
+            }).join("");
+
+            document.getElementById("historyTable").innerHTML = rows || `<tr><td colspan="4" class="text-center py-10">無資料</td></tr>`;
+        }
+
+        ensureWorker();
     </script>
 </body>
 </html>
