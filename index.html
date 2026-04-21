@@ -3,65 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE EVO v9.46 聚類強化版</title>
+    <title>ULTIMATE EVO v9.46 聚攏演算法版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        :root { --ios-blue: #0A84FF; --ios-bg: #000000; --ios-panel: #1c1c1e; }
+        :root { --ios-orange: #f97316; --ios-bg: #000000; --ios-panel: #1c1c1e; }
         body { background-color: var(--ios-bg); color: #fff; font-family: -apple-system, system-ui, sans-serif; overflow-x: hidden; }
         .ios-panel { background: var(--ios-panel); border-radius: 14px; border: 1px solid rgba(255,255,255,0.05); }
-        .blue-glow { box-shadow: 0 0 30px rgba(10, 132, 255, 0.15); }
-        .btn-active { background: var(--ios-blue); color: #fff; font-weight: 800; transition: all 0.2s; }
+        .orange-glow { box-shadow: 0 0 30px rgba(249, 115, 22, 0.15); }
+        .btn-active { background: var(--ios-orange); color: #000; font-weight: 800; transition: all 0.2s; }
         .btn-active:active { transform: scale(0.95); opacity: 0.9; }
         #logBox { scrollbar-width: none; }
         #logBox::-webkit-scrollbar { display: none; }
-        .hit-num { color: #fff; font-weight: 900; background: var(--ios-blue); padding: 1px 5px; border-radius: 4px; box-shadow: 0 0 8px rgba(10, 132, 255, 0.4); }
-        .grid-val { text-shadow: 0 0 12px rgba(10, 132, 255, 0.6); }
+        .hit-num { color: #fff; font-weight: 900; background: var(--ios-orange); padding: 1px 5px; border-radius: 4px; box-shadow: 0 0 8px rgba(249, 115, 22, 0.4); }
+        .grid-val { text-shadow: 0 0 12px rgba(249, 115, 22, 0.6); }
         .slot-dot { display: inline-flex; width: 14px; height: 14px; align-items: center; justify-content: center; border-radius: 50%; font-size: 8px; margin-right: 3px; }
-        .slot-hit { background: #32D74B; box-shadow: 0 0 8px rgba(50, 215, 75, 0.5); }
+        .slot-hit { background: #22c55e; box-shadow: 0 0 8px rgba(34, 197, 94, 0.5); }
         .slot-miss { background: #3f3f46; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col p-4 max-w-md mx-auto">
 
     <div class="flex justify-between items-center mb-5">
-        <h1 class="text-2xl font-black italic tracking-tighter text-blue-500">
+        <h1 class="text-2xl font-black italic tracking-tighter text-orange-500">
             ULTIMATE <span class="text-white font-light">EVO v9.46</span>
         </h1>
-        <button onclick="fetchSheetData()" class="px-6 py-2 rounded-full text-sm btn-active">同步 04/20 數據</button>
+        <button onclick="fetchSheetData()" class="px-6 py-2 rounded-full text-sm btn-active">同步數據</button>
     </div>
 
-    <div class="ios-panel p-4 mb-4 blue-glow">
+    <div class="ios-panel p-4 mb-4 orange-glow">
         <div class="flex justify-between items-center mb-2">
-            <label class="text-[10px] text-blue-400 font-bold uppercase tracking-widest">聚類引擎狀態</label>
+            <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">分析引擎狀態</label>
             <div class="flex items-center text-[10px] font-bold">
-                <span id="statusDot" class="w-2 h-2 bg-blue-500 rounded-full mr-2 animate-pulse"></span>
-                <span id="strategyMode" class="text-white">CLUSTER_ACTIVE</span>
+                <span id="statusDot" class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+                <span id="strategyMode" class="text-white">CLUSTER_EVO</span>
             </div>
         </div>
         <div id="logBox" class="bg-black/40 p-3 rounded-xl text-[11px] h-20 overflow-y-auto font-mono text-gray-400 border border-white/5 leading-relaxed">
-            > 核心 v9.46 啟動成功<br>> 重點：關聯矩陣分析 + 1星率轉2星演化
+            > 核心 v9.46 啟動成功<br>> 重點：同現矩陣關聯 + 聚攏度強化優化
         </div>
     </div>
 
-    <div class="ios-panel p-4 mb-4 border-t-2 border-blue-500">
-        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-3 text-center">下一期聚類建議 (8碼)</label>
+    <div class="ios-panel p-4 mb-4 border-t-2 border-orange-500">
+        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-3 text-center">下一期核心建議 (8碼)</label>
         <div class="grid grid-cols-4 gap-2 text-center" id="predictionGrid">
-            <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-blue-500 font-bold">P1</div><div id="p1" class="text-xl font-black text-white grid-val">--</div></div>
-            <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-blue-500 font-bold">P2</div><div id="p2" class="text-xl font-black text-white grid-val">--</div></div>
-            <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-blue-500 font-bold">P3</div><div id="p3" class="text-xl font-black text-white grid-val">--</div></div>
-            <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-blue-500 font-bold">P4</div><div id="p4" class="text-xl font-black text-white grid-val">--</div></div>
-            <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-blue-500 font-bold">P5</div><div id="p5" class="text-xl font-black text-white grid-val">--</div></div>
-            <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-blue-500 font-bold">P6</div><div id="p6" class="text-xl font-black text-white grid-val">--</div></div>
-            <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-blue-500 font-bold">P7</div><div id="p7" class="text-xl font-black text-white grid-val">--</div></div>
-            <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-blue-500 font-bold">P8</div><div id="p8" class="text-xl font-black text-white grid-val">--</div></div>
+            <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-orange-500 font-bold">P1</div><div id="p1" class="text-xl font-black text-white grid-val">--</div></div>
+            <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-orange-500 font-bold">P2</div><div id="p2" class="text-xl font-black text-white grid-val">--</div></div>
+            <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-orange-500 font-bold">P3</div><div id="p3" class="text-xl font-black text-white grid-val">--</div></div>
+            <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-orange-500 font-bold">P4</div><div id="p4" class="text-xl font-black text-white grid-val">--</div></div>
+            <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-orange-500 font-bold">P5</div><div id="p5" class="text-xl font-black text-white grid-val">--</div></div>
+            <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-orange-500 font-bold">P6</div><div id="p6" class="text-xl font-black text-white grid-val">--</div></div>
+            <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-orange-500 font-bold">P7</div><div id="p7" class="text-xl font-black text-white grid-val">--</div></div>
+            <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-orange-500 font-bold">P8</div><div id="p8" class="text-xl font-black text-white grid-val">--</div></div>
         </div>
         <div id="modelMeta" class="mt-4 text-[10px] text-center text-gray-500">等待大數據運算...</div>
     </div>
 
     <div class="ios-panel p-4 flex-grow overflow-hidden flex flex-col">
         <div class="flex justify-between items-center mb-3">
-            <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">歷史效能回測 (近期 4/20 為止)</label>
-            <div id="hitRate" class="text-[10px] font-black text-blue-500">--</div>
+            <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">歷史效能回測 (聚攏演算法)</label>
+            <div id="hitRate" class="text-[10px] font-black text-orange-500">--</div>
         </div>
         <div class="overflow-y-auto flex-grow">
             <table class="w-full text-[11px]">
@@ -77,7 +77,7 @@ const PREDICT_COUNT = 8;
 
 self.onmessage = (e) => {
     const { draws } = e.data.payload;
-    log("分析 4/20 後期走勢中：計算關聯矩陣...");
+    log("分析中：執行 Co-occurrence Affinity 同現關聯掃描...");
 
     const best = searchBestConfig(draws);
     const next = predict(draws.slice(0, best.config.window), best.config);
@@ -97,14 +97,14 @@ function log(m) { self.postMessage({type:"log", payload:m}); }
 
 function searchBestConfig(draws) {
     const configs = [
-        { window: 30, wHot: 1.5, wPair: 2.0, wOmit: 1.0 },
-        { window: 45, wHot: 1.2, wPair: 2.2, wOmit: 1.2 }
+        { window: 30, wHot: 1.5, wPair: 2.0, wAffinity: 1.2 },
+        { window: 50, wHot: 1.2, wPair: 2.5, wAffinity: 1.5 }
     ];
     let best = null;
     configs.forEach(c => {
         const res = evaluate(draws, c);
-        // 優化分數：給予 2星、3星極高加權，降低 1 星權重以強迫集中
-        const score = (res.metrics.rate3 * 10.0) + (res.metrics.rate2 * 3.0) + (res.metrics.rate1 * 0.1) - (res.metrics.rate0 * 5.0);
+        // 優化公式：3星加權 5倍，2星加權 2倍，嚴懲 0星
+        const score = (res.metrics.rate3 * 5.0) + (res.metrics.rate2 * 2.0) + (res.metrics.rate1 * 0.2) - (res.metrics.rate0 * 3.0);
         if(!best || score > best.score) best = {config: c, score, ...res};
     });
     return best;
@@ -144,70 +144,72 @@ function predict(train, c) {
     const scores = new Map();
     for(let i=1; i<=39; i++) scores.set(i, 0);
 
-    // 1. 關聯矩陣基礎計算
-    const pairMap = new Map();
+    // 1. 同現關聯矩陣建立
+    const affinity = Array.from({length: 40}, () => new Uint8Array(40));
     train.forEach(d => {
         for(let i=0; i<d.nums.length; i++) {
             for(let j=i+1; j<d.nums.length; j++) {
-                const p = `${Math.min(d.nums[i], d.nums[j])}-${Math.max(d.nums[i], d.nums[j])}`;
-                pairMap.set(p, (pairMap.get(p) || 0) + 1);
+                affinity[d.nums[i]][d.nums[j]]++;
+                affinity[d.nums[j]][d.nums[i]]++;
             }
         }
     });
 
-    // 2. 單碼熱度 + 衰減
+    // 2. 基礎冷熱 (Sharpened Decay)
     train.forEach((d, idx) => {
-        const decay = Math.pow(0.95, idx);
-        d.nums.forEach(n => scores.set(n, scores.get(n) + (c.wHot * decay)));
+        const weight = Math.pow(0.9, idx); // 越近期權重下降越快，增加靈敏度
+        d.nums.forEach(n => scores.set(n, scores.get(n) + (c.wHot * weight * 10)));
     });
 
-    // 3. 聚類修補：將關聯強的號碼拉近
-    const sortedBase = [...scores.entries()].sort((a,b) => b[1] - a[1]);
-    const top5 = sortedBase.slice(0, 5).map(x => x[0]);
-    
-    top5.forEach(baseNum => {
-        for(let i=1; i<=39; i++) {
-            if(i === baseNum) continue;
-            const p = `${Math.min(baseNum, i)}-${Math.max(baseNum, i)}`;
-            const linkStrength = pairMap.get(p) || 0;
-            if(linkStrength > 1) {
-                scores.set(i, scores.get(i) + (linkStrength * c.wPair));
+    // 3. 初步篩選 top 15 碼進行聚攏運算
+    let top15 = [...scores.entries()].sort((a,b) => b[1] - a[1]).slice(0, 15).map(x => x[0]);
+    top15.forEach(n1 => {
+        top15.forEach(n2 => {
+            if(n1 !== n2 && affinity[n1][n2] > 0) {
+                scores.set(n1, scores.get(n1) + (affinity[n1][n2] * c.wAffinity));
             }
-        }
+        });
     });
 
-    // 4. 遺漏梯度與冷熱對沖
+    // 4. 遺漏值與短期反彈
     for (let n = 1; n <= 39; n++) {
         let gap = 0;
         for (const draw of train) {
             if (draw.nums.includes(n)) break;
             gap++;
         }
-        if(gap > 10) scores.set(n, scores.get(n) + (gap * c.wOmit * 0.5));
+        if(gap >= 4 && gap <= 7) scores.set(n, scores.get(n) * 1.25); // 中期遺漏反彈
     }
 
     const sorted = [...scores.entries()].sort((a,b) => b[1] - a[1]);
     const final = [];
     const usedTails = new Map();
+    const usedSectors = new Set();
     const lastNums = train[0].nums;
 
-    // 5. v9.46 聚類選號：確保號碼分布在 3 個主要熱區，不散開
+    // 5. v9.46 強化過濾器
     for(const [num] of sorted) {
         if(final.length >= PREDICT_COUNT) break;
         
         const tail = num % 10;
         const tailCount = usedTails.get(tail) || 0;
-        const isRepeat = lastNums.includes(num); // 是否為上一期連莊
-        const isNeighbor = lastNums.some(ln => Math.abs(ln - num) === 1); // 是否為鄰號
-
-        // 限制：同尾最多2個、鄰號+連莊號最多3個，強迫資源集中
-        if(tailCount < 2) {
-            final.push(num);
-            usedTails.set(tail, tailCount + 1);
+        const sector = Math.floor((num-1) / 8);
+        const isRepeat = lastNums.includes(num);
+        
+        // 限制連號與過度集中的尾數
+        const isTooClose = final.some(x => Math.abs(x - num) <= 1);
+        
+        if(tailCount < 2 && !isTooClose) {
+            // 優先覆蓋不同區間，除非該號碼分數極高
+            if(!usedSectors.has(sector) || final.length >= 5) {
+                final.push(num);
+                usedTails.set(tail, tailCount + 1);
+                usedSectors.add(sector);
+            }
         }
     }
 
-    // 補足
+    // 補足碼
     for(let i=1; i<=39 && final.length < PREDICT_COUNT; i++) {
         if(!final.includes(i)) final.push(i);
     }
@@ -227,8 +229,8 @@ function predict(train, c) {
     }
 
     async function fetchSheetData() {
-        addLog("連線中... 正在載入最新 4/20 數據");
-        document.getElementById("strategyMode").innerText = "REFRESHING";
+        addLog("正在連接大數據伺服器...");
+        document.getElementById("strategyMode").innerText = "SYNCING";
         try {
             const res = await fetch(API_URL);
             const json = await res.json();
@@ -237,11 +239,11 @@ function predict(train, c) {
                 .map(l=>({nums: l.split(/\s+/).slice(-5).map(Number)}))
                 .reverse().map((d,i)=>({label:`第 ${String(i+1).padStart(3, '0')} 期`, nums:d.nums}));
             
-            addLog(`載入成功：共 ${draws.length} 期`);
+            addLog(`成功載入: ${draws.length} 期數據`);
             startWorker(draws);
         } catch(e) { 
-            addLog("網路錯誤，請檢查連結");
-            document.getElementById("strategyMode").innerText = "OFFLINE";
+            addLog("連線失敗，請重試");
+            document.getElementById("strategyMode").innerText = "ERROR";
         }
     }
 
@@ -258,14 +260,14 @@ function predict(train, c) {
     }
 
     function updateUI(p) {
-        document.getElementById("strategyMode").innerText = "CLUSTER_STABLE";
+        document.getElementById("strategyMode").innerText = "ACTIVE";
         p.nextPrediction.forEach((n, i) => {
             const el = document.getElementById(`p${i+1}`);
             if(el) el.innerText = String(n).padStart(2, '0');
         });
 
         document.getElementById("hitRate").innerText = `3★:${p.metrics.rate3.toFixed(1)}% | 2★:${p.metrics.rate2.toFixed(1)}% | 0★:${p.metrics.rate0.toFixed(1)}%`;
-        document.getElementById("modelMeta").innerText = `v9.46 Cluster | 窗口: ${p.config.window} | 樣本: ${p.metrics.testCount}期`;
+        document.getElementById("modelMeta").innerText = `v9.46 | 窗口: ${p.config.window} | 回測: ${p.metrics.testCount}期`;
 
         const rows = p.visibleResults.map(r => {
             const hit = new Set(r.hitNums);
@@ -276,11 +278,11 @@ function predict(train, c) {
                 <td class="font-mono text-gray-400">${r.actual.map(n=>String(n).padStart(2,'0')).join(" ")}</td>
                 <td class="font-mono text-[10px]">${r.prediction.map(n => hit.has(n)?`<span class="hit-num">${String(n).padStart(2,'0')}</span>`:String(n).padStart(2,'0')).join(" ")}</td>
                 <td class="py-1 text-center">${dotHtml}</td>
-                <td class="text-right font-black ${r.hits >= 2 ? 'text-blue-500' : 'text-gray-600'} text-sm">${r.hits}</td>
+                <td class="text-right font-black ${r.hits >= 2 ? 'text-orange-500' : 'text-gray-600'} text-sm">${r.hits}</td>
             </tr>`;
         }).join("");
         document.getElementById("historyTable").innerHTML = rows;
-        addLog(`分析完畢。建議：${p.nextPrediction.join(", ")}`);
+        addLog(`分析完成。下期建議：${p.nextPrediction.join(", ")}`);
     }
 </script>
 </body>
