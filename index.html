@@ -1,289 +1,436 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE EVO v9.46 聚攏演算法版</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        :root { --ios-orange: #f97316; --ios-bg: #000000; --ios-panel: #1c1c1e; }
-        body { background-color: var(--ios-bg); color: #fff; font-family: -apple-system, system-ui, sans-serif; overflow-x: hidden; }
-        .ios-panel { background: var(--ios-panel); border-radius: 14px; border: 1px solid rgba(255,255,255,0.05); }
-        .orange-glow { box-shadow: 0 0 30px rgba(249, 115, 22, 0.15); }
-        .btn-active { background: var(--ios-orange); color: #000; font-weight: 800; transition: all 0.2s; }
-        .btn-active:active { transform: scale(0.95); opacity: 0.9; }
-        #logBox { scrollbar-width: none; }
-        #logBox::-webkit-scrollbar { display: none; }
-        .hit-num { color: #fff; font-weight: 900; background: var(--ios-orange); padding: 1px 5px; border-radius: 4px; box-shadow: 0 0 8px rgba(249, 115, 22, 0.4); }
-        .grid-val { text-shadow: 0 0 12px rgba(249, 115, 22, 0.6); }
-        .slot-dot { display: inline-flex; width: 14px; height: 14px; align-items: center; justify-content: center; border-radius: 50%; font-size: 8px; margin-right: 3px; }
-        .slot-hit { background: #22c55e; box-shadow: 0 0 8px rgba(34, 197, 94, 0.5); }
-        .slot-miss { background: #3f3f46; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>539 統計分析工具</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --panel: #141414;
+    --border: rgba(255,255,255,0.08);
+    --text: #f5f5f5;
+    --muted: #888;
+    --dim: #555;
+    --blue: #378ADD;
+    --blue-dark: #185FA5;
+    --green: #1D9E75;
+    --amber: #EF9F27;
+    --red: #E24B4A;
+    --gray: #888780;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, system-ui, sans-serif; min-height: 100vh; }
+  .container { max-width: 480px; margin: 0 auto; padding: 20px 16px 60px; }
+
+  /* Header */
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+  .title { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  .title span { color: var(--blue); }
+  .subtitle { font-size: 11px; color: var(--dim); margin-top: 3px; }
+  .sync-btn { padding: 8px 18px; border-radius: 20px; border: none; background: var(--blue-dark); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; margin-top: 2px; }
+  .sync-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Metrics */
+  .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
+  .metric { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+  .metric-label { font-size: 10px; color: var(--dim); margin-bottom: 4px; letter-spacing: 0.03em; }
+  .metric-value { font-size: 20px; font-weight: 700; color: var(--text); }
+  .metric-sub { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+  /* Tabs */
+  .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 20px; gap: 0; overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex-shrink: 0; padding: 9px 14px; font-size: 12px; color: var(--muted); border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tab.active { color: var(--text); border-bottom-color: var(--blue); font-weight: 600; }
+
+  /* Panel */
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .section-label { font-size: 10px; color: var(--dim); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 12px; }
+
+  /* Frequency Grid */
+  .num-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin-bottom: 16px; }
+  .num-cell { aspect-ratio: 1; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; cursor: default; }
+
+  /* Legend */
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+  /* Chart */
+  .chart-wrap { position: relative; width: 100%; height: 180px; margin-bottom: 8px; }
+
+  /* Omit list */
+  .omit-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .omit-num { width: 26px; font-size: 13px; font-weight: 700; color: var(--text); }
+  .omit-bar-wrap { flex: 1; height: 5px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+  .omit-bar { height: 100%; border-radius: 3px; }
+  .omit-val { width: 32px; text-align: right; font-size: 11px; color: var(--muted); }
+  .badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; white-space: nowrap; }
+  .badge-hot { background: rgba(227,74,48,0.15); color: #f97316; }
+  .badge-cold { background: rgba(56,138,221,0.12); color: var(--blue); }
+  .badge-warm { background: rgba(239,159,39,0.15); color: var(--amber); }
+
+  /* Picker */
+  .picker-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin-bottom: 12px; }
+  .pk-cell { aspect-ratio: 1; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; cursor: pointer; background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid var(--border); transition: all 0.1s; }
+  .pk-cell:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+  .pk-cell.chosen { background: var(--blue-dark); color: #fff; border-color: var(--blue); }
+  .chosen-display { display: flex; gap: 6px; flex-wrap: wrap; min-height: 40px; padding: 8px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 12px; align-items: center; }
+  .chosen-tag { background: rgba(255,255,255,0.08); border: 1px solid var(--border); border-radius: 5px; padding: 3px 8px; font-size: 13px; font-weight: 700; color: var(--text); }
+  .analysis-result { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+  .result-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .result-row:last-child { border-bottom: none; }
+  .result-key { color: var(--muted); flex-shrink: 0; }
+  .result-val { color: var(--text); font-weight: 600; text-align: right; }
+
+  /* Pair */
+  .pair-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .pair-table th { text-align: left; padding: 6px 8px; color: var(--dim); font-weight: 400; font-size: 10px; border-bottom: 1px solid var(--border); letter-spacing: 0.05em; }
+  .pair-table td { padding: 8px 8px; border-bottom: 1px solid var(--border); color: var(--muted); }
+  .pair-table td:first-child { font-weight: 700; color: var(--text); }
+  .pair-select { width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel); color: var(--text); font-size: 13px; margin-bottom: 16px; }
+
+  /* Status */
+  .status { font-size: 11px; color: var(--dim); text-align: center; padding: 16px 0 0; }
+  .empty { text-align: center; padding: 40px 0; font-size: 13px; color: var(--dim); }
+</style>
 </head>
-<body class="min-h-screen flex flex-col p-4 max-w-md mx-auto">
+<body>
+<div class="container">
 
-    <div class="flex justify-between items-center mb-5">
-        <h1 class="text-2xl font-black italic tracking-tighter text-orange-500">
-            ULTIMATE <span class="text-white font-light">EVO v9.46</span>
-        </h1>
-        <button onclick="fetchSheetData()" class="px-6 py-2 rounded-full text-sm btn-active">同步數據</button>
+  <div class="header">
+    <div>
+      <div class="title">539 <span>統計分析</span></div>
+      <div class="subtitle">歷史數據統計參考 — 非預測工具</div>
     </div>
+    <button class="sync-btn" id="syncBtn" onclick="syncData()">同步數據</button>
+  </div>
 
-    <div class="ios-panel p-4 mb-4 orange-glow">
-        <div class="flex justify-between items-center mb-2">
-            <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">分析引擎狀態</label>
-            <div class="flex items-center text-[10px] font-bold">
-                <span id="statusDot" class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-                <span id="strategyMode" class="text-white">CLUSTER_EVO</span>
-            </div>
-        </div>
-        <div id="logBox" class="bg-black/40 p-3 rounded-xl text-[11px] h-20 overflow-y-auto font-mono text-gray-400 border border-white/5 leading-relaxed">
-            > 核心 v9.46 啟動成功<br>> 重點：同現矩陣關聯 + 聚攏度強化優化
-        </div>
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">已載入期數</div>
+      <div class="metric-value" id="mPeriods">--</div>
+      <div class="metric-sub">歷史開獎</div>
     </div>
-
-    <div class="ios-panel p-4 mb-4 border-t-2 border-orange-500">
-        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-3 text-center">下一期核心建議 (8碼)</label>
-        <div class="grid grid-cols-4 gap-2 text-center" id="predictionGrid">
-            <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-orange-500 font-bold">P1</div><div id="p1" class="text-xl font-black text-white grid-val">--</div></div>
-            <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-orange-500 font-bold">P2</div><div id="p2" class="text-xl font-black text-white grid-val">--</div></div>
-            <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-orange-500 font-bold">P3</div><div id="p3" class="text-xl font-black text-white grid-val">--</div></div>
-            <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-orange-500 font-bold">P4</div><div id="p4" class="text-xl font-black text-white grid-val">--</div></div>
-            <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-orange-500 font-bold">P5</div><div id="p5" class="text-xl font-black text-white grid-val">--</div></div>
-            <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-orange-500 font-bold">P6</div><div id="p6" class="text-xl font-black text-white grid-val">--</div></div>
-            <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-orange-500 font-bold">P7</div><div id="p7" class="text-xl font-black text-white grid-val">--</div></div>
-            <div class="bg-white/5 py-2 rounded-xl border border-white/10"><div class="text-[8px] text-orange-500 font-bold">P8</div><div id="p8" class="text-xl font-black text-white grid-val">--</div></div>
-        </div>
-        <div id="modelMeta" class="mt-4 text-[10px] text-center text-gray-500">等待大數據運算...</div>
+    <div class="metric">
+      <div class="metric-label">最熱號碼</div>
+      <div class="metric-value" id="mHot">--</div>
+      <div class="metric-sub">近30期最多</div>
     </div>
-
-    <div class="ios-panel p-4 flex-grow overflow-hidden flex flex-col">
-        <div class="flex justify-between items-center mb-3">
-            <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">歷史效能回測 (聚攏演算法)</label>
-            <div id="hitRate" class="text-[10px] font-black text-orange-500">--</div>
-        </div>
-        <div class="overflow-y-auto flex-grow">
-            <table class="w-full text-[11px]">
-                <tbody id="historyTable" class="divide-y divide-white/5">
-                    <tr><td class="py-10 text-center text-gray-600 italic font-mono">尚未同步</td></tr>
-                </tbody>
-            </table>
-        </div>
+    <div class="metric">
+      <div class="metric-label">遺漏最久</div>
+      <div class="metric-value" id="mCold">--</div>
+      <div class="metric-sub">距上次出現</div>
     </div>
+  </div>
 
-<script id="worker-source" type="text/plain">
-const PREDICT_COUNT = 8;
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('freq')">頻率熱力圖</button>
+    <button class="tab" onclick="switchTab('omit')">遺漏排行</button>
+    <button class="tab" onclick="switchTab('picker')">選號分析</button>
+    <button class="tab" onclick="switchTab('pair')">伴隨號</button>
+  </div>
 
-self.onmessage = (e) => {
-    const { draws } = e.data.payload;
-    log("分析中：執行 Co-occurrence Affinity 同現關聯掃描...");
+  <!-- 頻率 -->
+  <div id="panel-freq" class="panel active">
+    <div class="section-label">近 30 期號碼出現頻率</div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--blue-dark)"></div>高頻 ≥8次</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>中頻 5–7次</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--gray)"></div>低頻 1–4次</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#2a2a2a"></div>未出現</div>
+    </div>
+    <div class="num-grid" id="freqGrid">
+      <div class="empty" style="grid-column:1/-1">點擊「同步數據」載入歷史開獎</div>
+    </div>
+    <div class="section-label" style="margin-top:8px">全期出現次數分佈</div>
+    <div class="chart-wrap">
+      <canvas id="freqChart" role="img" aria-label="39個號碼全期出現次數長條圖">載入後顯示圖表</canvas>
+    </div>
+  </div>
 
-    const best = searchBestConfig(draws);
-    const next = predict(draws.slice(0, best.config.window), best.config);
+  <!-- 遺漏 -->
+  <div id="panel-omit" class="panel">
+    <div class="section-label">遺漏值排行（前20）— 距上次出現期數</div>
+    <div id="omitList"><div class="empty">請先同步數據</div></div>
+  </div>
 
-    self.postMessage({
-        type: "analysis",
-        payload: {
-            nextPrediction: next,
-            metrics: best.metrics,
-            visibleResults: best.results.slice(0, 10),
-            config: best.config
-        }
-    });
-};
+  <!-- 選號 -->
+  <div id="panel-picker" class="panel">
+    <div class="section-label">點選號碼（最多 5 個）查看歷史統計</div>
+    <div class="picker-grid" id="pickerGrid"></div>
+    <div class="chosen-display" id="chosenDisplay">
+      <span style="color:var(--dim);font-size:12px">點選號碼開始分析</span>
+    </div>
+    <div id="pickerResult"></div>
+  </div>
 
-function log(m) { self.postMessage({type:"log", payload:m}); }
+  <!-- 伴隨號 -->
+  <div id="panel-pair" class="panel">
+    <div class="section-label">常與指定號碼同期出現的號碼</div>
+    <select class="pair-select" id="pairSelect" onchange="showPairs()">
+      <option value="">請選擇號碼...</option>
+    </select>
+    <div id="pairResult"><div class="empty">請先同步數據並選擇號碼</div></div>
+  </div>
 
-function searchBestConfig(draws) {
-    const configs = [
-        { window: 30, wHot: 1.5, wPair: 2.0, wAffinity: 1.2 },
-        { window: 50, wHot: 1.2, wPair: 2.5, wAffinity: 1.5 }
-    ];
-    let best = null;
-    configs.forEach(c => {
-        const res = evaluate(draws, c);
-        // 優化公式：3星加權 5倍，2星加權 2倍，嚴懲 0星
-        const score = (res.metrics.rate3 * 5.0) + (res.metrics.rate2 * 2.0) + (res.metrics.rate1 * 0.2) - (res.metrics.rate0 * 3.0);
-        if(!best || score > best.score) best = {config: c, score, ...res};
-    });
-    return best;
-}
-
-function evaluate(draws, c) {
-    let hit1 = 0, hit2 = 0, hit3 = 0, hit0 = 0;
-    const results = [];
-    const testCount = Math.min(draws.length - c.window - 1, 40);
-
-    for(let i=0; i < testCount; i++) {
-        const actual = draws[i];
-        const train = draws.slice(i+1, i+1+c.window);
-        const p = predict(train, c);
-        const hitNums = p.filter(n => actual.nums.includes(n));
-        
-        if(hitNums.length >= 1) hit1++;
-        if(hitNums.length >= 2) hit2++;
-        if(hitNums.length >= 3) hit3++;
-        if(hitNums.length === 0) hit0++;
-
-        results.push({ label: actual.label, actual: actual.nums, prediction: p, hits: hitNums.length, hitNums });
-    }
-    return { 
-        results, 
-        metrics: { 
-            rate1: (hit1/testCount)*100,
-            rate2: (hit2/testCount)*100, 
-            rate3: (hit3/testCount)*100,
-            rate0: (hit0/testCount)*100,
-            testCount: testCount
-        } 
-    };
-}
-
-function predict(train, c) {
-    const scores = new Map();
-    for(let i=1; i<=39; i++) scores.set(i, 0);
-
-    // 1. 同現關聯矩陣建立
-    const affinity = Array.from({length: 40}, () => new Uint8Array(40));
-    train.forEach(d => {
-        for(let i=0; i<d.nums.length; i++) {
-            for(let j=i+1; j<d.nums.length; j++) {
-                affinity[d.nums[i]][d.nums[j]]++;
-                affinity[d.nums[j]][d.nums[i]]++;
-            }
-        }
-    });
-
-    // 2. 基礎冷熱 (Sharpened Decay)
-    train.forEach((d, idx) => {
-        const weight = Math.pow(0.9, idx); // 越近期權重下降越快，增加靈敏度
-        d.nums.forEach(n => scores.set(n, scores.get(n) + (c.wHot * weight * 10)));
-    });
-
-    // 3. 初步篩選 top 15 碼進行聚攏運算
-    let top15 = [...scores.entries()].sort((a,b) => b[1] - a[1]).slice(0, 15).map(x => x[0]);
-    top15.forEach(n1 => {
-        top15.forEach(n2 => {
-            if(n1 !== n2 && affinity[n1][n2] > 0) {
-                scores.set(n1, scores.get(n1) + (affinity[n1][n2] * c.wAffinity));
-            }
-        });
-    });
-
-    // 4. 遺漏值與短期反彈
-    for (let n = 1; n <= 39; n++) {
-        let gap = 0;
-        for (const draw of train) {
-            if (draw.nums.includes(n)) break;
-            gap++;
-        }
-        if(gap >= 4 && gap <= 7) scores.set(n, scores.get(n) * 1.25); // 中期遺漏反彈
-    }
-
-    const sorted = [...scores.entries()].sort((a,b) => b[1] - a[1]);
-    const final = [];
-    const usedTails = new Map();
-    const usedSectors = new Set();
-    const lastNums = train[0].nums;
-
-    // 5. v9.46 強化過濾器
-    for(const [num] of sorted) {
-        if(final.length >= PREDICT_COUNT) break;
-        
-        const tail = num % 10;
-        const tailCount = usedTails.get(tail) || 0;
-        const sector = Math.floor((num-1) / 8);
-        const isRepeat = lastNums.includes(num);
-        
-        // 限制連號與過度集中的尾數
-        const isTooClose = final.some(x => Math.abs(x - num) <= 1);
-        
-        if(tailCount < 2 && !isTooClose) {
-            // 優先覆蓋不同區間，除非該號碼分數極高
-            if(!usedSectors.has(sector) || final.length >= 5) {
-                final.push(num);
-                usedTails.set(tail, tailCount + 1);
-                usedSectors.add(sector);
-            }
-        }
-    }
-
-    // 補足碼
-    for(let i=1; i<=39 && final.length < PREDICT_COUNT; i++) {
-        if(!final.includes(i)) final.push(i);
-    }
-
-    return final.sort((a,b) => a-b);
-}
-</script>
+  <div class="status" id="statusBar">尚未同步 — 所有統計為歷史參考，不具預測效力</div>
+</div>
 
 <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec";
-    let worker;
+const API_URL = "https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec";
+let draws = [];
+let freqChartInst = null;
+let chosenNums = [];
 
-    function addLog(m) {
-        const box = document.getElementById("logBox");
-        box.innerHTML += `> ${m}<br>`;
-        box.scrollTop = box.scrollHeight;
+function switchTab(name) {
+  const names = ['freq','omit','picker','pair'];
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', names[i] === name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+async function syncData() {
+  const btn = document.getElementById('syncBtn');
+  btn.disabled = true; btn.textContent = '同步中...';
+  document.getElementById('statusBar').textContent = '正在連接伺服器...';
+  try {
+    const res = await fetch(API_URL);
+    const json = await res.json();
+    const raw = typeof json === 'string' ? json : json.data;
+    draws = raw.split("\n").map(l => l.trim()).filter(Boolean)
+      .map(l => ({ nums: l.split(/\s+/).slice(-5).map(Number) }))
+      .reverse()
+      .filter(d => d.nums.length === 5 && d.nums.every(n => n >= 1 && n <= 39));
+    document.getElementById('mPeriods').textContent = draws.length;
+    buildAll();
+    document.getElementById('statusBar').textContent = `已載入 ${draws.length} 期 — 統計參考，非預測`;
+    btn.textContent = '重新同步';
+  } catch(e) {
+    document.getElementById('statusBar').textContent = '連線失敗，請稍後重試';
+    btn.textContent = '同步數據';
+  }
+  btn.disabled = false;
+}
+
+function getFreq(window = 30) {
+  const freq = {};
+  for (let n = 1; n <= 39; n++) freq[n] = 0;
+  draws.slice(0, window).forEach(d => d.nums.forEach(n => freq[n]++));
+  return freq;
+}
+
+function getOmit() {
+  const omit = {};
+  for (let n = 1; n <= 39; n++) {
+    let gap = 0;
+    for (const d of draws) { if (d.nums.includes(n)) break; gap++; }
+    omit[n] = gap;
+  }
+  return omit;
+}
+
+function buildAll() {
+  buildFreqGrid();
+  buildFreqChart();
+  buildOmitList();
+  buildPickerGrid();
+  buildPairSelect();
+  const freq30 = getFreq(30);
+  const omit = getOmit();
+  const hotNum = Object.entries(freq30).sort((a,b) => b[1]-a[1])[0];
+  const coldNum = Object.entries(omit).sort((a,b) => b[1]-a[1])[0];
+  document.getElementById('mHot').textContent = String(hotNum[0]).padStart(2,'0');
+  document.getElementById('mCold').textContent = String(coldNum[0]).padStart(2,'0');
+  document.getElementById('mCold').nextElementSibling && (document.getElementById('mCold').parentElement.querySelector('.metric-sub').textContent = `遺漏 ${coldNum[1]} 期`);
+}
+
+function numColor(count) {
+  if (count >= 8) return '#185FA5';
+  if (count >= 5) return '#1D9E75';
+  if (count >= 1) return '#636360';
+  return '#222';
+}
+function numTextColor(count) {
+  return count >= 1 ? '#fff' : '#555';
+}
+
+function buildFreqGrid() {
+  const freq = getFreq(30);
+  const grid = document.getElementById('freqGrid');
+  grid.innerHTML = '';
+  for (let n = 1; n <= 39; n++) {
+    const c = freq[n];
+    const cell = document.createElement('div');
+    cell.className = 'num-cell';
+    cell.style.background = numColor(c);
+    cell.style.color = numTextColor(c);
+    cell.title = `${String(n).padStart(2,'0')}: 近30期出現 ${c} 次`;
+    cell.textContent = String(n).padStart(2,'0');
+    grid.appendChild(cell);
+  }
+}
+
+function buildFreqChart() {
+  const freq = getFreq(draws.length);
+  const labels = Array.from({length:39}, (_,i) => String(i+1).padStart(2,'0'));
+  const data = labels.map((_,i) => freq[i+1]);
+  const max = Math.max(...data);
+  const colors = data.map(v => v >= max*0.7 ? '#185FA5' : v >= max*0.4 ? '#1D9E75' : '#444');
+  if (freqChartInst) freqChartInst.destroy();
+  freqChartInst = new Chart(document.getElementById('freqChart'), {
+    type: 'bar',
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0, borderRadius: 2 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` 出現 ${ctx.raw} 次` } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#555', font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 20 } },
+        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#555', font: { size: 10 } } }
+      }
     }
+  });
+}
 
-    async function fetchSheetData() {
-        addLog("正在連接大數據伺服器...");
-        document.getElementById("strategyMode").innerText = "SYNCING";
-        try {
-            const res = await fetch(API_URL);
-            const json = await res.json();
-            const raw = typeof json === 'string' ? json : json.data;
-            const draws = raw.split("\n").map(l=>l.trim()).filter(Boolean)
-                .map(l=>({nums: l.split(/\s+/).slice(-5).map(Number)}))
-                .reverse().map((d,i)=>({label:`第 ${String(i+1).padStart(3, '0')} 期`, nums:d.nums}));
-            
-            addLog(`成功載入: ${draws.length} 期數據`);
-            startWorker(draws);
-        } catch(e) { 
-            addLog("連線失敗，請重試");
-            document.getElementById("strategyMode").innerText = "ERROR";
-        }
+function buildOmitList() {
+  const omit = getOmit();
+  const freq30 = getFreq(30);
+  const sorted = Object.entries(omit).sort((a,b) => b[1]-a[1]).slice(0, 20);
+  const max = sorted[0][1] || 1;
+  let html = '';
+  sorted.forEach(([n, gap]) => {
+    const pct = Math.round((gap / max) * 100);
+    let barColor = '#378ADD';
+    let badge = '';
+    if (gap > 15) { barColor = '#E24B4A'; badge = '<span class="badge badge-cold">長期冷號</span>'; }
+    else if (gap > 8) { barColor = '#EF9F27'; badge = '<span class="badge badge-warm">偏冷</span>'; }
+    else if (gap <= 3 && freq30[n] >= 5) { barColor = '#1D9E75'; badge = '<span class="badge badge-hot">近期熱號</span>'; }
+    html += `<div class="omit-row">
+      <div class="omit-num">${String(n).padStart(2,'0')}</div>
+      <div class="omit-bar-wrap"><div class="omit-bar" style="width:${pct}%;background:${barColor}"></div></div>
+      <div class="omit-val">${gap}期</div>
+      <div>${badge}</div>
+    </div>`;
+  });
+  document.getElementById('omitList').innerHTML = html;
+}
+
+function buildPickerGrid() {
+  const grid = document.getElementById('pickerGrid');
+  grid.innerHTML = '';
+  for (let n = 1; n <= 39; n++) {
+    const cell = document.createElement('div');
+    cell.className = 'pk-cell';
+    cell.id = 'pk-' + n;
+    cell.textContent = String(n).padStart(2,'0');
+    cell.onclick = () => togglePick(n);
+    grid.appendChild(cell);
+  }
+}
+
+function togglePick(n) {
+  if (draws.length === 0) { alert('請先同步數據'); return; }
+  const idx = chosenNums.indexOf(n);
+  if (idx >= 0) {
+    chosenNums.splice(idx, 1);
+    document.getElementById('pk-'+n).classList.remove('chosen');
+  } else if (chosenNums.length < 5) {
+    chosenNums.push(n);
+    document.getElementById('pk-'+n).classList.add('chosen');
+  }
+  updateChosenDisplay();
+}
+
+function updateChosenDisplay() {
+  const disp = document.getElementById('chosenDisplay');
+  if (chosenNums.length === 0) {
+    disp.innerHTML = '<span style="color:var(--dim);font-size:12px">點選號碼開始分析</span>';
+    document.getElementById('pickerResult').innerHTML = '';
+    return;
+  }
+  disp.innerHTML = chosenNums.sort((a,b)=>a-b).map(n => `<span class="chosen-tag">${String(n).padStart(2,'0')}</span>`).join('');
+  analyzeChosen();
+}
+
+function analyzeChosen() {
+  if (!chosenNums.length || !draws.length) return;
+  const freq = getFreq(draws.length);
+  const freq30 = getFreq(30);
+  const omit = getOmit();
+  let html = '<div class="analysis-result">';
+  chosenNums.slice().sort((a,b)=>a-b).forEach(n => {
+    const gap = omit[n];
+    let status = '一般';
+    if (gap > 15) status = '長期冷號';
+    else if (freq30[n] >= 7) status = '近期熱號';
+    else if (gap > 8) status = '偏冷';
+    html += `<div class="result-row">
+      <span class="result-key">號碼 ${String(n).padStart(2,'0')}</span>
+      <span class="result-val">全期 ${freq[n]} 次 ｜ 近30期 ${freq30[n]} 次 ｜ 遺漏 ${gap} 期 ｜ ${status}</span>
+    </div>`;
+  });
+  if (chosenNums.length >= 2) {
+    let c2 = 0;
+    draws.forEach(d => { if (chosenNums.filter(n => d.nums.includes(n)).length >= 2) c2++; });
+    html += `<div class="result-row"><span class="result-key">≥2碼同期命中</span><span class="result-val">${c2} 次 / ${draws.length} 期（${(c2/draws.length*100).toFixed(1)}%）</span></div>`;
+  }
+  if (chosenNums.length >= 3) {
+    let c3 = 0;
+    draws.forEach(d => { if (chosenNums.filter(n => d.nums.includes(n)).length >= 3) c3++; });
+    html += `<div class="result-row"><span class="result-key">≥3碼同期命中</span><span class="result-val">${c3} 次 / ${draws.length} 期（${(c3/draws.length*100).toFixed(1)}%）</span></div>`;
+  }
+  if (chosenNums.length >= 4) {
+    let c4 = 0;
+    draws.forEach(d => { if (chosenNums.filter(n => d.nums.includes(n)).length >= 4) c4++; });
+    html += `<div class="result-row"><span class="result-key">≥4碼同期命中</span><span class="result-val">${c4} 次 / ${draws.length} 期（${(c4/draws.length*100).toFixed(1)}%）</span></div>`;
+  }
+  html += '</div>';
+  document.getElementById('pickerResult').innerHTML = html;
+}
+
+function buildPairSelect() {
+  const sel = document.getElementById('pairSelect');
+  sel.innerHTML = '<option value="">請選擇號碼...</option>';
+  for (let n = 1; n <= 39; n++) {
+    const o = document.createElement('option');
+    o.value = n; o.textContent = String(n).padStart(2,'0');
+    sel.appendChild(o);
+  }
+}
+
+function showPairs() {
+  const n = parseInt(document.getElementById('pairSelect').value);
+  if (!n || !draws.length) return;
+  const pairFreq = {};
+  for (let m = 1; m <= 39; m++) { if (m !== n) pairFreq[m] = 0; }
+  let totalAppear = 0;
+  draws.forEach(d => {
+    if (d.nums.includes(n)) {
+      totalAppear++;
+      d.nums.forEach(m => { if (m !== n) pairFreq[m]++; });
     }
-
-    function startWorker(draws) {
-        if(worker) worker.terminate();
-        const blob = new Blob([document.getElementById("worker-source").textContent], {type:'application/javascript'});
-        worker = new Worker(URL.createObjectURL(blob));
-        
-        worker.onmessage = (e) => {
-            if(e.data.type === "log") addLog(e.data.payload);
-            if(e.data.type === "analysis") updateUI(e.data.payload);
-        };
-        worker.postMessage({payload:{draws}});
-    }
-
-    function updateUI(p) {
-        document.getElementById("strategyMode").innerText = "ACTIVE";
-        p.nextPrediction.forEach((n, i) => {
-            const el = document.getElementById(`p${i+1}`);
-            if(el) el.innerText = String(n).padStart(2, '0');
-        });
-
-        document.getElementById("hitRate").innerText = `3★:${p.metrics.rate3.toFixed(1)}% | 2★:${p.metrics.rate2.toFixed(1)}% | 0★:${p.metrics.rate0.toFixed(1)}%`;
-        document.getElementById("modelMeta").innerText = `v9.46 | 窗口: ${p.config.window} | 回測: ${p.metrics.testCount}期`;
-
-        const rows = p.visibleResults.map(r => {
-            const hit = new Set(r.hitNums);
-            const dotHtml = r.prediction.map(n => `<span class="slot-dot ${hit.has(n)?'slot-hit':'slot-miss'}"></span>`).join("");
-            
-            return `<tr class="h-12 border-b border-white/5">
-                <td class="text-gray-500 font-mono w-16">${r.label}</td>
-                <td class="font-mono text-gray-400">${r.actual.map(n=>String(n).padStart(2,'0')).join(" ")}</td>
-                <td class="font-mono text-[10px]">${r.prediction.map(n => hit.has(n)?`<span class="hit-num">${String(n).padStart(2,'0')}</span>`:String(n).padStart(2,'0')).join(" ")}</td>
-                <td class="py-1 text-center">${dotHtml}</td>
-                <td class="text-right font-black ${r.hits >= 2 ? 'text-orange-500' : 'text-gray-600'} text-sm">${r.hits}</td>
-            </tr>`;
-        }).join("");
-        document.getElementById("historyTable").innerHTML = rows;
-        addLog(`分析完成。下期建議：${p.nextPrediction.join(", ")}`);
-    }
+  });
+  const sorted = Object.entries(pairFreq).sort((a,b) => b[1]-a[1]).slice(0, 12);
+  let html = `<div style="font-size:12px;color:var(--muted);margin-bottom:12px">號碼 ${String(n).padStart(2,'0')} 共出現 ${totalAppear} 次，以下為最常同期出現的號碼：</div>`;
+  html += '<table class="pair-table"><thead><tr><th>伴隨號</th><th>同期次數</th><th>伴隨率</th><th>強度</th></tr></thead><tbody>';
+  const maxCnt = sorted[0] ? sorted[0][1] : 1;
+  sorted.forEach(([m, cnt]) => {
+    const rate = totalAppear > 0 ? (cnt/totalAppear*100).toFixed(1) : 0;
+    const bar = Math.round(cnt / maxCnt * 80);
+    html += `<tr>
+      <td>${String(m).padStart(2,'0')}</td>
+      <td>${cnt} 次</td>
+      <td>${rate}%</td>
+      <td><div style="width:${bar}px;height:5px;background:var(--blue-dark);border-radius:3px"></div></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('pairResult').innerHTML = html;
+}
 </script>
 </body>
 </html>
