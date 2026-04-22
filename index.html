@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE EVO v9.20 中文強化版</title>
+    <title>ULTIMATE EVO v9.20</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root { --ios-orange: #f97316; --ios-bg: #000000; --ios-panel: #1c1c1e; }
@@ -32,20 +32,20 @@
 
     <div class="ios-panel p-4 mb-4 orange-glow border border-orange-500/50">
         <div class="flex justify-between items-end mb-2">
-            <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">Panel 1: 引擎狀態</label>
+            <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">Panel 1: Engine Status</label>
             <div class="flex items-center text-[10px] text-orange-500 font-bold uppercase">
                 <span id="statusDot" class="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></span>
                 v9.20 <span id="strategyMode" class="ml-1 text-white">READY</span>
             </div>
         </div>
         <div id="logBox" class="bg-black/50 p-3 rounded-lg text-[11px] h-24 overflow-y-auto font-mono border border-white/5 leading-relaxed">
-            <span class="text-gray-500">&gt; Worker 已初始化，等待同步資料...</span><br>
-            <span class="text-gray-500">&gt; 模式：投票模型 + 嚴格滾動回測</span>
+            <span class="text-gray-500">&gt; Worker 已準備，等待開始同步...</span><br>
+            <span class="text-gray-500">&gt; 模式：誠實回測 + 可解釋預測</span>
         </div>
     </div>
 
     <div class="ios-panel p-4 mb-4 border-t-2 border-orange-600">
-        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-3">Panel 2: 預測號碼（固定 5 碼）</label>
+        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-3">Panel 2: Prediction Grid (固定 5 碼)</label>
         <div class="grid grid-cols-5 gap-2" id="predictionGrid">
             <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
                 <div class="text-[9px] text-orange-500 font-bold">第 1 碼</div>
@@ -69,27 +69,31 @@
             </div>
         </div>
         <div id="modelMeta" class="mt-3 text-[11px] text-gray-500 leading-6">等待同步資料...</div>
-        <div class="mt-2 text-[11px] text-gray-500">以上為統計參考，基於歷史規律，不保證未來結果</div>
+        <div class="mt-3 rounded-lg bg-black/40 border border-white/5 p-3">
+            <div class="text-[10px] text-orange-400 font-bold uppercase tracking-widest mb-2">Debug Trace</div>
+            <pre id="debugTrace" class="text-[10px] text-gray-400 font-mono whitespace-pre-wrap leading-5 max-h-56 overflow-y-auto">等待同步後顯示 39 碼總分排名、candidate pool、各模型貢獻與組合勝出原因...</pre>
+        </div>
+        <div class="mt-2 text-[11px] text-gray-500">以上為統計參考，基於歷史規律，不保證未來結果。</div>
     </div>
 
     <div class="ios-panel p-4 flex-grow overflow-hidden flex flex-col">
         <div class="flex justify-between items-center mb-2">
-            <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Panel 3: 回測結果</label>
-            <div id="hitRate" class="text-[10px] font-black text-orange-500">2星/3星/4星/5星：0.0 / 0.0 / 0.0 / 0.0</div>
+            <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Panel 3: Backtest</label>
+            <div id="hitRate" class="text-[10px] font-black text-orange-500">測試集 2★ / 3★ / 4★ / 5★：0.0 / 0.0 / 0.0 / 0.0</div>
         </div>
         <div class="ios-panel bg-black/40 border border-white/5 p-3 mb-3">
             <div class="text-[10px] text-orange-400 font-bold uppercase tracking-widest mb-2">誠實指標</div>
             <div class="grid grid-cols-2 gap-3 text-[11px]">
                 <div class="rounded-lg bg-white/5 p-2 border border-white/5">
                     <div class="text-gray-400 mb-1">訓練集命中率</div>
-                    <div id="trainRate" class="font-mono text-white">2星 0.0% / 3星 0.0%</div>
+                    <div id="trainRate" class="font-mono text-white">2★ 0.0% / 3★ 0.0%</div>
                 </div>
                 <div class="rounded-lg bg-white/5 p-2 border border-white/5">
                     <div class="text-gray-400 mb-1">測試集命中率</div>
-                    <div id="testRate" class="font-mono text-white">2星 0.0% / 3星 0.0%</div>
+                    <div id="testRate" class="font-mono text-white">2★ 0.0% / 3★ 0.0%</div>
                 </div>
             </div>
-            <div id="overfitWarning" class="mt-2 text-[11px] text-gray-500">尚未完成資料切割分析</div>
+            <div id="overfitWarning" class="mt-2 text-[11px] text-gray-500">等待同步資料後顯示過擬合警告。</div>
         </div>
         <div class="overflow-y-auto flex-grow">
             <table class="w-full text-[12px]">
@@ -121,10 +125,10 @@ self.onmessage = async (event) => {
     try {
         const draws = Array.isArray(payload?.draws) ? payload.draws : [];
         if (draws.length < MIN_DRAW_COUNT) {
-            throw new Error(`資料不足，至少需要 ${MIN_DRAW_COUNT} 期才能分析。`);
+            throw new Error(`資料不足，至少需要 ${MIN_DRAW_COUNT} 期才能分析`);
         }
 
-        log("Worker 已啟動，開始進行 Train / Validation / Test 切割。", "orange-500");
+        log("Worker 開始分析：嚴格 Train / Validation / Test 切割", "orange-500");
         const chronological = draws.slice().reverse();
         const split = splitDraws(chronological);
         const trainStats = buildHistoricalStats(split.train);
@@ -146,7 +150,7 @@ self.onmessage = async (event) => {
         );
 
         const nextHistory = chronological.slice(-best.config.windowSize).reverse();
-        const nextPrediction = buildPrediction(nextHistory, best.config, trainStats, true);
+        const debugBundle = explainPrediction(nextHistory, best.config, trainStats);
         const honestyGap = Math.max(
             Math.abs(best.trainingMetrics.rate2 - testEvaluation.metrics.rate2),
             Math.abs(best.trainingMetrics.rate3 - testEvaluation.metrics.rate3)
@@ -155,11 +159,11 @@ self.onmessage = async (event) => {
         self.postMessage({
             type: "analysis",
             payload: {
-                modelName: "v9.51 誠實回測版",
-                config: best.config,
+                modelName: "v9.51 誠實回測模型",
                 configSummary: summarizeConfig(best.config),
-                filterSummary: "Train 60% / Validation 20% / Test 20% 嚴格切割",
-                nextPrediction,
+                filterSummary: "Train 60% / Validation 20% / Test 20%",
+                nextPrediction: debugBundle.prediction,
+                debug: debugBundle,
                 metrics: testEvaluation.metrics,
                 visibleResults: testEvaluation.results.slice(-DISPLAY_ROWS).reverse(),
                 honesty: {
@@ -172,15 +176,15 @@ self.onmessage = async (event) => {
             }
         });
     } catch (error) {
-        log(`Worker 執行失敗：${error.message}`, "red-500");
+        log(`Worker 分析失敗：${error.message}`, "red-500");
         self.postMessage({
             type: "analysis",
             payload: {
-                modelName: "v9.51 誠實回測版",
-                config: defaultConfig(),
-                configSummary: "已退回預設參數",
-                filterSummary: "Worker 錯誤",
+                modelName: "v9.51 誠實回測模型",
+                configSummary: "使用預設參數",
+                filterSummary: "Worker 失敗",
                 nextPrediction: [0, 0, 0, 0, 0],
+                debug: null,
                 metrics: { rate2: 0, rate3: 0, rate4: 0, rate5: 0, objective: 0, testCount: 0 },
                 visibleResults: [],
                 honesty: {
@@ -201,15 +205,15 @@ function log(message, color) {
 
 function defaultConfig() {
     return {
-        windowSize: 48,
-        candidatePool: 10,
-        scoreWeights: { recency: 1.1, cooccurrence: 1.0, pattern: 0.9, omission: 0.7, tail: 0.5, zone: 0.45, consistency: 0.5 },
+        windowSize: 30,
+        candidatePool: 8,
+        scoreWeights: { recency: 1.2, cooccurrence: 1.0, pattern: 0.9, omission: 0.7, tail: 0.45, zone: 0.40, consistency: 0.45 },
         recency: { depth: 14, hotWeight: 1.7, omitThreshold: 5, omitWeight: 0.12, nearWeight: 0.14, zoneWeight: 0.12 },
-        cooccurrence: { depth: 32, recentDepth: 3, overlapWeight: 0.5, tailWeight: 0.2, neighborWeight: 0.15 },
+        cooccurrence: { depth: 32, recentDepth: 3, overlapWeight: 0.50, tailWeight: 0.20, neighborWeight: 0.15 },
         pattern: { segment: 3, minSimilarity: 0.56, reward: 1.8, maxMatches: 6, offsetWeight: 0.35 },
         tailCycle: { depth: 30, hotWeight: 0.35, missWeight: 0.45 },
         zoneBalance: { depth: 20, reward: 0.55 },
-        combo: { sumWeight: 0.12, oddWeight: 0.45, overlapWeight: 0.65, spreadWeight: 0.4, tailPenaltyWeight: 0.6, zonePenaltyWeight: 1.5 }
+        combo: { sumWeight: 0.12, oddWeight: 0.45, overlapWeight: 0.65, spreadWeight: 0.40, tailPenaltyWeight: 0.60, zonePenaltyWeight: 1.50 }
     };
 }
 
@@ -218,7 +222,6 @@ function splitDraws(chronological) {
     const minWindow = 30;
     const trainEnd = Math.max(minWindow + 10, Math.floor(total * 0.6));
     const validationEnd = Math.max(trainEnd + 5, Math.floor(total * 0.8));
-
     const train = chronological.slice(0, trainEnd);
     const validation = chronological.slice(trainEnd, validationEnd);
     const test = chronological.slice(validationEnd);
@@ -228,6 +231,13 @@ function splitDraws(chronological) {
     }
 
     return { train, validation, test };
+}
+
+function calcStats(values) {
+    if (!values.length) return { mean: 0, stdev: 1 };
+    const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+    const variance = values.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / values.length;
+    return { mean, stdev: Math.max(1, Math.sqrt(variance)) };
 }
 
 function buildHistoricalStats(draws) {
@@ -251,55 +261,32 @@ function buildHistoricalStats(draws) {
 
 async function heuristicSearch(split, stats) {
     const isSmall = split.train.length < 120;
-    const windowCandidates = isSmall ? [30, 36, 48] : [30, 36, 42, 48, 60];
-    const eligibleWindows = windowCandidates.filter((windowSize) => (split.train.length - windowSize) >= 5);
-    const allScoreSets = [
+    const windowSets = isSmall ? [30, 36, 48] : [30, 36, 42, 48, 60];
+    const scoreSets = [
         { recency: 1.2, cooccurrence: 1.0, pattern: 0.9, omission: 0.7, tail: 0.45, zone: 0.40, consistency: 0.45 },
-        { recency: 1.0, cooccurrence: 1.2, pattern: 1.0, omission: 0.6, tail: 0.55, zone: 0.45, consistency: 0.50 },
-        { recency: 1.1, cooccurrence: 0.9, pattern: 1.2, omission: 0.8, tail: 0.35, zone: 0.55, consistency: 0.60 },
-        { recency: 0.95, cooccurrence: 1.3, pattern: 1.35, omission: 0.65, tail: 0.30, zone: 0.25, consistency: 0.70 }
+        { recency: 1.0, cooccurrence: 1.2, pattern: 1.0, omission: 0.6, tail: 0.55, zone: 0.45, consistency: 0.50 }
     ];
-    const allRecencySets = [
-        { depth: 12, hotWeight: 1.7, omitThreshold: 5, omitWeight: 0.12, nearWeight: 0.14, zoneWeight: 0.12 },
+    const recencySets = [
         { depth: 14, hotWeight: 1.7, omitThreshold: 5, omitWeight: 0.12, nearWeight: 0.14, zoneWeight: 0.12 },
-        { depth: 18, hotWeight: 1.9, omitThreshold: 6, omitWeight: 0.14, nearWeight: 0.18, zoneWeight: 0.16 },
-        { depth: 24, hotWeight: 1.5, omitThreshold: 7, omitWeight: 0.18, nearWeight: 0.10, zoneWeight: 0.10 }
+        { depth: 18, hotWeight: 1.9, omitThreshold: 6, omitWeight: 0.14, nearWeight: 0.18, zoneWeight: 0.16 }
     ];
     const cooccurrenceSets = [
         { depth: 24, recentDepth: 2, overlapWeight: 0.45, tailWeight: 0.20, neighborWeight: 0.10 },
-        { depth: 32, recentDepth: 3, overlapWeight: 0.50, tailWeight: 0.20, neighborWeight: 0.15 },
-        { depth: 40, recentDepth: 4, overlapWeight: 0.55, tailWeight: 0.15, neighborWeight: 0.18 }
+        { depth: 32, recentDepth: 3, overlapWeight: 0.50, tailWeight: 0.20, neighborWeight: 0.15 }
     ];
-    const allPatternSets = [
+    const patternSets = [
         { segment: 2, minSimilarity: 0.60, reward: 1.6, maxMatches: 4, offsetWeight: 0.25 },
-        { segment: 3, minSimilarity: 0.56, reward: 1.8, maxMatches: 6, offsetWeight: 0.35 },
-        { segment: 4, minSimilarity: 0.52, reward: 1.4, maxMatches: 5, offsetWeight: 0.25 }
+        { segment: 3, minSimilarity: 0.56, reward: 1.8, maxMatches: 6, offsetWeight: 0.35 }
     ];
-    const allTailCycleSets = [
-        { depth: 24, hotWeight: 0.30, missWeight: 0.40 },
-        { depth: 30, hotWeight: 0.35, missWeight: 0.45 },
-        { depth: 36, hotWeight: 0.25, missWeight: 0.55 }
+    const tailCycleSets = [{ depth: 30, hotWeight: 0.35, missWeight: 0.45 }];
+    const zoneBalanceSets = [{ depth: 20, reward: 0.55 }];
+    const poolSizes = isSmall ? [7, 8, 9] : [8, 10, 12];
+    const comboSets = [
+        { sumWeight: 0.12, oddWeight: 0.45, overlapWeight: 0.65, spreadWeight: 0.40, tailPenaltyWeight: 0.60, zonePenaltyWeight: 1.50 }
     ];
-    const allZoneBalanceSets = [
-        { depth: 16, reward: 0.45 },
-        { depth: 20, reward: 0.55 },
-        { depth: 24, reward: 0.65 }
-    ];
-    const allPoolSizes = [8, 10, 12];
-    const allComboSets = [
-        { sumWeight: 0.12, oddWeight: 0.45, overlapWeight: 0.65, spreadWeight: 0.4, tailPenaltyWeight: 0.6, zonePenaltyWeight: 1.5 },
-        { sumWeight: 0.12, oddWeight: 0.45, overlapWeight: 0.85, spreadWeight: 0.4, tailPenaltyWeight: 0.6, zonePenaltyWeight: 1.5 }
-    ];
-    const scoreSets = isSmall ? [allScoreSets[0], allScoreSets[1], allScoreSets[3]] : allScoreSets;
-    const recencySets = isSmall ? [allRecencySets[1], allRecencySets[2]] : allRecencySets;
-    const patternSets = isSmall ? [allPatternSets[0], allPatternSets[1]] : allPatternSets;
-    const tailCycleSets = isSmall ? [allTailCycleSets[1]] : allTailCycleSets;
-    const zoneBalanceSets = isSmall ? [allZoneBalanceSets[1]] : allZoneBalanceSets;
-    const poolSizes = isSmall ? [7, 8, 9] : allPoolSizes;
-    const comboSets = isSmall ? [allComboSets[0]] : allComboSets;
 
+    const eligibleWindows = windowSets.filter((windowSize) => (split.train.length - windowSize) >= 5);
     let best = null;
-    let aggressiveBest = null;
     let tested = 0;
     const totalTests =
         eligibleWindows.length *
@@ -312,7 +299,6 @@ async function heuristicSearch(split, stats) {
         poolSizes.length *
         comboSets.length;
 
-    outerLoop:
     for (const windowSize of eligibleWindows) {
         for (const scoreWeights of scoreSets) {
             for (const recency of recencySets) {
@@ -333,71 +319,41 @@ async function heuristicSearch(split, stats) {
                                             zoneBalance: { ...zoneBalance },
                                             combo: { ...combo }
                                         };
+
                                         const trainingEvaluation = evaluateChronologicalSegment(split.train, [], config, stats);
                                         if (trainingEvaluation.metrics.testCount < 5) continue;
 
-                                        const validationEvaluation = evaluateChronologicalSegment(
-                                            split.validation,
-                                            split.train,
-                                            config,
-                                            stats
-                                        );
+                                        const validationEvaluation = evaluateChronologicalSegment(split.validation, split.train, config, stats);
                                         const overfitGap = Math.max(
                                             Math.abs(trainingEvaluation.metrics.rate2 - validationEvaluation.metrics.rate2),
                                             Math.abs(trainingEvaluation.metrics.rate3 - validationEvaluation.metrics.rate3)
                                         );
-                                        const validationScore =
-                                            (validationEvaluation.metrics.rate3 * 5.0) +
-                                            (validationEvaluation.metrics.rate2 * 0.8) -
-                                            (overfitGap * 0.35);
-                                        const aggressiveScore =
-                                            (validationEvaluation.metrics.rate3 * 8.0) +
-                                            (validationEvaluation.metrics.rate2 * 0.05) +
-                                            (windowSize * 0.12) +
-                                            (cooccurrence.depth * 0.12) +
-                                            (pattern.segment * 1.25) +
-                                            (scoreWeights.pattern * 4.0) +
-                                            (scoreWeights.cooccurrence * 3.0) +
-                                            (scoreWeights.consistency * 3.0) -
-                                            (candidatePool * 0.5) -
-                                            overfitGap;
+                                        const score = (validationEvaluation.metrics.rate3 * 3.0) + (validationEvaluation.metrics.rate2 * 1.0) - (overfitGap * 0.5);
 
                                         tested += 1;
                                         if (tested > 0 && tested % 50 === 0) {
                                             await new Promise((resolve) => setTimeout(resolve, 0));
                                         }
-                                        if (!best || validationScore > best.validationScore) {
-                                            best = {
-                                                config,
-                                                trainingMetrics: trainingEvaluation.metrics,
-                                                trainingResults: trainingEvaluation.results,
-                                                validationMetrics: validationEvaluation.metrics,
-                                                overfitGap,
-                                                validationScore
-                                            };
-                                        }
-                                        if (!aggressiveBest || aggressiveScore > aggressiveBest.aggressiveScore) {
-                                            aggressiveBest = {
-                                                config,
-                                                trainingMetrics: trainingEvaluation.metrics,
-                                                trainingResults: trainingEvaluation.results,
-                                                validationMetrics: validationEvaluation.metrics,
-                                                overfitGap,
-                                                validationScore,
-                                                aggressiveScore
-                                            };
-                                        }
-
                                         if (tested % 200 === 0) {
                                             const progress = ((tested / Math.max(1, totalTests)) * 100).toFixed(1);
                                             const bestRate2 = best ? best.validationMetrics.rate2.toFixed(1) : "0.0";
                                             const bestRate3 = best ? best.validationMetrics.rate3.toFixed(1) : "0.0";
-                                            log(`搜尋進度 ${progress}% (${tested}/${totalTests})，最佳驗證 2星 ${bestRate2}% / 3星 ${bestRate3}%`, "gray-400");
+                                            log(`搜尋進度 ${progress}% (${tested}/${totalTests})，目前最佳驗證 2★ ${bestRate2}% / 3★ ${bestRate3}%`, "gray-400");
+                                        }
+
+                                        if (!best || score > best.score) {
+                                            best = {
+                                                config,
+                                                score,
+                                                overfitGap,
+                                                trainingMetrics: trainingEvaluation.metrics,
+                                                validationMetrics: validationEvaluation.metrics
+                                            };
                                         }
 
                                         if (best && best.validationMetrics.rate3 > 55) {
-                                            log(`提前終止搜尋：驗證集 3星已達 ${best.validationMetrics.rate3.toFixed(1)}%`, "green-500");
-                                            break outerLoop;
+                                            log(`提前停止：驗證集 3★ 已達 ${best.validationMetrics.rate3.toFixed(1)}%`, "green-500");
+                                            return best;
                                         }
                                     }
                                 }
@@ -410,25 +366,11 @@ async function heuristicSearch(split, stats) {
     }
 
     if (!best) {
-        throw new Error("訓練集樣本不足，無法完成有效參數搜尋。");
+        throw new Error("找不到可用參數組合");
     }
 
-    if (
-        aggressiveBest &&
-        best.validationMetrics.rate3 === 0 &&
-        aggressiveBest.validationMetrics.rate3 === 0 &&
-        aggressiveBest.validationMetrics.rate2 >= 10 &&
-        aggressiveBest.config.windowSize >= best.config.windowSize
-    ) {
-        best = aggressiveBest;
-        log(`啟用衝 3 星模式：改採較長視窗 ${best.config.windowSize} 與較強版路權重。`, "orange-400");
-    }
-
-    log(`參數搜尋完成，共測試 ${tested} 組。`, "green-500");
-    log(
-        `驗證集最佳結果：2星 ${best.validationMetrics.rate2.toFixed(1)}%，3星 ${best.validationMetrics.rate3.toFixed(1)}%，落差 ${best.overfitGap.toFixed(1)}%。`,
-        "orange-400"
-    );
+    log(`搜尋完成，共測試 ${tested} 組`, "green-500");
+    log(`最佳驗證集：2★ ${best.validationMetrics.rate2.toFixed(1)}% / 3★ ${best.validationMetrics.rate3.toFixed(1)}%`, "orange-400");
     return best;
 }
 
@@ -442,11 +384,11 @@ function evaluateChronologicalSegment(segment, historyBefore, config, stats) {
     for (let i = 0; i < segment.length; i += 1) {
         const actual = segment[i];
         const historyPool = historyBefore.concat(segment.slice(0, i));
-        const minRequiredHistory = historyBefore.length === 0 ? Math.min(config.windowSize, 20) : config.windowSize;
-        if (historyPool.length < minRequiredHistory) continue;
+        const minRequired = historyBefore.length === 0 ? Math.min(config.windowSize, 20) : config.windowSize;
+        if (historyPool.length < minRequired) continue;
+
         const effectiveWindow = Math.min(config.windowSize, historyPool.length);
         const train = historyPool.slice(-effectiveWindow).reverse();
-
         const prediction = buildPrediction(train, config, stats, false);
         const hitNums = prediction.filter((num) => actual.nums.includes(num));
         const hits = hitNums.length;
@@ -466,33 +408,27 @@ function evaluateChronologicalSegment(segment, historyBefore, config, stats) {
     }
 
     const divisor = results.length || 1;
-    const metrics = {
-        rate2: (hit2 / divisor) * 100,
-        rate3: (hit3 / divisor) * 100,
-        rate4: (hit4 / divisor) * 100,
-        rate5: (hit5 / divisor) * 100,
-        objective: ((hit2 / divisor) * 10) + ((hit3 / divisor) * 50) + ((hit4 / divisor) * 200),
-        testCount: results.length
+    return {
+        results,
+        metrics: {
+            rate2: (hit2 / divisor) * 100,
+            rate3: (hit3 / divisor) * 100,
+            rate4: (hit4 / divisor) * 100,
+            rate5: (hit5 / divisor) * 100,
+            objective: ((hit2 / divisor) * 10) + ((hit3 / divisor) * 50) + ((hit4 / divisor) * 200),
+            testCount: results.length
+        }
     };
-
-    return { results, metrics };
 }
 
 function buildBaseNormalizedScores(train, config) {
-    const recencyScores = scoreRecencyModel(train, config.recency);
-    const cooccurrenceScores = scoreCooccurrenceModel(train, config.cooccurrence);
-    const patternScores = scorePatternModel(train, config.pattern);
-    const omissionScores = scoreOmissionModel(train, config.recency.omitThreshold, config.recency.omitWeight);
-    const tailScores = scoreTailCycleModel(train, config.tailCycle);
-    const zoneScores = scoreZoneBalanceModel(train, config.zoneBalance);
-
     return {
-        recency: normalizeScores(recencyScores),
-        cooccurrence: normalizeScores(cooccurrenceScores),
-        pattern: normalizeScores(patternScores),
-        omission: normalizeScores(omissionScores),
-        tail: normalizeScores(tailScores),
-        zone: normalizeScores(zoneScores)
+        recency: normalizeScores(scoreRecencyModel(train, config.recency)),
+        cooccurrence: normalizeScores(scoreCooccurrenceModel(train, config.cooccurrence)),
+        pattern: normalizeScores(scorePatternModel(train, config.pattern)),
+        omission: normalizeScores(scoreOmissionModel(train, config.recency.omitThreshold, config.recency.omitWeight)),
+        tail: normalizeScores(scoreTailCycleModel(train, config.tailCycle)),
+        zone: normalizeScores(scoreZoneBalanceModel(train, config.zoneBalance))
     };
 }
 
@@ -503,33 +439,43 @@ function buildPrediction(train, config, stats, useFullCombo = false) {
         .slice(0, config.candidatePool)
         .map(([num]) => num);
 
-    if (!useFullCombo) {
-        const fastPool = candidatePool.slice(0, Math.min(candidatePool.length, 7));
-        return selectBestCombination(fastPool, combinedScores, train, stats, config);
+    const selectionPool = useFullCombo ? candidatePool : candidatePool.slice(0, Math.min(candidatePool.length, 7));
+    return selectBestCombination(selectionPool, combinedScores, train, stats, config);
+}
+
+function buildScoringSnapshot(train, config) {
+    const baseScores = buildBaseNormalizedScores(train, config);
+    const consistencyScores = normalizeScores(scoreConsistencyModel(train, config));
+    const combined = new Map();
+    const contributions = new Map();
+
+    for (let n = 1; n <= BALL_COUNT; n += 1) {
+        const detail = {
+            recency: baseScores.recency.get(n) * config.scoreWeights.recency,
+            cooccurrence: baseScores.cooccurrence.get(n) * config.scoreWeights.cooccurrence,
+            pattern: baseScores.pattern.get(n) * config.scoreWeights.pattern,
+            omission: baseScores.omission.get(n) * config.scoreWeights.omission,
+            tail: baseScores.tail.get(n) * config.scoreWeights.tail,
+            zone: baseScores.zone.get(n) * config.scoreWeights.zone,
+            consistency: consistencyScores.get(n) * config.scoreWeights.consistency
+        };
+        detail.total =
+            detail.recency +
+            detail.cooccurrence +
+            detail.pattern +
+            detail.omission +
+            detail.tail +
+            detail.zone +
+            detail.consistency;
+        combined.set(n, detail.total);
+        contributions.set(n, detail);
     }
 
-    return selectBestCombination(candidatePool, combinedScores, train, stats, config);
+    return { combined, contributions };
 }
 
 function buildCombinedScores(train, config) {
-    const baseScores = buildBaseNormalizedScores(train, config);
-    const consistencyScores = scoreConsistencyModel(train, config);
-
-    const normalizedConsistency = normalizeScores(consistencyScores);
-
-    const combined = new Map();
-    for (let n = 1; n <= BALL_COUNT; n += 1) {
-        const total =
-            (baseScores.recency.get(n) * config.scoreWeights.recency) +
-            (baseScores.cooccurrence.get(n) * config.scoreWeights.cooccurrence) +
-            (baseScores.pattern.get(n) * config.scoreWeights.pattern) +
-            (baseScores.omission.get(n) * config.scoreWeights.omission) +
-            (baseScores.tail.get(n) * config.scoreWeights.tail) +
-            (baseScores.zone.get(n) * config.scoreWeights.zone) +
-            (normalizedConsistency.get(n) * config.scoreWeights.consistency);
-        combined.set(n, total);
-    }
-    return combined;
+    return buildScoringSnapshot(train, config).combined;
 }
 
 function scoreRecencyModel(train, cfg) {
@@ -539,16 +485,16 @@ function scoreRecencyModel(train, cfg) {
 
     recent.forEach((draw, index) => {
         const weight = (recent.length - index) / Math.max(1, recent.length);
-        const zoneCount = [0, 0, 0, 0];
+        const zoneCounts = [0, 0, 0, 0];
 
         draw.nums.forEach((num) => {
             scores.set(num, scores.get(num) + (cfg.hotWeight * weight));
             if (num > 1) scores.set(num - 1, scores.get(num - 1) + (cfg.nearWeight * weight));
             if (num < BALL_COUNT) scores.set(num + 1, scores.get(num + 1) + (cfg.nearWeight * weight));
-            zoneCount[getZoneIndex(num)] += 1;
+            zoneCounts[getZoneIndex(num)] += 1;
         });
 
-        zoneCount.forEach((count, zoneIndex) => {
+        zoneCounts.forEach((count, zoneIndex) => {
             if (count >= 2) {
                 getZoneNumbers(zoneIndex).forEach((num) => {
                     scores.set(num, scores.get(num) + (cfg.zoneWeight * weight));
@@ -585,7 +531,7 @@ function scoreCooccurrenceModel(train, cfg) {
             if (recentTails.has(num % 10)) {
                 scores.set(num, scores.get(num) + cfg.tailWeight);
             }
-            const minDistance = Math.min(...recentNumbers.map((value) => Math.abs(value - num)));
+            const minDistance = recentNumbers.length ? Math.min(...recentNumbers.map((value) => Math.abs(value - num))) : 99;
             if (minDistance <= 2) {
                 scores.set(num, scores.get(num) + cfg.neighborWeight);
             }
@@ -611,11 +557,7 @@ function scorePatternModel(train, cfg) {
 
         followDraw.nums.forEach((num) => {
             scores.set(num, scores.get(num) + (cfg.reward * similarity));
-        });
-
-        const latest = recentSegment[0].nums;
-        followDraw.nums.forEach((num) => {
-            const near = Math.min(...latest.map((value) => Math.abs(value - num)));
+            const near = Math.min(...recentSegment[0].nums.map((value) => Math.abs(value - num)));
             scores.set(num, scores.get(num) + ((3 - Math.min(near, 3)) * cfg.offsetWeight));
         });
 
@@ -696,12 +638,9 @@ function scoreZoneBalanceModel(train, cfg) {
 function scoreConsistencyModel(train, config) {
     const scores = createScoreMap();
     const windows = [20, 25, 30, 35, 40];
-    const hitCounts = Array(BALL_COUNT + 1).fill(0);
     const maxWindow = Math.min(40, train.length);
     const baseTrain = train.slice(0, maxWindow);
-    if (baseTrain.length < 10) {
-        return scores;
-    }
+    if (baseTrain.length < 10) return scores;
 
     const base = buildBaseNormalizedScores(baseTrain, config);
     const ranked = [];
@@ -729,15 +668,11 @@ function scoreConsistencyModel(train, config) {
 
         for (const item of ranked) {
             if (!appeared.has(item.num)) continue;
-            hitCounts[item.num] += decay;
+            scores.set(item.num, scores.get(item.num) + decay);
             picked += 1;
             if (picked >= config.candidatePool) break;
         }
     });
-
-    for (let n = 1; n <= BALL_COUNT; n += 1) {
-        scores.set(n, hitCounts[n]);
-    }
 
     return scores;
 }
@@ -751,6 +686,7 @@ function selectBestCombination(candidatePool, combinedScores, train, stats, conf
             .map(([num]) => num)
             .sort((a, b) => a - b);
     }
+
     const combos = choose(ordered, 5);
     let bestCombo = ordered.slice(0, 5).sort((a, b) => a - b);
     let bestScore = -Infinity;
@@ -769,11 +705,46 @@ function selectBestCombination(candidatePool, combinedScores, train, stats, conf
     return bestCombo;
 }
 
+function selectBestCombinationDetailed(candidatePool, combinedScores, train, stats, config) {
+    const ordered = candidatePool.slice().sort((a, b) => (combinedScores.get(b) - combinedScores.get(a)) || a - b);
+    const combos = choose(ordered, 5);
+    const scored = combos.map((combo) => {
+        const sorted = combo.slice().sort((a, b) => a - b);
+        const base = sorted.reduce((sum, num) => sum + combinedScores.get(num), 0);
+        const penalty = evaluateComboPenalty(sorted, train, stats, config.combo);
+        return { combo: sorted, base, penalty, total: base - penalty };
+    }).sort((a, b) => b.total - a.total);
+
+    return {
+        bestCombo: scored[0]?.combo || ordered.slice(0, 5).sort((a, b) => a - b),
+        bestScore: scored[0]?.total || 0,
+        alternatives: scored.slice(0, 5)
+    };
+}
+
+function explainPrediction(train, config, stats) {
+    const snapshot = buildScoringSnapshot(train, config);
+    const ranking = [...snapshot.combined.entries()]
+        .map(([num, total]) => ({ num, total, ...snapshot.contributions.get(num) }))
+        .sort((a, b) => b.total - a.total || a.num - b.num);
+    const candidatePool = ranking.slice(0, config.candidatePool).map((item) => item.num);
+    const combinationDecision = selectBestCombinationDetailed(candidatePool, snapshot.combined, train, stats, config);
+    const selectedDetails = combinationDecision.bestCombo.map((num) => ({ num, ...snapshot.contributions.get(num) }));
+
+    return {
+        prediction: combinationDecision.bestCombo,
+        ranking,
+        candidatePool,
+        selectedDetails,
+        combinationDecision
+    };
+}
+
 function evaluateComboPenalty(combo, train, stats, comboCfg) {
     const sum = combo.reduce((acc, num) => acc + num, 0);
     const oddCount = combo.filter((num) => num % 2 !== 0).length;
     const spread = combo[combo.length - 1] - combo[0];
-    const overlapWithRecent = train[0].nums.filter((num) => combo.includes(num)).length;
+    const overlapWithRecent = (train[0]?.nums || []).filter((num) => combo.includes(num)).length;
     const repeatOverlap = maxHistoricalOverlap(combo, train);
     const tailCounts = Array(10).fill(0);
     const zoneCounts = [0, 0, 0, 0];
@@ -792,6 +763,7 @@ function evaluateComboPenalty(combo, train, stats, comboCfg) {
     const maxTailCount = Math.max(...tailCounts);
     if (maxTailCount > 3) penalty += (maxTailCount - 3) * comboCfg.tailPenaltyWeight;
     if (zoneCounts.some((count) => count === combo.length)) penalty += comboCfg.zonePenaltyWeight;
+
     let longestRun = 1;
     let currentRun = 1;
     for (let i = 1; i < combo.length; i += 1) {
@@ -807,11 +779,6 @@ function evaluateComboPenalty(combo, train, stats, comboCfg) {
     return penalty;
 }
 
-function deviationPenalty(value, mean, stdev) {
-    const safeStdev = Math.max(stdev, 1);
-    return Math.abs(value - mean) / safeStdev;
-}
-
 function compareSegments(a, b) {
     const aFlat = a.flatMap((draw) => draw.nums);
     const bFlat = b.flatMap((draw) => draw.nums);
@@ -819,6 +786,11 @@ function compareSegments(a, b) {
     const tailOverlap = aFlat.filter((num) => bFlat.some((candidate) => candidate % 10 === num % 10)).length / Math.max(1, aFlat.length);
     const zoneOverlap = aFlat.filter((num) => bFlat.some((candidate) => getZoneIndex(candidate) === getZoneIndex(num))).length / Math.max(1, aFlat.length);
     return (directOverlap * 0.5) + (tailOverlap * 0.2) + (zoneOverlap * 0.3);
+}
+
+function deviationPenalty(value, mean, stdev) {
+    const safeStdev = Math.max(stdev, 1);
+    return Math.abs(value - mean) / safeStdev;
 }
 
 function maxHistoricalOverlap(combo, train) {
@@ -832,43 +804,38 @@ function maxHistoricalOverlap(combo, train) {
 
 function createScoreMap() {
     const scores = new Map();
-    for (let n = 1; n <= BALL_COUNT; n += 1) {
-        scores.set(n, 0);
-    }
+    for (let n = 1; n <= BALL_COUNT; n += 1) scores.set(n, 0);
     return scores;
 }
 
 function normalizeScores(scoreMap) {
     const values = [...scoreMap.values()];
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const range = Math.max(max - min, 1e-9);
+    const max = Math.max(...values, 1);
+    const min = Math.min(...values, 0);
     const normalized = new Map();
-    scoreMap.forEach((value, key) => {
-        normalized.set(key, (value - min) / range);
-    });
+    for (let n = 1; n <= BALL_COUNT; n += 1) {
+        normalized.set(n, max === min ? 0 : (scoreMap.get(n) - min) / (max - min));
+    }
     return normalized;
 }
 
-function getOmissions(history) {
+function getOmissions(train) {
     const omit = {};
-    for (let n = 1; n <= BALL_COUNT; n += 1) omit[n] = 0;
     for (let n = 1; n <= BALL_COUNT; n += 1) {
-        let gap = 0;
-        for (const draw of history) {
+        let count = 0;
+        for (const draw of train) {
             if (draw.nums.includes(n)) break;
-            gap += 1;
+            count += 1;
         }
-        omit[n] = gap;
+        omit[n] = count;
     }
     return omit;
 }
 
-function getOmissionVelocity(num, history) {
+function getOmissionVelocity(num, train) {
     const gaps = [];
     let currentGap = 0;
-
-    for (const draw of history) {
+    for (const draw of train) {
         if (draw.nums.includes(num)) {
             gaps.push(currentGap);
             currentGap = 0;
@@ -876,20 +843,10 @@ function getOmissionVelocity(num, history) {
             currentGap += 1;
         }
     }
-
-    if (!gaps.length) return 0;
-    const avgGap = gaps.reduce((sum, value) => sum + value, 0) / gaps.length;
-    const delta = currentGap - avgGap;
-    if (Math.abs(delta) <= 1) return 1.4;
-    if (delta > 1) return 0.8;
-    return 0.2;
-}
-
-function calcStats(values) {
-    if (!values.length) return { mean: 0, stdev: 1 };
-    const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
-    const variance = values.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / values.length;
-    return { mean, stdev: Math.sqrt(variance) };
+    if (gaps.length < 2) return currentGap * 0.03;
+    const latest = gaps[0];
+    const mean = gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length;
+    return Math.max(0, latest - mean) * 0.05;
 }
 
 function getZoneIndex(num) {
@@ -900,36 +857,30 @@ function getZoneIndex(num) {
 }
 
 function getZoneNumbers(zoneIndex) {
-    const ranges = [
-        [1, 10],
-        [11, 20],
-        [21, 30],
-        [31, 39]
-    ];
-    const [start, end] = ranges[zoneIndex];
-    const nums = [];
-    for (let value = start; value <= end; value += 1) nums.push(value);
-    return nums;
+    if (zoneIndex === 0) return Array.from({ length: 10 }, (_, i) => i + 1);
+    if (zoneIndex === 1) return Array.from({ length: 10 }, (_, i) => i + 11);
+    if (zoneIndex === 2) return Array.from({ length: 10 }, (_, i) => i + 21);
+    return Array.from({ length: 9 }, (_, i) => i + 31);
 }
 
-function choose(items, count) {
+function choose(array, size) {
     const results = [];
     const path = [];
 
-    function backtrack(start) {
-        if (path.length === count) {
+    function walk(start) {
+        if (path.length === size) {
             results.push(path.slice());
             return;
         }
-        for (let i = start; i <= items.length - (count - path.length); i += 1) {
-            path.push(items[i]);
-            backtrack(i + 1);
+        for (let i = start; i < array.length; i += 1) {
+            path.push(array[i]);
+            walk(i + 1);
             path.pop();
         }
     }
 
-    backtrack(0);
-    return results.length ? results : [items.slice(0, count)];
+    if (array.length >= size) walk(0);
+    return results;
 }
 
 function summarizeConfig(config) {
@@ -1012,7 +963,7 @@ function summarizeConfig(config) {
                 const result = await response.json();
                 const rawData = typeof result === "string" ? result : (typeof result.data === "string" ? result.data : "");
                 if (!rawData.trim()) {
-                    throw new Error("API 沒有回傳可用資料。");
+                    throw new Error("API 沒有回傳可用資料");
                 }
 
                 const lines = rawData.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
@@ -1036,10 +987,10 @@ function summarizeConfig(config) {
                     }));
 
                 if (draws.length < MIN_DRAW_COUNT) {
-                    throw new Error(`有效資料不足 ${MIN_DRAW_COUNT} 期。`);
+                    throw new Error(`資料不足，至少需要 ${MIN_DRAW_COUNT} 期`);
                 }
 
-                addLog(`同步完成，共載入 ${draws.length} 期。`, "green-500");
+                addLog(`同步完成，共載入 ${draws.length} 期`, "green-500");
                 ensureWorker().postMessage({ type: "analyze", payload: { draws } });
             } catch (error) {
                 addLog(`同步失敗：${error.message}`, "red-500");
@@ -1047,42 +998,71 @@ function summarizeConfig(config) {
             }
         }
 
+        function formatDebugTrace(debug) {
+            if (!debug) {
+                return "目前沒有可顯示的 debug 資料。";
+            }
+
+            const selectedLines = debug.selectedDetails.map((item) =>
+                `${formatNumber(item.num)} | total ${item.total.toFixed(3)} | R ${item.recency.toFixed(3)} C ${item.cooccurrence.toFixed(3)} P ${item.pattern.toFixed(3)} O ${item.omission.toFixed(3)} T ${item.tail.toFixed(3)} Z ${item.zone.toFixed(3)} K ${item.consistency.toFixed(3)}`
+            );
+
+            const comboLines = debug.combinationDecision.alternatives.map((item, index) =>
+                `${index + 1}. ${item.combo.map(formatNumber).join(" ")} | base ${item.base.toFixed(3)} | penalty ${item.penalty.toFixed(3)} | total ${item.total.toFixed(3)}`
+            );
+
+            const rankingLines = debug.ranking.map((item, index) =>
+                `${String(index + 1).padStart(2, "0")}. ${formatNumber(item.num)} | total ${item.total.toFixed(3)} | R ${item.recency.toFixed(3)} C ${item.cooccurrence.toFixed(3)} P ${item.pattern.toFixed(3)} O ${item.omission.toFixed(3)} T ${item.tail.toFixed(3)} Z ${item.zone.toFixed(3)} K ${item.consistency.toFixed(3)}`
+            );
+
+            return [
+                `candidatePool: ${debug.candidatePool.map(formatNumber).join(" ")}`,
+                `final prediction: ${debug.prediction.map(formatNumber).join(" ")}`,
+                "",
+                "選中這 5 碼的模型貢獻：",
+                ...selectedLines,
+                "",
+                "最後組合為什麼勝出（Top 5 組合比較）：",
+                ...comboLines,
+                "",
+                "39 個號碼總分排名：",
+                ...rankingLines
+            ].join("\n");
+        }
+
         function updateUI(payload) {
-            const { modelName, configSummary, filterSummary, nextPrediction, metrics, visibleResults, honesty } = payload;
+            const { modelName, configSummary, filterSummary, nextPrediction, debug, metrics, visibleResults, honesty } = payload;
 
             nextPrediction.forEach((num, index) => {
                 document.getElementById(`p${index + 1}`).innerText = num ? formatNumber(num) : "--";
             });
 
             document.getElementById("hitRate").innerText =
-                `測試集 2星/3星/4星/5星：${metrics.rate2.toFixed(1)} / ${metrics.rate3.toFixed(1)} / ${metrics.rate4.toFixed(1)} / ${metrics.rate5.toFixed(1)}`;
+                `測試集 2★ / 3★ / 4★ / 5★：${metrics.rate2.toFixed(1)} / ${metrics.rate3.toFixed(1)} / ${metrics.rate4.toFixed(1)} / ${metrics.rate5.toFixed(1)}`;
 
             document.getElementById("trainRate").innerText =
-                `2星 ${honesty.training.rate2.toFixed(1)}% / 3星 ${honesty.training.rate3.toFixed(1)}%`;
+                `2★ ${honesty.training.rate2.toFixed(1)}% / 3★ ${honesty.training.rate3.toFixed(1)}%`;
             document.getElementById("testRate").innerText =
-                `2星 ${honesty.test.rate2.toFixed(1)}% / 3星 ${honesty.test.rate3.toFixed(1)}%`;
+                `2★ ${honesty.test.rate2.toFixed(1)}% / 3★ ${honesty.test.rate3.toFixed(1)}%`;
 
             const warningEl = document.getElementById("overfitWarning");
             if (honesty.warning) {
                 warningEl.className = "mt-2 text-[11px] text-red-400 font-bold";
-                warningEl.innerText = `過擬合警告：訓練與測試差距 ${honesty.gap.toFixed(1)}%，請降低對命中率的信心`;
+                warningEl.innerText = `過擬合警告：訓練集與測試集差距 ${honesty.gap.toFixed(1)}%，請優先參考測試集數字。`;
             } else {
                 warningEl.className = "mt-2 text-[11px] text-green-400";
-                warningEl.innerText = `誠實檢查通過：訓練與測試差距 ${honesty.gap.toFixed(1)}%`;
+                warningEl.innerText = `誠實回測通過，訓練/測試差距 ${honesty.gap.toFixed(1)}%。`;
             }
 
             if (honesty.warning) {
                 setStatus("WARNING", "w-2 h-2 bg-red-500 rounded-full mr-1 animate-pulse");
-            } else if (metrics.rate2 < 100) {
-                setStatus("警戒", "w-2 h-2 bg-red-500 rounded-full mr-1");
-            } else if (metrics.rate2 === 100 && metrics.rate3 > 50) {
-                setStatus("穩定", "w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse");
             } else {
-                setStatus("優化中", "w-2 h-2 bg-orange-500 rounded-full mr-1 animate-pulse");
+                setStatus("READY", "w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse");
             }
 
             document.getElementById("modelMeta").innerText =
                 `${modelName} | ${configSummary} | ${filterSummary} | 測試樣本 ${metrics.testCount} 期`;
+            document.getElementById("debugTrace").innerText = formatDebugTrace(debug);
 
             const rows = visibleResults.length
                 ? visibleResults.map((result) => {
@@ -1106,9 +1086,10 @@ function summarizeConfig(config) {
                 : `<tr><td colspan="5" class="text-center py-10 text-gray-600 font-mono italic">沒有可顯示的回測資料</td></tr>`;
 
             document.getElementById("historyTable").innerHTML = rows;
-            addLog(`訓練集：2星 ${honesty.training.rate2.toFixed(1)}%，3星 ${honesty.training.rate3.toFixed(1)}%。`, "green-500");
-            addLog(`測試集：2星 ${honesty.test.rate2.toFixed(1)}%，3星 ${honesty.test.rate3.toFixed(1)}%。`, honesty.warning ? "red-500" : "orange-400");
-            addLog(`下一期推薦：${nextPrediction.map(formatNumber).join(" ")}`, "orange-400");
+
+            addLog(`訓練集：2★ ${honesty.training.rate2.toFixed(1)}% / 3★ ${honesty.training.rate3.toFixed(1)}%`, "green-500");
+            addLog(`測試集：2★ ${honesty.test.rate2.toFixed(1)}% / 3★ ${honesty.test.rate3.toFixed(1)}%`, honesty.warning ? "red-500" : "orange-400");
+            addLog(`下一期預測：${nextPrediction.map(formatNumber).join(" ")}`, "orange-400");
         }
 
         ensureWorker();
