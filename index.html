@@ -261,41 +261,66 @@ function buildHistoricalStats(draws) {
 
 async function heuristicSearch(split, stats) {
     const isSmall = split.train.length < 120;
-    const windowSets = isSmall ? [30, 36, 48] : [30, 36, 42, 48, 60];
-    const scoreSets = [
-        { recency: 1.2, cooccurrence: 1.0, pattern: 0.9, omission: 0.7, tail: 0.45, zone: 0.40, consistency: 0.45 },
-        { recency: 1.0, cooccurrence: 1.2, pattern: 1.0, omission: 0.6, tail: 0.55, zone: 0.45, consistency: 0.50 },
-        { recency: 1.35, cooccurrence: 0.95, pattern: 0.75, omission: 0.95, tail: 0.40, zone: 0.35, consistency: 0.75 },
-        { recency: 1.15, cooccurrence: 1.05, pattern: 0.80, omission: 0.85, tail: 0.60, zone: 0.35, consistency: 0.65 }
-    ];
-    const recencySets = [
-        { depth: 14, hotWeight: 1.7, omitThreshold: 5, omitWeight: 0.12, nearWeight: 0.14, zoneWeight: 0.12 },
-        { depth: 18, hotWeight: 1.9, omitThreshold: 6, omitWeight: 0.14, nearWeight: 0.18, zoneWeight: 0.16 },
-        { depth: 24, hotWeight: 1.6, omitThreshold: 7, omitWeight: 0.20, nearWeight: 0.12, zoneWeight: 0.10 }
-    ];
-    const cooccurrenceSets = [
-        { depth: 24, recentDepth: 2, overlapWeight: 0.45, tailWeight: 0.20, neighborWeight: 0.10 },
-        { depth: 32, recentDepth: 3, overlapWeight: 0.50, tailWeight: 0.20, neighborWeight: 0.15 },
-        { depth: 40, recentDepth: 4, overlapWeight: 0.60, tailWeight: 0.15, neighborWeight: 0.18 }
-    ];
-    const patternSets = [
-        { segment: 2, minSimilarity: 0.60, reward: 1.6, maxMatches: 4, offsetWeight: 0.25 },
-        { segment: 3, minSimilarity: 0.56, reward: 1.8, maxMatches: 6, offsetWeight: 0.35 },
-        { segment: 4, minSimilarity: 0.52, reward: 1.4, maxMatches: 5, offsetWeight: 0.25 }
-    ];
-    const tailCycleSets = [
-        { depth: 30, hotWeight: 0.35, missWeight: 0.45 },
-        { depth: 36, hotWeight: 0.25, missWeight: 0.60 }
-    ];
-    const zoneBalanceSets = [
-        { depth: 20, reward: 0.55 },
-        { depth: 24, reward: 0.70 }
-    ];
-    const poolSizes = isSmall ? [8, 10, 12] : [8, 10, 12];
-    const comboSets = [
-        { sumWeight: 0.12, oddWeight: 0.45, overlapWeight: 0.65, spreadWeight: 0.40, tailPenaltyWeight: 0.60, zonePenaltyWeight: 1.50 },
-        { sumWeight: 0.08, oddWeight: 0.30, overlapWeight: 0.30, spreadWeight: 0.20, tailPenaltyWeight: 0.35, zonePenaltyWeight: 0.90 }
-    ];
+    const windowSets = isSmall ? [30, 36] : [30, 36, 48];
+    const scoreSets = isSmall
+        ? [
+            { recency: 1.35, cooccurrence: 0.95, pattern: 0.75, omission: 0.95, tail: 0.40, zone: 0.35, consistency: 0.75 },
+            { recency: 1.15, cooccurrence: 1.05, pattern: 0.80, omission: 0.85, tail: 0.60, zone: 0.35, consistency: 0.65 }
+        ]
+        : [
+            { recency: 1.2, cooccurrence: 1.0, pattern: 0.9, omission: 0.7, tail: 0.45, zone: 0.40, consistency: 0.45 },
+            { recency: 1.0, cooccurrence: 1.2, pattern: 1.0, omission: 0.6, tail: 0.55, zone: 0.45, consistency: 0.50 },
+            { recency: 1.35, cooccurrence: 0.95, pattern: 0.75, omission: 0.95, tail: 0.40, zone: 0.35, consistency: 0.75 }
+        ];
+    const recencySets = isSmall
+        ? [
+            { depth: 18, hotWeight: 1.9, omitThreshold: 6, omitWeight: 0.14, nearWeight: 0.18, zoneWeight: 0.16 },
+            { depth: 24, hotWeight: 1.6, omitThreshold: 7, omitWeight: 0.20, nearWeight: 0.12, zoneWeight: 0.10 }
+        ]
+        : [
+            { depth: 14, hotWeight: 1.7, omitThreshold: 5, omitWeight: 0.12, nearWeight: 0.14, zoneWeight: 0.12 },
+            { depth: 18, hotWeight: 1.9, omitThreshold: 6, omitWeight: 0.14, nearWeight: 0.18, zoneWeight: 0.16 },
+            { depth: 24, hotWeight: 1.6, omitThreshold: 7, omitWeight: 0.20, nearWeight: 0.12, zoneWeight: 0.10 }
+        ];
+    const cooccurrenceSets = isSmall
+        ? [
+            { depth: 24, recentDepth: 2, overlapWeight: 0.45, tailWeight: 0.20, neighborWeight: 0.10 },
+            { depth: 32, recentDepth: 3, overlapWeight: 0.50, tailWeight: 0.20, neighborWeight: 0.15 }
+        ]
+        : [
+            { depth: 24, recentDepth: 2, overlapWeight: 0.45, tailWeight: 0.20, neighborWeight: 0.10 },
+            { depth: 32, recentDepth: 3, overlapWeight: 0.50, tailWeight: 0.20, neighborWeight: 0.15 },
+            { depth: 40, recentDepth: 4, overlapWeight: 0.60, tailWeight: 0.15, neighborWeight: 0.18 }
+        ];
+    const patternSets = isSmall
+        ? [
+            { segment: 2, minSimilarity: 0.60, reward: 1.6, maxMatches: 4, offsetWeight: 0.25 },
+            { segment: 3, minSimilarity: 0.56, reward: 1.8, maxMatches: 6, offsetWeight: 0.35 }
+        ]
+        : [
+            { segment: 2, minSimilarity: 0.60, reward: 1.6, maxMatches: 4, offsetWeight: 0.25 },
+            { segment: 3, minSimilarity: 0.56, reward: 1.8, maxMatches: 6, offsetWeight: 0.35 },
+            { segment: 4, minSimilarity: 0.52, reward: 1.4, maxMatches: 5, offsetWeight: 0.25 }
+        ];
+    const tailCycleSets = isSmall
+        ? [{ depth: 30, hotWeight: 0.35, missWeight: 0.45 }]
+        : [
+            { depth: 30, hotWeight: 0.35, missWeight: 0.45 },
+            { depth: 36, hotWeight: 0.25, missWeight: 0.60 }
+        ];
+    const zoneBalanceSets = isSmall
+        ? [{ depth: 20, reward: 0.55 }]
+        : [
+            { depth: 20, reward: 0.55 },
+            { depth: 24, reward: 0.70 }
+        ];
+    const poolSizes = isSmall ? [8, 10] : [8, 10, 12];
+    const comboSets = isSmall
+        ? [{ sumWeight: 0.08, oddWeight: 0.30, overlapWeight: 0.30, spreadWeight: 0.20, tailPenaltyWeight: 0.35, zonePenaltyWeight: 0.90 }]
+        : [
+            { sumWeight: 0.12, oddWeight: 0.45, overlapWeight: 0.65, spreadWeight: 0.40, tailPenaltyWeight: 0.60, zonePenaltyWeight: 1.50 },
+            { sumWeight: 0.08, oddWeight: 0.30, overlapWeight: 0.30, spreadWeight: 0.20, tailPenaltyWeight: 0.35, zonePenaltyWeight: 0.90 }
+        ];
 
     const eligibleWindows = windowSets.filter((windowSize) => (split.train.length - windowSize) >= 5);
     let best = null;
@@ -451,8 +476,11 @@ function buildPrediction(train, config, stats, useFullCombo = false) {
         .slice(0, config.candidatePool)
         .map(([num]) => num);
 
-    const selectionPool = useFullCombo ? candidatePool : candidatePool.slice(0, Math.min(candidatePool.length, 9));
-    return selectBestCombination(selectionPool, combinedScores, train, stats, config);
+    if (!useFullCombo) {
+        return selectGreedyPrediction(candidatePool, combinedScores, train, stats, config);
+    }
+
+    return selectBestCombination(candidatePool, combinedScores, train, stats, config);
 }
 
 function buildScoringSnapshot(train, config) {
@@ -715,6 +743,29 @@ function selectBestCombination(candidatePool, combinedScores, train, stats, conf
     });
 
     return bestCombo;
+}
+
+function selectGreedyPrediction(candidatePool, combinedScores, train, stats, config) {
+    const ordered = candidatePool.slice().sort((a, b) => (combinedScores.get(b) - combinedScores.get(a)) || a - b);
+    const picked = [];
+
+    for (const num of ordered) {
+        const trial = picked.concat(num).sort((a, b) => a - b);
+        const penalty = evaluateComboPenalty(trial, train, stats, config.combo);
+        if (picked.length === 0 || penalty <= 3.2 || picked.length < 3) {
+            picked.push(num);
+        }
+        if (picked.length >= 5) break;
+    }
+
+    if (picked.length < 5) {
+        for (const num of ordered) {
+            if (!picked.includes(num)) picked.push(num);
+            if (picked.length >= 5) break;
+        }
+    }
+
+    return picked.slice(0, 5).sort((a, b) => a - b);
 }
 
 function selectBestCombinationDetailed(candidatePool, combinedScores, train, stats, config) {
