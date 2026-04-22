@@ -112,7 +112,7 @@
     <script id="worker-source" type="text/plain">
 const DISPLAY_ROWS = 10;
 const BALL_COUNT = 39;
-const MIN_DRAW_COUNT = 60;
+const MIN_DRAW_COUNT = 30;
 
 self.onmessage = (event) => {
     const { type, payload } = event.data || {};
@@ -146,7 +146,7 @@ self.onmessage = (event) => {
         );
 
         const nextHistory = chronological.slice(-best.config.windowSize).reverse();
-        const nextPrediction = buildPrediction(nextHistory, best.config, trainStats);
+        const nextPrediction = buildPrediction(nextHistory, best.config, trainStats, true);
         const honestyGap = Math.max(
             Math.abs(best.trainingMetrics.rate2 - testEvaluation.metrics.rate2),
             Math.abs(best.trainingMetrics.rate3 - testEvaluation.metrics.rate3)
@@ -203,25 +203,28 @@ function defaultConfig() {
     return {
         windowSize: 48,
         candidatePool: 10,
-        scoreWeights: { recency: 1.2, cooccurrence: 1.0, pattern: 0.9, omission: 0.7 },
+        scoreWeights: { recency: 1.1, cooccurrence: 1.0, pattern: 0.9, omission: 0.7, tail: 0.5, zone: 0.45, consistency: 0.5 },
         recency: { depth: 14, hotWeight: 1.7, omitThreshold: 5, omitWeight: 0.12, nearWeight: 0.14, zoneWeight: 0.12 },
         cooccurrence: { depth: 32, recentDepth: 3, overlapWeight: 0.5, tailWeight: 0.2, neighborWeight: 0.15 },
         pattern: { segment: 3, minSimilarity: 0.56, reward: 1.8, maxMatches: 6, offsetWeight: 0.35 },
-        combo: { sumWeight: 0.12, oddWeight: 0.45, overlapWeight: 0.65, spreadWeight: 0.4 }
+        tailCycle: { depth: 30, hotWeight: 0.35, missWeight: 0.45 },
+        zoneBalance: { depth: 20, reward: 0.55 },
+        combo: { sumWeight: 0.12, oddWeight: 0.45, overlapWeight: 0.65, spreadWeight: 0.4, tailPenaltyWeight: 0.6, zonePenaltyWeight: 1.5 }
     };
 }
 
 function splitDraws(chronological) {
     const total = chronological.length;
-    const trainEnd = Math.max(1, Math.floor(total * 0.6));
-    const validationEnd = Math.max(trainEnd + 1, Math.floor(total * 0.8));
+    const minWindow = 30;
+    const trainEnd = Math.max(minWindow + 10, Math.floor(total * 0.6));
+    const validationEnd = Math.max(trainEnd + 5, Math.floor(total * 0.8));
 
     const train = chronological.slice(0, trainEnd);
     const validation = chronological.slice(trainEnd, validationEnd);
     const test = chronological.slice(validationEnd);
 
-    if (!train.length || !validation.length || !test.length) {
-        throw new Error("資料切割失敗，請提供更多歷史資料。");
+    if (!train.length || !validation.length || test.length < 3) {
+        throw new Error("資料不足，測試集少於 3 期");
     }
 
     return { train, validation, test };
@@ -247,13 +250,15 @@ function buildHistoricalStats(draws) {
 }
 
 function heuristicSearch(split, stats) {
-    const windows = [30, 36, 42, 48, 60];
-    const scoreSets = [
-        { recency: 1.2, cooccurrence: 1.0, pattern: 0.9, omission: 0.7 },
-        { recency: 1.0, cooccurrence: 1.2, pattern: 1.0, omission: 0.6 },
-        { recency: 1.1, cooccurrence: 0.9, pattern: 1.2, omission: 0.8 }
+    const isSmall = split.train.length < 120;
+    const windowCandidates = isSmall ? [30, 36, 48] : [30, 36, 42, 48, 60];
+    const eligibleWindows = windowCandidates.filter((windowSize) => (split.train.length - windowSize) >= 5);
+    const allScoreSets = [
+        { recency: 1.2, cooccurrence: 1.0, pattern: 0.9, omission: 0.7, tail: 0.45, zone: 0.40, consistency: 0.45 },
+        { recency: 1.0, cooccurrence: 1.2, pattern: 1.0, omission: 0.6, tail: 0.55, zone: 0.45, consistency: 0.50 },
+        { recency: 1.1, cooccurrence: 0.9, pattern: 1.2, omission: 0.8, tail: 0.35, zone: 0.55, consistency: 0.60 }
     ];
-    const recencySets = [
+    const allRecencySets = [
         { depth: 12, hotWeight: 1.7, omitThreshold: 5, omitWeight: 0.12, nearWeight: 0.14, zoneWeight: 0.12 },
         { depth: 14, hotWeight: 1.7, omitThreshold: 5, omitWeight: 0.12, nearWeight: 0.14, zoneWeight: 0.12 },
         { depth: 18, hotWeight: 1.9, omitThreshold: 6, omitWeight: 0.14, nearWeight: 0.18, zoneWeight: 0.16 },
@@ -264,83 +269,122 @@ function heuristicSearch(split, stats) {
         { depth: 32, recentDepth: 3, overlapWeight: 0.50, tailWeight: 0.20, neighborWeight: 0.15 },
         { depth: 40, recentDepth: 4, overlapWeight: 0.55, tailWeight: 0.15, neighborWeight: 0.18 }
     ];
-    const patternSets = [
+    const allPatternSets = [
         { segment: 2, minSimilarity: 0.60, reward: 1.6, maxMatches: 4, offsetWeight: 0.25 },
         { segment: 3, minSimilarity: 0.56, reward: 1.8, maxMatches: 6, offsetWeight: 0.35 },
         { segment: 4, minSimilarity: 0.52, reward: 1.4, maxMatches: 5, offsetWeight: 0.25 }
     ];
-    const poolSizes = [8, 10, 12];
-    const comboSets = [
-        { sumWeight: 0.12, oddWeight: 0.45, overlapWeight: 0.65, spreadWeight: 0.4 },
-        { sumWeight: 0.12, oddWeight: 0.45, overlapWeight: 0.85, spreadWeight: 0.4 }
+    const allTailCycleSets = [
+        { depth: 24, hotWeight: 0.30, missWeight: 0.40 },
+        { depth: 30, hotWeight: 0.35, missWeight: 0.45 },
+        { depth: 36, hotWeight: 0.25, missWeight: 0.55 }
     ];
+    const allZoneBalanceSets = [
+        { depth: 16, reward: 0.45 },
+        { depth: 20, reward: 0.55 },
+        { depth: 24, reward: 0.65 }
+    ];
+    const allPoolSizes = [8, 10, 12];
+    const allComboSets = [
+        { sumWeight: 0.12, oddWeight: 0.45, overlapWeight: 0.65, spreadWeight: 0.4, tailPenaltyWeight: 0.6, zonePenaltyWeight: 1.5 },
+        { sumWeight: 0.12, oddWeight: 0.45, overlapWeight: 0.85, spreadWeight: 0.4, tailPenaltyWeight: 0.6, zonePenaltyWeight: 1.5 }
+    ];
+    const scoreSets = isSmall ? [allScoreSets[0], allScoreSets[1]] : allScoreSets;
+    const recencySets = isSmall ? [allRecencySets[1], allRecencySets[2]] : allRecencySets;
+    const patternSets = isSmall ? [allPatternSets[1]] : allPatternSets;
+    const tailCycleSets = isSmall ? [allTailCycleSets[1]] : allTailCycleSets;
+    const zoneBalanceSets = isSmall ? [allZoneBalanceSets[1]] : allZoneBalanceSets;
+    const poolSizes = isSmall ? [8, 10] : allPoolSizes;
+    const comboSets = isSmall ? [allComboSets[0]] : allComboSets;
 
     let best = null;
     let tested = 0;
+    const totalTests =
+        eligibleWindows.length *
+        scoreSets.length *
+        recencySets.length *
+        cooccurrenceSets.length *
+        patternSets.length *
+        tailCycleSets.length *
+        zoneBalanceSets.length *
+        poolSizes.length *
+        comboSets.length;
 
-    windows.forEach((windowSize) => {
-        scoreSets.forEach((scoreWeights) => {
-            recencySets.forEach((recency) => {
-                cooccurrenceSets.forEach((cooccurrence) => {
-                    patternSets.forEach((pattern) => {
-                        poolSizes.forEach((candidatePool) => {
-                            comboSets.forEach((combo) => {
-                                const config = {
-                                    windowSize,
-                                    candidatePool,
-                                    scoreWeights: { ...scoreWeights },
-                                    recency: { ...recency },
-                                    cooccurrence: { ...cooccurrence },
-                                    pattern: { ...pattern },
-                                    combo: { ...combo }
-                                };
-                                const trainingEvaluation = evaluateChronologicalSegment(split.train, [], config, stats);
-                                const validationEvaluation = evaluateChronologicalSegment(
-                                    split.validation,
-                                    split.train,
-                                    config,
-                                    stats
-                                );
-                                const overfitGap = Math.max(
-                                    Math.abs(trainingEvaluation.metrics.rate2 - validationEvaluation.metrics.rate2),
-                                    Math.abs(trainingEvaluation.metrics.rate3 - validationEvaluation.metrics.rate3)
-                                );
+    outerLoop:
+    for (const windowSize of eligibleWindows) {
+        for (const scoreWeights of scoreSets) {
+            for (const recency of recencySets) {
+                for (const cooccurrence of cooccurrenceSets) {
+                    for (const pattern of patternSets) {
+                        for (const tailCycle of tailCycleSets) {
+                            for (const zoneBalance of zoneBalanceSets) {
+                                for (const candidatePool of poolSizes) {
+                                    for (const combo of comboSets) {
+                                        const config = {
+                                            windowSize,
+                                            candidatePool,
+                                            scoreWeights: { ...scoreWeights },
+                                            recency: { ...recency },
+                                            cooccurrence: { ...cooccurrence },
+                                            pattern: { ...pattern },
+                                            tailCycle: { ...tailCycle },
+                                            zoneBalance: { ...zoneBalance },
+                                            combo: { ...combo }
+                                        };
+                                        const trainingEvaluation = evaluateChronologicalSegment(split.train, [], config, stats);
+                                        if (trainingEvaluation.metrics.testCount < 5) continue;
 
-                                tested += 1;
-                                if (
-                                    !best ||
-                                    validationEvaluation.metrics.rate3 > best.validationMetrics.rate3 ||
-                                    (
-                                        validationEvaluation.metrics.rate3 === best.validationMetrics.rate3 &&
-                                        validationEvaluation.metrics.rate2 > best.validationMetrics.rate2
-                                    ) ||
-                                    (
-                                        validationEvaluation.metrics.rate3 === best.validationMetrics.rate3 &&
-                                        validationEvaluation.metrics.rate2 === best.validationMetrics.rate2 &&
-                                        overfitGap < best.overfitGap
-                                    ) ||
-                                    (
-                                        validationEvaluation.metrics.rate3 === best.validationMetrics.rate3 &&
-                                        validationEvaluation.metrics.rate2 === best.validationMetrics.rate2 &&
-                                        overfitGap === best.overfitGap &&
-                                        validationEvaluation.metrics.objective > best.validationMetrics.objective
-                                    )
-                                ) {
-                                    best = {
-                                        config,
-                                        trainingMetrics: trainingEvaluation.metrics,
-                                        trainingResults: trainingEvaluation.results,
-                                        validationMetrics: validationEvaluation.metrics,
-                                        overfitGap
-                                    };
+                                        const validationEvaluation = evaluateChronologicalSegment(
+                                            split.validation,
+                                            split.train,
+                                            config,
+                                            stats
+                                        );
+                                        const overfitGap = Math.max(
+                                            Math.abs(trainingEvaluation.metrics.rate2 - validationEvaluation.metrics.rate2),
+                                            Math.abs(trainingEvaluation.metrics.rate3 - validationEvaluation.metrics.rate3)
+                                        );
+                                        const validationScore =
+                                            (validationEvaluation.metrics.rate3 * 3.0) +
+                                            (validationEvaluation.metrics.rate2 * 1.0) -
+                                            (overfitGap * 0.5);
+
+                                        tested += 1;
+                                        if (!best || validationScore > best.validationScore) {
+                                            best = {
+                                                config,
+                                                trainingMetrics: trainingEvaluation.metrics,
+                                                trainingResults: trainingEvaluation.results,
+                                                validationMetrics: validationEvaluation.metrics,
+                                                overfitGap,
+                                                validationScore
+                                            };
+                                        }
+
+                                        if (tested % 200 === 0) {
+                                            const progress = ((tested / Math.max(1, totalTests)) * 100).toFixed(1);
+                                            const bestRate2 = best ? best.validationMetrics.rate2.toFixed(1) : "0.0";
+                                            const bestRate3 = best ? best.validationMetrics.rate3.toFixed(1) : "0.0";
+                                            log(`搜尋進度 ${progress}% (${tested}/${totalTests})，最佳驗證 2星 ${bestRate2}% / 3星 ${bestRate3}%`, "gray-400");
+                                        }
+
+                                        if (best && best.validationMetrics.rate3 > 55) {
+                                            log(`提前終止搜尋：驗證集 3星已達 ${best.validationMetrics.rate3.toFixed(1)}%`, "green-500");
+                                            break outerLoop;
+                                        }
+                                    }
                                 }
-                            });
-                        });
-                    });
-                });
-            });
-        });
-    });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (!best) {
+        throw new Error("訓練集樣本不足，無法完成有效參數搜尋。");
+    }
 
     log(`參數搜尋完成，共測試 ${tested} 組。`, "green-500");
     log(
@@ -363,7 +407,7 @@ function evaluateChronologicalSegment(segment, historyBefore, config, stats) {
         if (historyPool.length < config.windowSize) continue;
         const train = historyPool.slice(-config.windowSize).reverse();
 
-        const prediction = buildPrediction(train, config, stats);
+        const prediction = buildPrediction(train, config, stats, false);
         const hitNums = prediction.filter((num) => actual.nums.includes(num));
         const hits = hitNums.length;
 
@@ -394,12 +438,16 @@ function evaluateChronologicalSegment(segment, historyBefore, config, stats) {
     return { results, metrics };
 }
 
-function buildPrediction(train, config, stats) {
+function buildPrediction(train, config, stats, useFullCombo = false) {
     const combinedScores = buildCombinedScores(train, config);
     const candidatePool = [...combinedScores.entries()]
         .sort((a, b) => b[1] - a[1] || a[0] - b[0])
         .slice(0, config.candidatePool)
         .map(([num]) => num);
+
+    if (!useFullCombo) {
+        return candidatePool.slice(0, 5).sort((a, b) => a - b);
+    }
 
     return selectBestCombination(candidatePool, combinedScores, train, stats, config);
 }
@@ -409,11 +457,17 @@ function buildCombinedScores(train, config) {
     const cooccurrenceScores = scoreCooccurrenceModel(train, config.cooccurrence);
     const patternScores = scorePatternModel(train, config.pattern);
     const omissionScores = scoreOmissionModel(train, config.recency.omitThreshold, config.recency.omitWeight);
+    const tailScores = scoreTailCycleModel(train, config.tailCycle);
+    const zoneScores = scoreZoneBalanceModel(train, config.zoneBalance);
+    const consistencyScores = scoreConsistencyModel(train, config);
 
     const normalizedRecency = normalizeScores(recencyScores);
     const normalizedCooccurrence = normalizeScores(cooccurrenceScores);
     const normalizedPattern = normalizeScores(patternScores);
     const normalizedOmission = normalizeScores(omissionScores);
+    const normalizedTail = normalizeScores(tailScores);
+    const normalizedZone = normalizeScores(zoneScores);
+    const normalizedConsistency = normalizeScores(consistencyScores);
 
     const combined = new Map();
     for (let n = 1; n <= BALL_COUNT; n += 1) {
@@ -421,7 +475,10 @@ function buildCombinedScores(train, config) {
             (normalizedRecency.get(n) * config.scoreWeights.recency) +
             (normalizedCooccurrence.get(n) * config.scoreWeights.cooccurrence) +
             (normalizedPattern.get(n) * config.scoreWeights.pattern) +
-            (normalizedOmission.get(n) * config.scoreWeights.omission);
+            (normalizedOmission.get(n) * config.scoreWeights.omission) +
+            (normalizedTail.get(n) * config.scoreWeights.tail) +
+            (normalizedZone.get(n) * config.scoreWeights.zone) +
+            (normalizedConsistency.get(n) * config.scoreWeights.consistency);
         combined.set(n, total);
     }
     return combined;
@@ -533,6 +590,106 @@ function scoreOmissionModel(train, omitThreshold, omitWeight) {
     return scores;
 }
 
+function scoreTailCycleModel(train, cfg) {
+    const scores = createScoreMap();
+    const recent = train.slice(0, Math.min(cfg.depth, train.length));
+    const tailFreq = Array(10).fill(0);
+    const tailMiss = Array(10).fill(0);
+
+    recent.forEach((draw) => {
+        draw.nums.forEach((num) => {
+            tailFreq[num % 10] += 1;
+        });
+    });
+
+    for (let tail = 0; tail < 10; tail += 1) {
+        let miss = 0;
+        for (const draw of train) {
+            if (draw.nums.some((num) => num % 10 === tail)) break;
+            miss += 1;
+        }
+        tailMiss[tail] = miss;
+    }
+
+    const meanFreq = tailFreq.reduce((sum, value) => sum + value, 0) / 10;
+    const meanMiss = tailMiss.reduce((sum, value) => sum + value, 0) / 10;
+
+    for (let n = 1; n <= BALL_COUNT; n += 1) {
+        const tail = n % 10;
+        const freqGap = Math.max(0, meanFreq - tailFreq[tail]);
+        const missBoost = Math.max(0, tailMiss[tail] - meanMiss);
+        scores.set(n, scores.get(n) + (freqGap * cfg.hotWeight) + (missBoost * cfg.missWeight));
+    }
+
+    return scores;
+}
+
+function scoreZoneBalanceModel(train, cfg) {
+    const scores = createScoreMap();
+    const recent = train.slice(0, Math.min(cfg.depth, train.length));
+    const zoneCounts = [0, 0, 0, 0];
+
+    recent.forEach((draw) => {
+        draw.nums.forEach((num) => {
+            zoneCounts[getZoneIndex(num)] += 1;
+        });
+    });
+
+    const meanCount = zoneCounts.reduce((sum, value) => sum + value, 0) / zoneCounts.length;
+    for (let n = 1; n <= BALL_COUNT; n += 1) {
+        const zoneIndex = getZoneIndex(n);
+        const deficit = Math.max(0, meanCount - zoneCounts[zoneIndex]);
+        scores.set(n, scores.get(n) + (deficit * cfg.reward));
+    }
+
+    return scores;
+}
+
+function scoreConsistencyModel(train, config) {
+    const scores = createScoreMap();
+    const windows = [20, 25, 30, 35, 40];
+    const hitCounts = Array(BALL_COUNT + 1).fill(0);
+
+    windows.forEach((windowSize) => {
+        const subset = train.slice(0, Math.min(windowSize, train.length));
+        if (subset.length < 10) return;
+
+        const localRecency = normalizeScores(scoreRecencyModel(subset, config.recency));
+        const localCooccurrence = normalizeScores(scoreCooccurrenceModel(subset, config.cooccurrence));
+        const localPattern = normalizeScores(scorePatternModel(subset, config.pattern));
+        const localOmission = normalizeScores(scoreOmissionModel(subset, config.recency.omitThreshold, config.recency.omitWeight));
+        const localTail = normalizeScores(scoreTailCycleModel(subset, config.tailCycle));
+        const localZone = normalizeScores(scoreZoneBalanceModel(subset, config.zoneBalance));
+
+        const localTotals = [];
+        for (let n = 1; n <= BALL_COUNT; n += 1) {
+            localTotals.push({
+                num: n,
+                score:
+                    (localRecency.get(n) * config.scoreWeights.recency) +
+                    (localCooccurrence.get(n) * config.scoreWeights.cooccurrence) +
+                    (localPattern.get(n) * config.scoreWeights.pattern) +
+                    (localOmission.get(n) * config.scoreWeights.omission) +
+                    (localTail.get(n) * config.scoreWeights.tail) +
+                    (localZone.get(n) * config.scoreWeights.zone)
+            });
+        }
+
+        localTotals
+            .sort((a, b) => b.score - a.score || a.num - b.num)
+            .slice(0, config.candidatePool)
+            .forEach((item) => {
+                hitCounts[item.num] += 1;
+            });
+    });
+
+    for (let n = 1; n <= BALL_COUNT; n += 1) {
+        scores.set(n, hitCounts[n]);
+    }
+
+    return scores;
+}
+
 function selectBestCombination(candidatePool, combinedScores, train, stats, config) {
     const ordered = candidatePool.slice().sort((a, b) => (combinedScores.get(b) - combinedScores.get(a)) || a - b);
     if (ordered.length < 5) {
@@ -566,6 +723,13 @@ function evaluateComboPenalty(combo, train, stats, comboCfg) {
     const spread = combo[combo.length - 1] - combo[0];
     const overlapWithRecent = train[0].nums.filter((num) => combo.includes(num)).length;
     const repeatOverlap = maxHistoricalOverlap(combo, train);
+    const tailCounts = Array(10).fill(0);
+    const zoneCounts = [0, 0, 0, 0];
+
+    combo.forEach((num) => {
+        tailCounts[num % 10] += 1;
+        zoneCounts[getZoneIndex(num)] += 1;
+    });
 
     let penalty = 0;
     penalty += deviationPenalty(sum, stats.sum.mean, stats.sum.stdev) * comboCfg.sumWeight;
@@ -573,6 +737,20 @@ function evaluateComboPenalty(combo, train, stats, comboCfg) {
     penalty += deviationPenalty(spread, stats.spread.mean, stats.spread.stdev) * comboCfg.spreadWeight;
     if (overlapWithRecent >= 4) penalty += (overlapWithRecent - 3) * comboCfg.overlapWeight;
     if (repeatOverlap >= 4) penalty += (repeatOverlap - 3) * 1.2;
+    const maxTailCount = Math.max(...tailCounts);
+    if (maxTailCount > 3) penalty += (maxTailCount - 3) * comboCfg.tailPenaltyWeight;
+    if (zoneCounts.some((count) => count === combo.length)) penalty += comboCfg.zonePenaltyWeight;
+    let longestRun = 1;
+    let currentRun = 1;
+    for (let i = 1; i < combo.length; i += 1) {
+        if (combo[i] === combo[i - 1] + 1) {
+            currentRun += 1;
+            longestRun = Math.max(longestRun, currentRun);
+        } else {
+            currentRun = 1;
+        }
+    }
+    if (longestRun >= 3) penalty += 0.8;
 
     return penalty;
 }
@@ -707,6 +885,7 @@ function summarizeConfig(config) {
         `Window ${config.windowSize}`,
         `Pool ${config.candidatePool}`,
         `R/C/P ${config.scoreWeights.recency.toFixed(1)}/${config.scoreWeights.cooccurrence.toFixed(1)}/${config.scoreWeights.pattern.toFixed(1)}`,
+        `T/Z/K ${config.scoreWeights.tail.toFixed(1)}/${config.scoreWeights.zone.toFixed(1)}/${config.scoreWeights.consistency.toFixed(1)}`,
         `Seg ${config.pattern.segment}`
     ].join(" | ");
 }
@@ -714,7 +893,7 @@ function summarizeConfig(config) {
 
     <script>
         const API_URL = "https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec";
-        const MIN_DRAW_COUNT = 60;
+        const MIN_DRAW_COUNT = 30;
         let worker = null;
 
         function addLog(message, color = "gray-500") {
