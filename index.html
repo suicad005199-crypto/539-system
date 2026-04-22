@@ -155,7 +155,7 @@ self.onmessage = (event) => {
         self.postMessage({
             type: "analysis",
             payload: {
-                modelName: "v9.50 誠實回測版",
+                modelName: "v9.51 誠實回測版",
                 config: best.config,
                 configSummary: summarizeConfig(best.config),
                 filterSummary: "Train 60% / Validation 20% / Test 20% 嚴格切割",
@@ -176,7 +176,7 @@ self.onmessage = (event) => {
         self.postMessage({
             type: "analysis",
             payload: {
-                modelName: "v9.50 誠實回測版",
+                modelName: "v9.51 誠實回測版",
                 config: defaultConfig(),
                 configSummary: "已退回預設參數",
                 filterSummary: "Worker 錯誤",
@@ -204,10 +204,10 @@ function defaultConfig() {
         windowSize: 48,
         candidatePool: 10,
         scoreWeights: { recency: 1.2, cooccurrence: 1.0, pattern: 0.9, omission: 0.7 },
-        recency: { depth: 18, hotWeight: 1.9, omitThreshold: 6, omitWeight: 0.14, nearWeight: 0.18, zoneWeight: 0.16 },
+        recency: { depth: 14, hotWeight: 1.7, omitThreshold: 5, omitWeight: 0.12, nearWeight: 0.14, zoneWeight: 0.12 },
         cooccurrence: { depth: 32, recentDepth: 3, overlapWeight: 0.5, tailWeight: 0.2, neighborWeight: 0.15 },
         pattern: { segment: 3, minSimilarity: 0.56, reward: 1.8, maxMatches: 6, offsetWeight: 0.35 },
-        combo: { sumWeight: 0.12, oddWeight: 0.45, overlapWeight: 0.85, spreadWeight: 0.4 }
+        combo: { sumWeight: 0.12, oddWeight: 0.45, overlapWeight: 0.65, spreadWeight: 0.4 }
     };
 }
 
@@ -247,13 +247,14 @@ function buildHistoricalStats(draws) {
 }
 
 function heuristicSearch(split, stats) {
-    const windows = [36, 48, 60];
+    const windows = [30, 36, 42, 48, 60];
     const scoreSets = [
         { recency: 1.2, cooccurrence: 1.0, pattern: 0.9, omission: 0.7 },
         { recency: 1.0, cooccurrence: 1.2, pattern: 1.0, omission: 0.6 },
         { recency: 1.1, cooccurrence: 0.9, pattern: 1.2, omission: 0.8 }
     ];
     const recencySets = [
+        { depth: 12, hotWeight: 1.7, omitThreshold: 5, omitWeight: 0.12, nearWeight: 0.14, zoneWeight: 0.12 },
         { depth: 14, hotWeight: 1.7, omitThreshold: 5, omitWeight: 0.12, nearWeight: 0.14, zoneWeight: 0.12 },
         { depth: 18, hotWeight: 1.9, omitThreshold: 6, omitWeight: 0.14, nearWeight: 0.18, zoneWeight: 0.16 },
         { depth: 24, hotWeight: 1.5, omitThreshold: 7, omitWeight: 0.18, nearWeight: 0.10, zoneWeight: 0.10 }
@@ -269,6 +270,10 @@ function heuristicSearch(split, stats) {
         { segment: 4, minSimilarity: 0.52, reward: 1.4, maxMatches: 5, offsetWeight: 0.25 }
     ];
     const poolSizes = [8, 10, 12];
+    const comboSets = [
+        { sumWeight: 0.12, oddWeight: 0.45, overlapWeight: 0.65, spreadWeight: 0.4 },
+        { sumWeight: 0.12, oddWeight: 0.45, overlapWeight: 0.85, spreadWeight: 0.4 }
+    ];
 
     let best = null;
     let tested = 0;
@@ -279,40 +284,57 @@ function heuristicSearch(split, stats) {
                 cooccurrenceSets.forEach((cooccurrence) => {
                     patternSets.forEach((pattern) => {
                         poolSizes.forEach((candidatePool) => {
-                            const config = {
-                                windowSize,
-                                candidatePool,
-                                scoreWeights: { ...scoreWeights },
-                                recency: { ...recency },
-                                cooccurrence: { ...cooccurrence },
-                                pattern: { ...pattern },
-                                combo: { ...defaultConfig().combo }
-                            };
-                            const trainingEvaluation = evaluateChronologicalSegment(split.train, [], config, stats);
-                            const validationEvaluation = evaluateChronologicalSegment(
-                                split.validation,
-                                split.train,
-                                config,
-                                stats
-                            );
-                            tested += 1;
-                            if (
-                                !best ||
-                                validationEvaluation.metrics.rate3 > best.validationMetrics.rate3 ||
-                                (validationEvaluation.metrics.rate3 === best.validationMetrics.rate3 && validationEvaluation.metrics.rate2 > best.validationMetrics.rate2) ||
-                                (
-                                    validationEvaluation.metrics.rate3 === best.validationMetrics.rate3 &&
-                                    validationEvaluation.metrics.rate2 === best.validationMetrics.rate2 &&
-                                    trainingEvaluation.metrics.objective > best.trainingMetrics.objective
-                                )
-                            ) {
-                                best = {
-                                    config,
-                                    trainingMetrics: trainingEvaluation.metrics,
-                                    trainingResults: trainingEvaluation.results,
-                                    validationMetrics: validationEvaluation.metrics
+                            comboSets.forEach((combo) => {
+                                const config = {
+                                    windowSize,
+                                    candidatePool,
+                                    scoreWeights: { ...scoreWeights },
+                                    recency: { ...recency },
+                                    cooccurrence: { ...cooccurrence },
+                                    pattern: { ...pattern },
+                                    combo: { ...combo }
                                 };
-                            }
+                                const trainingEvaluation = evaluateChronologicalSegment(split.train, [], config, stats);
+                                const validationEvaluation = evaluateChronologicalSegment(
+                                    split.validation,
+                                    split.train,
+                                    config,
+                                    stats
+                                );
+                                const overfitGap = Math.max(
+                                    Math.abs(trainingEvaluation.metrics.rate2 - validationEvaluation.metrics.rate2),
+                                    Math.abs(trainingEvaluation.metrics.rate3 - validationEvaluation.metrics.rate3)
+                                );
+
+                                tested += 1;
+                                if (
+                                    !best ||
+                                    validationEvaluation.metrics.rate3 > best.validationMetrics.rate3 ||
+                                    (
+                                        validationEvaluation.metrics.rate3 === best.validationMetrics.rate3 &&
+                                        validationEvaluation.metrics.rate2 > best.validationMetrics.rate2
+                                    ) ||
+                                    (
+                                        validationEvaluation.metrics.rate3 === best.validationMetrics.rate3 &&
+                                        validationEvaluation.metrics.rate2 === best.validationMetrics.rate2 &&
+                                        overfitGap < best.overfitGap
+                                    ) ||
+                                    (
+                                        validationEvaluation.metrics.rate3 === best.validationMetrics.rate3 &&
+                                        validationEvaluation.metrics.rate2 === best.validationMetrics.rate2 &&
+                                        overfitGap === best.overfitGap &&
+                                        validationEvaluation.metrics.objective > best.validationMetrics.objective
+                                    )
+                                ) {
+                                    best = {
+                                        config,
+                                        trainingMetrics: trainingEvaluation.metrics,
+                                        trainingResults: trainingEvaluation.results,
+                                        validationMetrics: validationEvaluation.metrics,
+                                        overfitGap
+                                    };
+                                }
+                            });
                         });
                     });
                 });
@@ -322,7 +344,7 @@ function heuristicSearch(split, stats) {
 
     log(`參數搜尋完成，共測試 ${tested} 組。`, "green-500");
     log(
-        `驗證集最佳結果：2星 ${best.validationMetrics.rate2.toFixed(1)}%，3星 ${best.validationMetrics.rate3.toFixed(1)}%。`,
+        `驗證集最佳結果：2星 ${best.validationMetrics.rate2.toFixed(1)}%，3星 ${best.validationMetrics.rate3.toFixed(1)}%，落差 ${best.overfitGap.toFixed(1)}%。`,
         "orange-400"
     );
     return best;
