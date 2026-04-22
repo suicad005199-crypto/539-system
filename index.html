@@ -404,8 +404,10 @@ function evaluateChronologicalSegment(segment, historyBefore, config, stats) {
     for (let i = 0; i < segment.length; i += 1) {
         const actual = segment[i];
         const historyPool = historyBefore.concat(segment.slice(0, i));
-        if (historyPool.length < config.windowSize) continue;
-        const train = historyPool.slice(-config.windowSize).reverse();
+        const minRequiredHistory = historyBefore.length === 0 ? Math.min(config.windowSize, 20) : config.windowSize;
+        if (historyPool.length < minRequiredHistory) continue;
+        const effectiveWindow = Math.min(config.windowSize, historyPool.length);
+        const train = historyPool.slice(-effectiveWindow).reverse();
 
         const prediction = buildPrediction(train, config, stats, false);
         const hitNums = prediction.filter((num) => actual.nums.includes(num));
@@ -438,6 +440,24 @@ function evaluateChronologicalSegment(segment, historyBefore, config, stats) {
     return { results, metrics };
 }
 
+function buildBaseNormalizedScores(train, config) {
+    const recencyScores = scoreRecencyModel(train, config.recency);
+    const cooccurrenceScores = scoreCooccurrenceModel(train, config.cooccurrence);
+    const patternScores = scorePatternModel(train, config.pattern);
+    const omissionScores = scoreOmissionModel(train, config.recency.omitThreshold, config.recency.omitWeight);
+    const tailScores = scoreTailCycleModel(train, config.tailCycle);
+    const zoneScores = scoreZoneBalanceModel(train, config.zoneBalance);
+
+    return {
+        recency: normalizeScores(recencyScores),
+        cooccurrence: normalizeScores(cooccurrenceScores),
+        pattern: normalizeScores(patternScores),
+        omission: normalizeScores(omissionScores),
+        tail: normalizeScores(tailScores),
+        zone: normalizeScores(zoneScores)
+    };
+}
+
 function buildPrediction(train, config, stats, useFullCombo = false) {
     const combinedScores = buildCombinedScores(train, config);
     const candidatePool = [...combinedScores.entries()]
@@ -453,31 +473,20 @@ function buildPrediction(train, config, stats, useFullCombo = false) {
 }
 
 function buildCombinedScores(train, config) {
-    const recencyScores = scoreRecencyModel(train, config.recency);
-    const cooccurrenceScores = scoreCooccurrenceModel(train, config.cooccurrence);
-    const patternScores = scorePatternModel(train, config.pattern);
-    const omissionScores = scoreOmissionModel(train, config.recency.omitThreshold, config.recency.omitWeight);
-    const tailScores = scoreTailCycleModel(train, config.tailCycle);
-    const zoneScores = scoreZoneBalanceModel(train, config.zoneBalance);
+    const baseScores = buildBaseNormalizedScores(train, config);
     const consistencyScores = scoreConsistencyModel(train, config);
 
-    const normalizedRecency = normalizeScores(recencyScores);
-    const normalizedCooccurrence = normalizeScores(cooccurrenceScores);
-    const normalizedPattern = normalizeScores(patternScores);
-    const normalizedOmission = normalizeScores(omissionScores);
-    const normalizedTail = normalizeScores(tailScores);
-    const normalizedZone = normalizeScores(zoneScores);
     const normalizedConsistency = normalizeScores(consistencyScores);
 
     const combined = new Map();
     for (let n = 1; n <= BALL_COUNT; n += 1) {
         const total =
-            (normalizedRecency.get(n) * config.scoreWeights.recency) +
-            (normalizedCooccurrence.get(n) * config.scoreWeights.cooccurrence) +
-            (normalizedPattern.get(n) * config.scoreWeights.pattern) +
-            (normalizedOmission.get(n) * config.scoreWeights.omission) +
-            (normalizedTail.get(n) * config.scoreWeights.tail) +
-            (normalizedZone.get(n) * config.scoreWeights.zone) +
+            (baseScores.recency.get(n) * config.scoreWeights.recency) +
+            (baseScores.cooccurrence.get(n) * config.scoreWeights.cooccurrence) +
+            (baseScores.pattern.get(n) * config.scoreWeights.pattern) +
+            (baseScores.omission.get(n) * config.scoreWeights.omission) +
+            (baseScores.tail.get(n) * config.scoreWeights.tail) +
+            (baseScores.zone.get(n) * config.scoreWeights.zone) +
             (normalizedConsistency.get(n) * config.scoreWeights.consistency);
         combined.set(n, total);
     }
@@ -653,25 +662,19 @@ function scoreConsistencyModel(train, config) {
     windows.forEach((windowSize) => {
         const subset = train.slice(0, Math.min(windowSize, train.length));
         if (subset.length < 10) return;
-
-        const localRecency = normalizeScores(scoreRecencyModel(subset, config.recency));
-        const localCooccurrence = normalizeScores(scoreCooccurrenceModel(subset, config.cooccurrence));
-        const localPattern = normalizeScores(scorePatternModel(subset, config.pattern));
-        const localOmission = normalizeScores(scoreOmissionModel(subset, config.recency.omitThreshold, config.recency.omitWeight));
-        const localTail = normalizeScores(scoreTailCycleModel(subset, config.tailCycle));
-        const localZone = normalizeScores(scoreZoneBalanceModel(subset, config.zoneBalance));
+        const localBase = buildBaseNormalizedScores(subset, config);
 
         const localTotals = [];
         for (let n = 1; n <= BALL_COUNT; n += 1) {
             localTotals.push({
                 num: n,
                 score:
-                    (localRecency.get(n) * config.scoreWeights.recency) +
-                    (localCooccurrence.get(n) * config.scoreWeights.cooccurrence) +
-                    (localPattern.get(n) * config.scoreWeights.pattern) +
-                    (localOmission.get(n) * config.scoreWeights.omission) +
-                    (localTail.get(n) * config.scoreWeights.tail) +
-                    (localZone.get(n) * config.scoreWeights.zone)
+                    (localBase.recency.get(n) * config.scoreWeights.recency) +
+                    (localBase.cooccurrence.get(n) * config.scoreWeights.cooccurrence) +
+                    (localBase.pattern.get(n) * config.scoreWeights.pattern) +
+                    (localBase.omission.get(n) * config.scoreWeights.omission) +
+                    (localBase.tail.get(n) * config.scoreWeights.tail) +
+                    (localBase.zone.get(n) * config.scoreWeights.zone)
             });
         }
 
