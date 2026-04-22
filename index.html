@@ -256,7 +256,8 @@ async function heuristicSearch(split, stats) {
     const allScoreSets = [
         { recency: 1.2, cooccurrence: 1.0, pattern: 0.9, omission: 0.7, tail: 0.45, zone: 0.40, consistency: 0.45 },
         { recency: 1.0, cooccurrence: 1.2, pattern: 1.0, omission: 0.6, tail: 0.55, zone: 0.45, consistency: 0.50 },
-        { recency: 1.1, cooccurrence: 0.9, pattern: 1.2, omission: 0.8, tail: 0.35, zone: 0.55, consistency: 0.60 }
+        { recency: 1.1, cooccurrence: 0.9, pattern: 1.2, omission: 0.8, tail: 0.35, zone: 0.55, consistency: 0.60 },
+        { recency: 0.95, cooccurrence: 1.3, pattern: 1.35, omission: 0.65, tail: 0.30, zone: 0.25, consistency: 0.70 }
     ];
     const allRecencySets = [
         { depth: 12, hotWeight: 1.7, omitThreshold: 5, omitWeight: 0.12, nearWeight: 0.14, zoneWeight: 0.12 },
@@ -289,12 +290,12 @@ async function heuristicSearch(split, stats) {
         { sumWeight: 0.12, oddWeight: 0.45, overlapWeight: 0.65, spreadWeight: 0.4, tailPenaltyWeight: 0.6, zonePenaltyWeight: 1.5 },
         { sumWeight: 0.12, oddWeight: 0.45, overlapWeight: 0.85, spreadWeight: 0.4, tailPenaltyWeight: 0.6, zonePenaltyWeight: 1.5 }
     ];
-    const scoreSets = isSmall ? [allScoreSets[0], allScoreSets[1]] : allScoreSets;
+    const scoreSets = isSmall ? [allScoreSets[0], allScoreSets[1], allScoreSets[3]] : allScoreSets;
     const recencySets = isSmall ? [allRecencySets[1], allRecencySets[2]] : allRecencySets;
-    const patternSets = isSmall ? [allPatternSets[1]] : allPatternSets;
+    const patternSets = isSmall ? [allPatternSets[0], allPatternSets[1]] : allPatternSets;
     const tailCycleSets = isSmall ? [allTailCycleSets[1]] : allTailCycleSets;
     const zoneBalanceSets = isSmall ? [allZoneBalanceSets[1]] : allZoneBalanceSets;
-    const poolSizes = isSmall ? [8, 10] : allPoolSizes;
+    const poolSizes = isSmall ? [7, 8, 9] : allPoolSizes;
     const comboSets = isSmall ? [allComboSets[0]] : allComboSets;
 
     let best = null;
@@ -345,9 +346,9 @@ async function heuristicSearch(split, stats) {
                                             Math.abs(trainingEvaluation.metrics.rate3 - validationEvaluation.metrics.rate3)
                                         );
                                         const validationScore =
-                                            (validationEvaluation.metrics.rate3 * 3.0) +
-                                            (validationEvaluation.metrics.rate2 * 1.0) -
-                                            (overfitGap * 0.5);
+                                            (validationEvaluation.metrics.rate3 * 5.0) +
+                                            (validationEvaluation.metrics.rate2 * 0.8) -
+                                            (overfitGap * 0.35);
 
                                         tested += 1;
                                         if (tested > 0 && tested % 50 === 0) {
@@ -469,7 +470,8 @@ function buildPrediction(train, config, stats, useFullCombo = false) {
         .map(([num]) => num);
 
     if (!useFullCombo) {
-        return candidatePool.slice(0, 5).sort((a, b) => a - b);
+        const fastPool = candidatePool.slice(0, Math.min(candidatePool.length, 7));
+        return selectBestCombination(fastPool, combinedScores, train, stats, config);
     }
 
     return selectBestCombination(candidatePool, combinedScores, train, stats, config);
