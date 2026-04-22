@@ -299,6 +299,7 @@ async function heuristicSearch(split, stats) {
     const comboSets = isSmall ? [allComboSets[0]] : allComboSets;
 
     let best = null;
+    let aggressiveBest = null;
     let tested = 0;
     const totalTests =
         eligibleWindows.length *
@@ -349,6 +350,17 @@ async function heuristicSearch(split, stats) {
                                             (validationEvaluation.metrics.rate3 * 5.0) +
                                             (validationEvaluation.metrics.rate2 * 0.8) -
                                             (overfitGap * 0.35);
+                                        const aggressiveScore =
+                                            (validationEvaluation.metrics.rate3 * 8.0) +
+                                            (validationEvaluation.metrics.rate2 * 0.05) +
+                                            (windowSize * 0.12) +
+                                            (cooccurrence.depth * 0.12) +
+                                            (pattern.segment * 1.25) +
+                                            (scoreWeights.pattern * 4.0) +
+                                            (scoreWeights.cooccurrence * 3.0) +
+                                            (scoreWeights.consistency * 3.0) -
+                                            (candidatePool * 0.5) -
+                                            overfitGap;
 
                                         tested += 1;
                                         if (tested > 0 && tested % 50 === 0) {
@@ -362,6 +374,17 @@ async function heuristicSearch(split, stats) {
                                                 validationMetrics: validationEvaluation.metrics,
                                                 overfitGap,
                                                 validationScore
+                                            };
+                                        }
+                                        if (!aggressiveBest || aggressiveScore > aggressiveBest.aggressiveScore) {
+                                            aggressiveBest = {
+                                                config,
+                                                trainingMetrics: trainingEvaluation.metrics,
+                                                trainingResults: trainingEvaluation.results,
+                                                validationMetrics: validationEvaluation.metrics,
+                                                overfitGap,
+                                                validationScore,
+                                                aggressiveScore
                                             };
                                         }
 
@@ -388,6 +411,17 @@ async function heuristicSearch(split, stats) {
 
     if (!best) {
         throw new Error("訓練集樣本不足，無法完成有效參數搜尋。");
+    }
+
+    if (
+        aggressiveBest &&
+        best.validationMetrics.rate3 === 0 &&
+        aggressiveBest.validationMetrics.rate3 === 0 &&
+        aggressiveBest.validationMetrics.rate2 >= 10 &&
+        aggressiveBest.config.windowSize >= best.config.windowSize
+    ) {
+        best = aggressiveBest;
+        log(`啟用衝 3 星模式：改採較長視窗 ${best.config.windowSize} 與較強版路權重。`, "orange-400");
     }
 
     log(`參數搜尋完成，共測試 ${tested} 組。`, "green-500");
