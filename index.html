@@ -69,12 +69,27 @@
             </div>
         </div>
         <div id="modelMeta" class="mt-3 text-[11px] text-gray-500 leading-6">等待同步資料...</div>
+        <div class="mt-2 text-[11px] text-gray-500">以上為統計參考，基於歷史規律，不保證未來結果</div>
     </div>
 
     <div class="ios-panel p-4 flex-grow overflow-hidden flex flex-col">
         <div class="flex justify-between items-center mb-2">
             <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Panel 3: 回測結果</label>
             <div id="hitRate" class="text-[10px] font-black text-orange-500">2星/3星/4星/5星：0.0 / 0.0 / 0.0 / 0.0</div>
+        </div>
+        <div class="ios-panel bg-black/40 border border-white/5 p-3 mb-3">
+            <div class="text-[10px] text-orange-400 font-bold uppercase tracking-widest mb-2">誠實指標</div>
+            <div class="grid grid-cols-2 gap-3 text-[11px]">
+                <div class="rounded-lg bg-white/5 p-2 border border-white/5">
+                    <div class="text-gray-400 mb-1">訓練集命中率</div>
+                    <div id="trainRate" class="font-mono text-white">2星 0.0% / 3星 0.0%</div>
+                </div>
+                <div class="rounded-lg bg-white/5 p-2 border border-white/5">
+                    <div class="text-gray-400 mb-1">測試集命中率</div>
+                    <div id="testRate" class="font-mono text-white">2星 0.0% / 3星 0.0%</div>
+                </div>
+            </div>
+            <div id="overfitWarning" class="mt-2 text-[11px] text-gray-500">尚未完成資料切割分析</div>
         </div>
         <div class="overflow-y-auto flex-grow">
             <table class="w-full text-[12px]">
@@ -97,7 +112,7 @@
     <script id="worker-source" type="text/plain">
 const DISPLAY_ROWS = 10;
 const BALL_COUNT = 39;
-const MIN_DRAW_COUNT = 48;
+const MIN_DRAW_COUNT = 60;
 
 self.onmessage = (event) => {
     const { type, payload } = event.data || {};
@@ -109,21 +124,51 @@ self.onmessage = (event) => {
             throw new Error(`資料不足，至少需要 ${MIN_DRAW_COUNT} 期才能分析。`);
         }
 
-        log("Worker 已啟動，開始進行 39 號逐一打分。", "orange-500");
-        const stats = buildHistoricalStats(draws);
-        const best = heuristicSearch(draws, stats);
-        const nextPrediction = buildPrediction(draws.slice(0, best.config.windowSize), best.config, stats);
+        log("Worker 已啟動，開始進行 Train / Validation / Test 切割。", "orange-500");
+        const chronological = draws.slice().reverse();
+        const split = splitDraws(chronological);
+        const trainStats = buildHistoricalStats(split.train);
+        const best = heuristicSearch(split, trainStats);
+
+        const validationMetrics = evaluateChronologicalSegment(
+            split.validation,
+            split.train,
+            best.config,
+            trainStats
+        ).metrics;
+
+        const testHistoryBefore = split.train.concat(split.validation);
+        const testEvaluation = evaluateChronologicalSegment(
+            split.test,
+            testHistoryBefore,
+            best.config,
+            trainStats
+        );
+
+        const nextHistory = chronological.slice(-best.config.windowSize).reverse();
+        const nextPrediction = buildPrediction(nextHistory, best.config, trainStats);
+        const honestyGap = Math.max(
+            Math.abs(best.trainingMetrics.rate2 - testEvaluation.metrics.rate2),
+            Math.abs(best.trainingMetrics.rate3 - testEvaluation.metrics.rate3)
+        );
 
         self.postMessage({
             type: "analysis",
             payload: {
-                modelName: "v9.40 訊號集成版",
+                modelName: "v9.50 誠實回測版",
                 config: best.config,
                 configSummary: summarizeConfig(best.config),
-                filterSummary: "39 號逐一打分：熱度 + 共現 + 片段相似 + 組合層篩選",
+                filterSummary: "Train 60% / Validation 20% / Test 20% 嚴格切割",
                 nextPrediction,
-                metrics: best.metrics,
-                visibleResults: best.results.slice(0, DISPLAY_ROWS)
+                metrics: testEvaluation.metrics,
+                visibleResults: testEvaluation.results.slice(-DISPLAY_ROWS).reverse(),
+                honesty: {
+                    training: best.trainingMetrics,
+                    validation: validationMetrics,
+                    test: testEvaluation.metrics,
+                    gap: honestyGap,
+                    warning: honestyGap > 15
+                }
             }
         });
     } catch (error) {
@@ -131,13 +176,20 @@ self.onmessage = (event) => {
         self.postMessage({
             type: "analysis",
             payload: {
-                modelName: "v9.40 訊號集成版",
+                modelName: "v9.50 誠實回測版",
                 config: defaultConfig(),
                 configSummary: "已退回預設參數",
                 filterSummary: "Worker 錯誤",
                 nextPrediction: [0, 0, 0, 0, 0],
                 metrics: { rate2: 0, rate3: 0, rate4: 0, rate5: 0, objective: 0, testCount: 0 },
-                visibleResults: []
+                visibleResults: [],
+                honesty: {
+                    training: { rate2: 0, rate3: 0, rate4: 0, rate5: 0, objective: 0, testCount: 0 },
+                    validation: { rate2: 0, rate3: 0, rate4: 0, rate5: 0, objective: 0, testCount: 0 },
+                    test: { rate2: 0, rate3: 0, rate4: 0, rate5: 0, objective: 0, testCount: 0 },
+                    gap: 0,
+                    warning: false
+                }
             }
         });
     }
@@ -159,6 +211,22 @@ function defaultConfig() {
     };
 }
 
+function splitDraws(chronological) {
+    const total = chronological.length;
+    const trainEnd = Math.max(1, Math.floor(total * 0.6));
+    const validationEnd = Math.max(trainEnd + 1, Math.floor(total * 0.8));
+
+    const train = chronological.slice(0, trainEnd);
+    const validation = chronological.slice(trainEnd, validationEnd);
+    const test = chronological.slice(validationEnd);
+
+    if (!train.length || !validation.length || !test.length) {
+        throw new Error("資料切割失敗，請提供更多歷史資料。");
+    }
+
+    return { train, validation, test };
+}
+
 function buildHistoricalStats(draws) {
     const sums = [];
     const oddCounts = [];
@@ -178,7 +246,7 @@ function buildHistoricalStats(draws) {
     };
 }
 
-function heuristicSearch(draws, stats) {
+function heuristicSearch(split, stats) {
     const windows = [36, 48, 60];
     const scoreSets = [
         { recency: 1.2, cooccurrence: 1.0, pattern: 0.9, omission: 0.7 },
@@ -220,15 +288,30 @@ function heuristicSearch(draws, stats) {
                                 pattern: { ...pattern },
                                 combo: { ...defaultConfig().combo }
                             };
-                            const evaluation = evaluateConfig(draws, config, stats);
+                            const trainingEvaluation = evaluateChronologicalSegment(split.train, [], config, stats);
+                            const validationEvaluation = evaluateChronologicalSegment(
+                                split.validation,
+                                split.train,
+                                config,
+                                stats
+                            );
                             tested += 1;
                             if (
                                 !best ||
-                                evaluation.metrics.rate3 > best.metrics.rate3 ||
-                                (evaluation.metrics.rate3 === best.metrics.rate3 && evaluation.metrics.rate2 > best.metrics.rate2) ||
-                                (evaluation.metrics.rate3 === best.metrics.rate3 && evaluation.metrics.rate2 === best.metrics.rate2 && evaluation.metrics.objective > best.metrics.objective)
+                                validationEvaluation.metrics.rate3 > best.validationMetrics.rate3 ||
+                                (validationEvaluation.metrics.rate3 === best.validationMetrics.rate3 && validationEvaluation.metrics.rate2 > best.validationMetrics.rate2) ||
+                                (
+                                    validationEvaluation.metrics.rate3 === best.validationMetrics.rate3 &&
+                                    validationEvaluation.metrics.rate2 === best.validationMetrics.rate2 &&
+                                    trainingEvaluation.metrics.objective > best.trainingMetrics.objective
+                                )
                             ) {
-                                best = { config, ...evaluation };
+                                best = {
+                                    config,
+                                    trainingMetrics: trainingEvaluation.metrics,
+                                    trainingResults: trainingEvaluation.results,
+                                    validationMetrics: validationEvaluation.metrics
+                                };
                             }
                         });
                     });
@@ -238,22 +321,25 @@ function heuristicSearch(draws, stats) {
     });
 
     log(`參數搜尋完成，共測試 ${tested} 組。`, "green-500");
-    log(`最佳結果：2星 ${best.metrics.rate2.toFixed(1)}%，3星 ${best.metrics.rate3.toFixed(1)}%。`, "orange-400");
+    log(
+        `驗證集最佳結果：2星 ${best.validationMetrics.rate2.toFixed(1)}%，3星 ${best.validationMetrics.rate3.toFixed(1)}%。`,
+        "orange-400"
+    );
     return best;
 }
 
-function evaluateConfig(draws, config, stats) {
+function evaluateChronologicalSegment(segment, historyBefore, config, stats) {
     const results = [];
     let hit2 = 0;
     let hit3 = 0;
     let hit4 = 0;
     let hit5 = 0;
-    const testCount = Math.max(0, draws.length - config.windowSize - 1);
 
-    for (let i = 0; i < testCount; i += 1) {
-        const actual = draws[i];
-        const train = draws.slice(i + 1, i + 1 + config.windowSize);
-        if (train.length < config.windowSize) break;
+    for (let i = 0; i < segment.length; i += 1) {
+        const actual = segment[i];
+        const historyPool = historyBefore.concat(segment.slice(0, i));
+        if (historyPool.length < config.windowSize) continue;
+        const train = historyPool.slice(-config.windowSize).reverse();
 
         const prediction = buildPrediction(train, config, stats);
         const hitNums = prediction.filter((num) => actual.nums.includes(num));
@@ -606,7 +692,7 @@ function summarizeConfig(config) {
 
     <script>
         const API_URL = "https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec";
-        const MIN_DRAW_COUNT = 48;
+        const MIN_DRAW_COUNT = 60;
         let worker = null;
 
         function addLog(message, color = "gray-500") {
@@ -709,16 +795,32 @@ function summarizeConfig(config) {
         }
 
         function updateUI(payload) {
-            const { modelName, configSummary, filterSummary, nextPrediction, metrics, visibleResults } = payload;
+            const { modelName, configSummary, filterSummary, nextPrediction, metrics, visibleResults, honesty } = payload;
 
             nextPrediction.forEach((num, index) => {
                 document.getElementById(`p${index + 1}`).innerText = num ? formatNumber(num) : "--";
             });
 
             document.getElementById("hitRate").innerText =
-                `2星/3星/4星/5星：${metrics.rate2.toFixed(1)} / ${metrics.rate3.toFixed(1)} / ${metrics.rate4.toFixed(1)} / ${metrics.rate5.toFixed(1)}`;
+                `測試集 2星/3星/4星/5星：${metrics.rate2.toFixed(1)} / ${metrics.rate3.toFixed(1)} / ${metrics.rate4.toFixed(1)} / ${metrics.rate5.toFixed(1)}`;
 
-            if (metrics.rate2 < 100) {
+            document.getElementById("trainRate").innerText =
+                `2星 ${honesty.training.rate2.toFixed(1)}% / 3星 ${honesty.training.rate3.toFixed(1)}%`;
+            document.getElementById("testRate").innerText =
+                `2星 ${honesty.test.rate2.toFixed(1)}% / 3星 ${honesty.test.rate3.toFixed(1)}%`;
+
+            const warningEl = document.getElementById("overfitWarning");
+            if (honesty.warning) {
+                warningEl.className = "mt-2 text-[11px] text-red-400 font-bold";
+                warningEl.innerText = `過擬合警告：訓練與測試差距 ${honesty.gap.toFixed(1)}%，請降低對命中率的信心`;
+            } else {
+                warningEl.className = "mt-2 text-[11px] text-green-400";
+                warningEl.innerText = `誠實檢查通過：訓練與測試差距 ${honesty.gap.toFixed(1)}%`;
+            }
+
+            if (honesty.warning) {
+                setStatus("WARNING", "w-2 h-2 bg-red-500 rounded-full mr-1 animate-pulse");
+            } else if (metrics.rate2 < 100) {
                 setStatus("警戒", "w-2 h-2 bg-red-500 rounded-full mr-1");
             } else if (metrics.rate2 === 100 && metrics.rate3 > 50) {
                 setStatus("穩定", "w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse");
@@ -727,7 +829,7 @@ function summarizeConfig(config) {
             }
 
             document.getElementById("modelMeta").innerText =
-                `${modelName} | ${configSummary} | ${filterSummary} | 回測樣本 ${metrics.testCount} 期`;
+                `${modelName} | ${configSummary} | ${filterSummary} | 測試樣本 ${metrics.testCount} 期`;
 
             const rows = visibleResults.length
                 ? visibleResults.map((result) => {
@@ -751,7 +853,8 @@ function summarizeConfig(config) {
                 : `<tr><td colspan="5" class="text-center py-10 text-gray-600 font-mono italic">沒有可顯示的回測資料</td></tr>`;
 
             document.getElementById("historyTable").innerHTML = rows;
-            addLog(`回測完成：2星 ${metrics.rate2.toFixed(1)}%，3星 ${metrics.rate3.toFixed(1)}%。`, "green-500");
+            addLog(`訓練集：2星 ${honesty.training.rate2.toFixed(1)}%，3星 ${honesty.training.rate3.toFixed(1)}%。`, "green-500");
+            addLog(`測試集：2星 ${honesty.test.rate2.toFixed(1)}%，3星 ${honesty.test.rate3.toFixed(1)}%。`, honesty.warning ? "red-500" : "orange-400");
             addLog(`下一期推薦：${nextPrediction.map(formatNumber).join(" ")}`, "orange-400");
         }
 
