@@ -114,7 +114,7 @@ const DISPLAY_ROWS = 10;
 const BALL_COUNT = 39;
 const MIN_DRAW_COUNT = 30;
 
-self.onmessage = (event) => {
+self.onmessage = async (event) => {
     const { type, payload } = event.data || {};
     if (type !== "analyze") return;
 
@@ -128,7 +128,7 @@ self.onmessage = (event) => {
         const chronological = draws.slice().reverse();
         const split = splitDraws(chronological);
         const trainStats = buildHistoricalStats(split.train);
-        const best = heuristicSearch(split, trainStats);
+        const best = await heuristicSearch(split, trainStats);
 
         const validationMetrics = evaluateChronologicalSegment(
             split.validation,
@@ -249,7 +249,7 @@ function buildHistoricalStats(draws) {
     };
 }
 
-function heuristicSearch(split, stats) {
+async function heuristicSearch(split, stats) {
     const isSmall = split.train.length < 120;
     const windowCandidates = isSmall ? [30, 36, 48] : [30, 36, 42, 48, 60];
     const eligibleWindows = windowCandidates.filter((windowSize) => (split.train.length - windowSize) >= 5);
@@ -350,6 +350,9 @@ function heuristicSearch(split, stats) {
                                             (overfitGap * 0.5);
 
                                         tested += 1;
+                                        if (tested > 0 && tested % 50 === 0) {
+                                            await new Promise((resolve) => setTimeout(resolve, 0));
+                                        }
                                         if (!best || validationScore > best.validationScore) {
                                             best = {
                                                 config,
@@ -658,32 +661,42 @@ function scoreConsistencyModel(train, config) {
     const scores = createScoreMap();
     const windows = [20, 25, 30, 35, 40];
     const hitCounts = Array(BALL_COUNT + 1).fill(0);
+    const maxWindow = Math.min(40, train.length);
+    const baseTrain = train.slice(0, maxWindow);
+    if (baseTrain.length < 10) {
+        return scores;
+    }
 
-    windows.forEach((windowSize) => {
+    const base = buildBaseNormalizedScores(baseTrain, config);
+    const ranked = [];
+    for (let n = 1; n <= BALL_COUNT; n += 1) {
+        ranked.push({
+            num: n,
+            score:
+                (base.recency.get(n) * config.scoreWeights.recency) +
+                (base.cooccurrence.get(n) * config.scoreWeights.cooccurrence) +
+                (base.pattern.get(n) * config.scoreWeights.pattern) +
+                (base.omission.get(n) * config.scoreWeights.omission) +
+                (base.tail.get(n) * config.scoreWeights.tail) +
+                (base.zone.get(n) * config.scoreWeights.zone)
+        });
+    }
+    ranked.sort((a, b) => b.score - a.score || a.num - b.num);
+
+    windows.forEach((windowSize, index) => {
         const subset = train.slice(0, Math.min(windowSize, train.length));
         if (subset.length < 10) return;
-        const localBase = buildBaseNormalizedScores(subset, config);
 
-        const localTotals = [];
-        for (let n = 1; n <= BALL_COUNT; n += 1) {
-            localTotals.push({
-                num: n,
-                score:
-                    (localBase.recency.get(n) * config.scoreWeights.recency) +
-                    (localBase.cooccurrence.get(n) * config.scoreWeights.cooccurrence) +
-                    (localBase.pattern.get(n) * config.scoreWeights.pattern) +
-                    (localBase.omission.get(n) * config.scoreWeights.omission) +
-                    (localBase.tail.get(n) * config.scoreWeights.tail) +
-                    (localBase.zone.get(n) * config.scoreWeights.zone)
-            });
+        const appeared = new Set(subset.flatMap((draw) => draw.nums));
+        const decay = 1.25 - (index * 0.1);
+        let picked = 0;
+
+        for (const item of ranked) {
+            if (!appeared.has(item.num)) continue;
+            hitCounts[item.num] += decay;
+            picked += 1;
+            if (picked >= config.candidatePool) break;
         }
-
-        localTotals
-            .sort((a, b) => b.score - a.score || a.num - b.num)
-            .slice(0, config.candidatePool)
-            .forEach((item) => {
-                hitCounts[item.num] += 1;
-            });
     });
 
     for (let n = 1; n <= BALL_COUNT; n += 1) {
