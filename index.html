@@ -1,436 +1,752 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>539 統計分析工具</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<style>
-  :root {
-    --bg: #0a0a0a;
-    --panel: #141414;
-    --border: rgba(255,255,255,0.08);
-    --text: #f5f5f5;
-    --muted: #888;
-    --dim: #555;
-    --blue: #378ADD;
-    --blue-dark: #185FA5;
-    --green: #1D9E75;
-    --amber: #EF9F27;
-    --red: #E24B4A;
-    --gray: #888780;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: -apple-system, system-ui, sans-serif; min-height: 100vh; }
-  .container { max-width: 480px; margin: 0 auto; padding: 20px 16px 60px; }
-
-  /* Header */
-  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
-  .title { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
-  .title span { color: var(--blue); }
-  .subtitle { font-size: 11px; color: var(--dim); margin-top: 3px; }
-  .sync-btn { padding: 8px 18px; border-radius: 20px; border: none; background: var(--blue-dark); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; margin-top: 2px; }
-  .sync-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  /* Metrics */
-  .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
-  .metric { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
-  .metric-label { font-size: 10px; color: var(--dim); margin-bottom: 4px; letter-spacing: 0.03em; }
-  .metric-value { font-size: 20px; font-weight: 700; color: var(--text); }
-  .metric-sub { font-size: 10px; color: var(--muted); margin-top: 3px; }
-
-  /* Tabs */
-  .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 20px; gap: 0; overflow-x: auto; scrollbar-width: none; }
-  .tabs::-webkit-scrollbar { display: none; }
-  .tab { flex-shrink: 0; padding: 9px 14px; font-size: 12px; color: var(--muted); border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
-  .tab.active { color: var(--text); border-bottom-color: var(--blue); font-weight: 600; }
-
-  /* Panel */
-  .panel { display: none; }
-  .panel.active { display: block; }
-  .section-label { font-size: 10px; color: var(--dim); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 12px; }
-
-  /* Frequency Grid */
-  .num-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin-bottom: 16px; }
-  .num-cell { aspect-ratio: 1; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; cursor: default; }
-
-  /* Legend */
-  .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
-  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
-  .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
-
-  /* Chart */
-  .chart-wrap { position: relative; width: 100%; height: 180px; margin-bottom: 8px; }
-
-  /* Omit list */
-  .omit-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
-  .omit-num { width: 26px; font-size: 13px; font-weight: 700; color: var(--text); }
-  .omit-bar-wrap { flex: 1; height: 5px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
-  .omit-bar { height: 100%; border-radius: 3px; }
-  .omit-val { width: 32px; text-align: right; font-size: 11px; color: var(--muted); }
-  .badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; white-space: nowrap; }
-  .badge-hot { background: rgba(227,74,48,0.15); color: #f97316; }
-  .badge-cold { background: rgba(56,138,221,0.12); color: var(--blue); }
-  .badge-warm { background: rgba(239,159,39,0.15); color: var(--amber); }
-
-  /* Picker */
-  .picker-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin-bottom: 12px; }
-  .pk-cell { aspect-ratio: 1; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; cursor: pointer; background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid var(--border); transition: all 0.1s; }
-  .pk-cell:hover { background: rgba(255,255,255,0.1); color: var(--text); }
-  .pk-cell.chosen { background: var(--blue-dark); color: #fff; border-color: var(--blue); }
-  .chosen-display { display: flex; gap: 6px; flex-wrap: wrap; min-height: 40px; padding: 8px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 12px; align-items: center; }
-  .chosen-tag { background: rgba(255,255,255,0.08); border: 1px solid var(--border); border-radius: 5px; padding: 3px 8px; font-size: 13px; font-weight: 700; color: var(--text); }
-  .analysis-result { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
-  .result-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
-  .result-row:last-child { border-bottom: none; }
-  .result-key { color: var(--muted); flex-shrink: 0; }
-  .result-val { color: var(--text); font-weight: 600; text-align: right; }
-
-  /* Pair */
-  .pair-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  .pair-table th { text-align: left; padding: 6px 8px; color: var(--dim); font-weight: 400; font-size: 10px; border-bottom: 1px solid var(--border); letter-spacing: 0.05em; }
-  .pair-table td { padding: 8px 8px; border-bottom: 1px solid var(--border); color: var(--muted); }
-  .pair-table td:first-child { font-weight: 700; color: var(--text); }
-  .pair-select { width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel); color: var(--text); font-size: 13px; margin-bottom: 16px; }
-
-  /* Status */
-  .status { font-size: 11px; color: var(--dim); text-align: center; padding: 16px 0 0; }
-  .empty { text-align: center; padding: 40px 0; font-size: 13px; color: var(--dim); }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ULTIMATE EVO v9.20 中文強化版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --ios-orange: #f97316; --ios-bg: #000000; --ios-panel: #1c1c1e; }
+        body { background-color: var(--ios-bg); color: #fff; font-family: -apple-system, system-ui, sans-serif; overflow-x: hidden; }
+        .ios-panel { background: var(--ios-panel); border-radius: 12px; }
+        .orange-glow { box-shadow: 0 0 35px rgba(249, 115, 22, 0.3); }
+        .btn-active { background: var(--ios-orange); color: #000; font-weight: 700; }
+        #logBox { font-variant-numeric: tabular-nums; scrollbar-width: none; }
+        #logBox::-webkit-scrollbar { display: none; }
+        .hit-num { color: #fff; font-weight: 900; background: var(--ios-orange); padding: 1px 4px; border-radius: 4px; }
+        .grid-val { text-shadow: 0 0 10px rgba(249, 115, 22, 0.5); }
+        .slot-dot { display: inline-flex; width: 18px; height: 18px; align-items: center; justify-content: center; border-radius: 999px; font-size: 10px; font-weight: 800; margin-right: 4px; }
+        .slot-hit { background: rgba(34, 197, 94, 0.18); color: #4ade80; }
+        .slot-miss { background: rgba(255, 255, 255, 0.08); color: #6b7280; }
+    </style>
 </head>
-<body>
-<div class="container">
-
-  <div class="header">
-    <div>
-      <div class="title">539 <span>統計分析</span></div>
-      <div class="subtitle">歷史數據統計參考 — 非預測工具</div>
+<body class="min-h-screen flex flex-col p-4">
+    <div class="flex justify-between items-center mb-5">
+        <h1 class="text-2xl font-black italic tracking-tighter text-orange-500">
+            ULTIMATE <span class="text-white">EVO 9.20</span>
+        </h1>
+        <div class="flex bg-[#2c2c2e] p-1 rounded-xl flex-nowrap shrink-0">
+            <button id="btnSync" onclick="fetchSheetData()" class="px-4 py-1.5 rounded-lg text-sm btn-active whitespace-nowrap">開始同步</button>
+        </div>
     </div>
-    <button class="sync-btn" id="syncBtn" onclick="syncData()">同步數據</button>
-  </div>
 
-  <div class="metrics">
-    <div class="metric">
-      <div class="metric-label">已載入期數</div>
-      <div class="metric-value" id="mPeriods">--</div>
-      <div class="metric-sub">歷史開獎</div>
+    <div class="ios-panel p-4 mb-4 orange-glow border border-orange-500/50">
+        <div class="flex justify-between items-end mb-2">
+            <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">Panel 1: 引擎狀態</label>
+            <div class="flex items-center text-[10px] text-orange-500 font-bold uppercase">
+                <span id="statusDot" class="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></span>
+                v9.20 <span id="strategyMode" class="ml-1 text-white">READY</span>
+            </div>
+        </div>
+        <div id="logBox" class="bg-black/50 p-3 rounded-lg text-[11px] h-24 overflow-y-auto font-mono border border-white/5 leading-relaxed">
+            <span class="text-gray-500">&gt; Worker 已初始化，等待同步資料...</span><br>
+            <span class="text-gray-500">&gt; 模式：投票模型 + 嚴格滾動回測</span>
+        </div>
     </div>
-    <div class="metric">
-      <div class="metric-label">最熱號碼</div>
-      <div class="metric-value" id="mHot">--</div>
-      <div class="metric-sub">近30期最多</div>
+
+    <div class="ios-panel p-4 mb-4 border-t-2 border-orange-600">
+        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-3">Panel 2: 預測號碼（固定 5 碼）</label>
+        <div class="grid grid-cols-5 gap-2" id="predictionGrid">
+            <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
+                <div class="text-[9px] text-orange-500 font-bold">第 1 碼</div>
+                <div class="text-lg font-black text-white grid-val" id="p1">--</div>
+            </div>
+            <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
+                <div class="text-[9px] text-orange-500 font-bold">第 2 碼</div>
+                <div class="text-lg font-black text-white grid-val" id="p2">--</div>
+            </div>
+            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
+                <div class="text-[9px] text-gray-400 font-bold">第 3 碼</div>
+                <div class="text-lg font-black text-white" id="p3">--</div>
+            </div>
+            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
+                <div class="text-[9px] text-gray-400 font-bold">第 4 碼</div>
+                <div class="text-lg font-black text-white" id="p4">--</div>
+            </div>
+            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
+                <div class="text-[9px] text-gray-400 font-bold">第 5 碼</div>
+                <div class="text-lg font-black text-white" id="p5">--</div>
+            </div>
+        </div>
+        <div id="modelMeta" class="mt-3 text-[11px] text-gray-500 leading-6">等待同步資料...</div>
     </div>
-    <div class="metric">
-      <div class="metric-label">遺漏最久</div>
-      <div class="metric-value" id="mCold">--</div>
-      <div class="metric-sub">距上次出現</div>
+
+    <div class="ios-panel p-4 flex-grow overflow-hidden flex flex-col">
+        <div class="flex justify-between items-center mb-2">
+            <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Panel 3: 回測結果</label>
+            <div id="hitRate" class="text-[10px] font-black text-orange-500">2星/3星/4星/5星：0.0 / 0.0 / 0.0 / 0.0</div>
+        </div>
+        <div class="overflow-y-auto flex-grow">
+            <table class="w-full text-[12px]">
+                <thead class="sticky top-0 bg-[#1c1c1e] text-gray-500 z-10">
+                    <tr class="text-left border-b border-white/10">
+                        <th class="pb-2">期別</th>
+                        <th class="pb-2">實際開獎</th>
+                        <th class="pb-2">預測號碼</th>
+                        <th class="pb-2">命中點</th>
+                        <th class="pb-2 text-right">命中</th>
+                    </tr>
+                </thead>
+                <tbody id="historyTable" class="divide-y divide-white/5">
+                    <tr><td colspan="5" class="text-center py-10 text-gray-600 font-mono italic">尚未同步資料</td></tr>
+                </tbody>
+            </table>
+        </div>
     </div>
-  </div>
 
-  <div class="tabs">
-    <button class="tab active" onclick="switchTab('freq')">頻率熱力圖</button>
-    <button class="tab" onclick="switchTab('omit')">遺漏排行</button>
-    <button class="tab" onclick="switchTab('picker')">選號分析</button>
-    <button class="tab" onclick="switchTab('pair')">伴隨號</button>
-  </div>
+    <script id="worker-source" type="text/plain">
+const DISPLAY_ROWS = 10;
+const BALL_COUNT = 39;
 
-  <!-- 頻率 -->
-  <div id="panel-freq" class="panel active">
-    <div class="section-label">近 30 期號碼出現頻率</div>
-    <div class="legend">
-      <div class="legend-item"><div class="legend-dot" style="background:var(--blue-dark)"></div>高頻 ≥8次</div>
-      <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>中頻 5–7次</div>
-      <div class="legend-item"><div class="legend-dot" style="background:var(--gray)"></div>低頻 1–4次</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#2a2a2a"></div>未出現</div>
-    </div>
-    <div class="num-grid" id="freqGrid">
-      <div class="empty" style="grid-column:1/-1">點擊「同步數據」載入歷史開獎</div>
-    </div>
-    <div class="section-label" style="margin-top:8px">全期出現次數分佈</div>
-    <div class="chart-wrap">
-      <canvas id="freqChart" role="img" aria-label="39個號碼全期出現次數長條圖">載入後顯示圖表</canvas>
-    </div>
-  </div>
+self.onmessage = (event) => {
+    const { type, payload } = event.data || {};
+    if (type !== "analyze") return;
 
-  <!-- 遺漏 -->
-  <div id="panel-omit" class="panel">
-    <div class="section-label">遺漏值排行（前20）— 距上次出現期數</div>
-    <div id="omitList"><div class="empty">請先同步數據</div></div>
-  </div>
+    try {
+        const draws = Array.isArray(payload?.draws) ? payload.draws : [];
+        if (draws.length < 48) {
+            throw new Error("資料不足，至少需要 48 期才能分析。");
+        }
 
-  <!-- 選號 -->
-  <div id="panel-picker" class="panel">
-    <div class="section-label">點選號碼（最多 5 個）查看歷史統計</div>
-    <div class="picker-grid" id="pickerGrid"></div>
-    <div class="chosen-display" id="chosenDisplay">
-      <span style="color:var(--dim);font-size:12px">點選號碼開始分析</span>
-    </div>
-    <div id="pickerResult"></div>
-  </div>
+        log("Worker 已啟動，開始進行 39 號逐一打分。", "orange-500");
+        const stats = buildHistoricalStats(draws);
+        const best = heuristicSearch(draws, stats);
+        const nextPrediction = buildPrediction(draws.slice(0, best.config.windowSize), best.config, stats);
 
-  <!-- 伴隨號 -->
-  <div id="panel-pair" class="panel">
-    <div class="section-label">常與指定號碼同期出現的號碼</div>
-    <select class="pair-select" id="pairSelect" onchange="showPairs()">
-      <option value="">請選擇號碼...</option>
-    </select>
-    <div id="pairResult"><div class="empty">請先同步數據並選擇號碼</div></div>
-  </div>
-
-  <div class="status" id="statusBar">尚未同步 — 所有統計為歷史參考，不具預測效力</div>
-</div>
-
-<script>
-const API_URL = "https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec";
-let draws = [];
-let freqChartInst = null;
-let chosenNums = [];
-
-function switchTab(name) {
-  const names = ['freq','omit','picker','pair'];
-  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', names[i] === name));
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.getElementById('panel-' + name).classList.add('active');
-}
-
-async function syncData() {
-  const btn = document.getElementById('syncBtn');
-  btn.disabled = true; btn.textContent = '同步中...';
-  document.getElementById('statusBar').textContent = '正在連接伺服器...';
-  try {
-    const res = await fetch(API_URL);
-    const json = await res.json();
-    const raw = typeof json === 'string' ? json : json.data;
-    draws = raw.split("\n").map(l => l.trim()).filter(Boolean)
-      .map(l => ({ nums: l.split(/\s+/).slice(-5).map(Number) }))
-      .reverse()
-      .filter(d => d.nums.length === 5 && d.nums.every(n => n >= 1 && n <= 39));
-    document.getElementById('mPeriods').textContent = draws.length;
-    buildAll();
-    document.getElementById('statusBar').textContent = `已載入 ${draws.length} 期 — 統計參考，非預測`;
-    btn.textContent = '重新同步';
-  } catch(e) {
-    document.getElementById('statusBar').textContent = '連線失敗，請稍後重試';
-    btn.textContent = '同步數據';
-  }
-  btn.disabled = false;
-}
-
-function getFreq(window = 30) {
-  const freq = {};
-  for (let n = 1; n <= 39; n++) freq[n] = 0;
-  draws.slice(0, window).forEach(d => d.nums.forEach(n => freq[n]++));
-  return freq;
-}
-
-function getOmit() {
-  const omit = {};
-  for (let n = 1; n <= 39; n++) {
-    let gap = 0;
-    for (const d of draws) { if (d.nums.includes(n)) break; gap++; }
-    omit[n] = gap;
-  }
-  return omit;
-}
-
-function buildAll() {
-  buildFreqGrid();
-  buildFreqChart();
-  buildOmitList();
-  buildPickerGrid();
-  buildPairSelect();
-  const freq30 = getFreq(30);
-  const omit = getOmit();
-  const hotNum = Object.entries(freq30).sort((a,b) => b[1]-a[1])[0];
-  const coldNum = Object.entries(omit).sort((a,b) => b[1]-a[1])[0];
-  document.getElementById('mHot').textContent = String(hotNum[0]).padStart(2,'0');
-  document.getElementById('mCold').textContent = String(coldNum[0]).padStart(2,'0');
-  document.getElementById('mCold').nextElementSibling && (document.getElementById('mCold').parentElement.querySelector('.metric-sub').textContent = `遺漏 ${coldNum[1]} 期`);
-}
-
-function numColor(count) {
-  if (count >= 8) return '#185FA5';
-  if (count >= 5) return '#1D9E75';
-  if (count >= 1) return '#636360';
-  return '#222';
-}
-function numTextColor(count) {
-  return count >= 1 ? '#fff' : '#555';
-}
-
-function buildFreqGrid() {
-  const freq = getFreq(30);
-  const grid = document.getElementById('freqGrid');
-  grid.innerHTML = '';
-  for (let n = 1; n <= 39; n++) {
-    const c = freq[n];
-    const cell = document.createElement('div');
-    cell.className = 'num-cell';
-    cell.style.background = numColor(c);
-    cell.style.color = numTextColor(c);
-    cell.title = `${String(n).padStart(2,'0')}: 近30期出現 ${c} 次`;
-    cell.textContent = String(n).padStart(2,'0');
-    grid.appendChild(cell);
-  }
-}
-
-function buildFreqChart() {
-  const freq = getFreq(draws.length);
-  const labels = Array.from({length:39}, (_,i) => String(i+1).padStart(2,'0'));
-  const data = labels.map((_,i) => freq[i+1]);
-  const max = Math.max(...data);
-  const colors = data.map(v => v >= max*0.7 ? '#185FA5' : v >= max*0.4 ? '#1D9E75' : '#444');
-  if (freqChartInst) freqChartInst.destroy();
-  freqChartInst = new Chart(document.getElementById('freqChart'), {
-    type: 'bar',
-    data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0, borderRadius: 2 }] },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` 出現 ${ctx.raw} 次` } } },
-      scales: {
-        x: { grid: { display: false }, ticks: { color: '#555', font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 20 } },
-        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#555', font: { size: 10 } } }
-      }
+        self.postMessage({
+            type: "analysis",
+            payload: {
+                modelName: "v9.40 訊號集成版",
+                config: best.config,
+                configSummary: summarizeConfig(best.config),
+                filterSummary: "39 號逐一打分：熱度 + 共現 + 片段相似 + 組合層篩選",
+                nextPrediction,
+                metrics: best.metrics,
+                visibleResults: best.results.slice(0, DISPLAY_ROWS)
+            }
+        });
+    } catch (error) {
+        log(`Worker 執行失敗：${error.message}`, "red-500");
+        self.postMessage({
+            type: "analysis",
+            payload: {
+                modelName: "v9.40 訊號集成版",
+                config: defaultConfig(),
+                configSummary: "已退回預設參數",
+                filterSummary: "Worker 錯誤",
+                nextPrediction: [0, 0, 0, 0, 0],
+                metrics: { rate2: 0, rate3: 0, rate4: 0, rate5: 0, objective: 0, testCount: 0 },
+                visibleResults: []
+            }
+        });
     }
-  });
+};
+
+function log(message, color) {
+    self.postMessage({ type: "log", payload: { message, color } });
 }
 
-function buildOmitList() {
-  const omit = getOmit();
-  const freq30 = getFreq(30);
-  const sorted = Object.entries(omit).sort((a,b) => b[1]-a[1]).slice(0, 20);
-  const max = sorted[0][1] || 1;
-  let html = '';
-  sorted.forEach(([n, gap]) => {
-    const pct = Math.round((gap / max) * 100);
-    let barColor = '#378ADD';
-    let badge = '';
-    if (gap > 15) { barColor = '#E24B4A'; badge = '<span class="badge badge-cold">長期冷號</span>'; }
-    else if (gap > 8) { barColor = '#EF9F27'; badge = '<span class="badge badge-warm">偏冷</span>'; }
-    else if (gap <= 3 && freq30[n] >= 5) { barColor = '#1D9E75'; badge = '<span class="badge badge-hot">近期熱號</span>'; }
-    html += `<div class="omit-row">
-      <div class="omit-num">${String(n).padStart(2,'0')}</div>
-      <div class="omit-bar-wrap"><div class="omit-bar" style="width:${pct}%;background:${barColor}"></div></div>
-      <div class="omit-val">${gap}期</div>
-      <div>${badge}</div>
-    </div>`;
-  });
-  document.getElementById('omitList').innerHTML = html;
+function defaultConfig() {
+    return {
+        windowSize: 48,
+        candidatePool: 10,
+        scoreWeights: { recency: 1.2, cooccurrence: 1.0, pattern: 0.9, omission: 0.7 },
+        recency: { depth: 18, hotWeight: 1.9, omitThreshold: 6, omitWeight: 0.14, nearWeight: 0.18, zoneWeight: 0.16 },
+        cooccurrence: { depth: 32, recentDepth: 3, overlapWeight: 0.5, tailWeight: 0.2, neighborWeight: 0.15 },
+        pattern: { segment: 3, minSimilarity: 0.56, reward: 1.8, maxMatches: 6, offsetWeight: 0.35 },
+        combo: { sumWeight: 0.12, oddWeight: 0.45, overlapWeight: 0.85, spreadWeight: 0.4 }
+    };
 }
 
-function buildPickerGrid() {
-  const grid = document.getElementById('pickerGrid');
-  grid.innerHTML = '';
-  for (let n = 1; n <= 39; n++) {
-    const cell = document.createElement('div');
-    cell.className = 'pk-cell';
-    cell.id = 'pk-' + n;
-    cell.textContent = String(n).padStart(2,'0');
-    cell.onclick = () => togglePick(n);
-    grid.appendChild(cell);
-  }
+function buildHistoricalStats(draws) {
+    const sums = [];
+    const oddCounts = [];
+    const spreads = [];
+
+    draws.forEach((draw) => {
+        const sorted = draw.nums.slice().sort((a, b) => a - b);
+        sums.push(sorted.reduce((sum, num) => sum + num, 0));
+        oddCounts.push(sorted.filter((num) => num % 2 !== 0).length);
+        spreads.push(sorted[sorted.length - 1] - sorted[0]);
+    });
+
+    return {
+        sum: calcStats(sums),
+        odd: calcStats(oddCounts),
+        spread: calcStats(spreads)
+    };
 }
 
-function togglePick(n) {
-  if (draws.length === 0) { alert('請先同步數據'); return; }
-  const idx = chosenNums.indexOf(n);
-  if (idx >= 0) {
-    chosenNums.splice(idx, 1);
-    document.getElementById('pk-'+n).classList.remove('chosen');
-  } else if (chosenNums.length < 5) {
-    chosenNums.push(n);
-    document.getElementById('pk-'+n).classList.add('chosen');
-  }
-  updateChosenDisplay();
+function heuristicSearch(draws, stats) {
+    const windows = [36, 48, 60];
+    const scoreSets = [
+        { recency: 1.2, cooccurrence: 1.0, pattern: 0.9, omission: 0.7 },
+        { recency: 1.0, cooccurrence: 1.2, pattern: 1.0, omission: 0.6 },
+        { recency: 1.1, cooccurrence: 0.9, pattern: 1.2, omission: 0.8 }
+    ];
+    const recencySets = [
+        { depth: 14, hotWeight: 1.7, omitThreshold: 5, omitWeight: 0.12, nearWeight: 0.14, zoneWeight: 0.12 },
+        { depth: 18, hotWeight: 1.9, omitThreshold: 6, omitWeight: 0.14, nearWeight: 0.18, zoneWeight: 0.16 },
+        { depth: 24, hotWeight: 1.5, omitThreshold: 7, omitWeight: 0.18, nearWeight: 0.10, zoneWeight: 0.10 }
+    ];
+    const cooccurrenceSets = [
+        { depth: 24, recentDepth: 2, overlapWeight: 0.45, tailWeight: 0.20, neighborWeight: 0.10 },
+        { depth: 32, recentDepth: 3, overlapWeight: 0.50, tailWeight: 0.20, neighborWeight: 0.15 },
+        { depth: 40, recentDepth: 4, overlapWeight: 0.55, tailWeight: 0.15, neighborWeight: 0.18 }
+    ];
+    const patternSets = [
+        { segment: 2, minSimilarity: 0.60, reward: 1.6, maxMatches: 4, offsetWeight: 0.25 },
+        { segment: 3, minSimilarity: 0.56, reward: 1.8, maxMatches: 6, offsetWeight: 0.35 },
+        { segment: 4, minSimilarity: 0.52, reward: 1.4, maxMatches: 5, offsetWeight: 0.25 }
+    ];
+    const poolSizes = [8, 10, 12];
+
+    let best = null;
+    let tested = 0;
+
+    windows.forEach((windowSize) => {
+        scoreSets.forEach((scoreWeights) => {
+            recencySets.forEach((recency) => {
+                cooccurrenceSets.forEach((cooccurrence) => {
+                    patternSets.forEach((pattern) => {
+                        poolSizes.forEach((candidatePool) => {
+                            const config = {
+                                windowSize,
+                                candidatePool,
+                                scoreWeights: { ...scoreWeights },
+                                recency: { ...recency },
+                                cooccurrence: { ...cooccurrence },
+                                pattern: { ...pattern },
+                                combo: { ...defaultConfig().combo }
+                            };
+                            const evaluation = evaluateConfig(draws, config, stats);
+                            tested += 1;
+                            if (
+                                !best ||
+                                evaluation.metrics.rate3 > best.metrics.rate3 ||
+                                (evaluation.metrics.rate3 === best.metrics.rate3 && evaluation.metrics.rate2 > best.metrics.rate2) ||
+                                (evaluation.metrics.rate3 === best.metrics.rate3 && evaluation.metrics.rate2 === best.metrics.rate2 && evaluation.metrics.objective > best.metrics.objective)
+                            ) {
+                                best = { config, ...evaluation };
+                            }
+                        });
+                    });
+                });
+            });
+        });
+    });
+
+    log(`參數搜尋完成，共測試 ${tested} 組。`, "green-500");
+    log(`最佳結果：2星 ${best.metrics.rate2.toFixed(1)}%，3星 ${best.metrics.rate3.toFixed(1)}%。`, "orange-400");
+    return best;
 }
 
-function updateChosenDisplay() {
-  const disp = document.getElementById('chosenDisplay');
-  if (chosenNums.length === 0) {
-    disp.innerHTML = '<span style="color:var(--dim);font-size:12px">點選號碼開始分析</span>';
-    document.getElementById('pickerResult').innerHTML = '';
-    return;
-  }
-  disp.innerHTML = chosenNums.sort((a,b)=>a-b).map(n => `<span class="chosen-tag">${String(n).padStart(2,'0')}</span>`).join('');
-  analyzeChosen();
-}
+function evaluateConfig(draws, config, stats) {
+    const results = [];
+    let hit2 = 0;
+    let hit3 = 0;
+    let hit4 = 0;
+    let hit5 = 0;
+    const testCount = Math.max(0, draws.length - config.windowSize - 1);
 
-function analyzeChosen() {
-  if (!chosenNums.length || !draws.length) return;
-  const freq = getFreq(draws.length);
-  const freq30 = getFreq(30);
-  const omit = getOmit();
-  let html = '<div class="analysis-result">';
-  chosenNums.slice().sort((a,b)=>a-b).forEach(n => {
-    const gap = omit[n];
-    let status = '一般';
-    if (gap > 15) status = '長期冷號';
-    else if (freq30[n] >= 7) status = '近期熱號';
-    else if (gap > 8) status = '偏冷';
-    html += `<div class="result-row">
-      <span class="result-key">號碼 ${String(n).padStart(2,'0')}</span>
-      <span class="result-val">全期 ${freq[n]} 次 ｜ 近30期 ${freq30[n]} 次 ｜ 遺漏 ${gap} 期 ｜ ${status}</span>
-    </div>`;
-  });
-  if (chosenNums.length >= 2) {
-    let c2 = 0;
-    draws.forEach(d => { if (chosenNums.filter(n => d.nums.includes(n)).length >= 2) c2++; });
-    html += `<div class="result-row"><span class="result-key">≥2碼同期命中</span><span class="result-val">${c2} 次 / ${draws.length} 期（${(c2/draws.length*100).toFixed(1)}%）</span></div>`;
-  }
-  if (chosenNums.length >= 3) {
-    let c3 = 0;
-    draws.forEach(d => { if (chosenNums.filter(n => d.nums.includes(n)).length >= 3) c3++; });
-    html += `<div class="result-row"><span class="result-key">≥3碼同期命中</span><span class="result-val">${c3} 次 / ${draws.length} 期（${(c3/draws.length*100).toFixed(1)}%）</span></div>`;
-  }
-  if (chosenNums.length >= 4) {
-    let c4 = 0;
-    draws.forEach(d => { if (chosenNums.filter(n => d.nums.includes(n)).length >= 4) c4++; });
-    html += `<div class="result-row"><span class="result-key">≥4碼同期命中</span><span class="result-val">${c4} 次 / ${draws.length} 期（${(c4/draws.length*100).toFixed(1)}%）</span></div>`;
-  }
-  html += '</div>';
-  document.getElementById('pickerResult').innerHTML = html;
-}
+    for (let i = 0; i < testCount; i += 1) {
+        const actual = draws[i];
+        const train = draws.slice(i + 1, i + 1 + config.windowSize);
+        if (train.length < config.windowSize) break;
 
-function buildPairSelect() {
-  const sel = document.getElementById('pairSelect');
-  sel.innerHTML = '<option value="">請選擇號碼...</option>';
-  for (let n = 1; n <= 39; n++) {
-    const o = document.createElement('option');
-    o.value = n; o.textContent = String(n).padStart(2,'0');
-    sel.appendChild(o);
-  }
-}
+        const prediction = buildPrediction(train, config, stats);
+        const hitNums = prediction.filter((num) => actual.nums.includes(num));
+        const hits = hitNums.length;
 
-function showPairs() {
-  const n = parseInt(document.getElementById('pairSelect').value);
-  if (!n || !draws.length) return;
-  const pairFreq = {};
-  for (let m = 1; m <= 39; m++) { if (m !== n) pairFreq[m] = 0; }
-  let totalAppear = 0;
-  draws.forEach(d => {
-    if (d.nums.includes(n)) {
-      totalAppear++;
-      d.nums.forEach(m => { if (m !== n) pairFreq[m]++; });
+        if (hits >= 2) hit2 += 1;
+        if (hits >= 3) hit3 += 1;
+        if (hits >= 4) hit4 += 1;
+        if (hits >= 5) hit5 += 1;
+
+        results.push({
+            label: actual.label,
+            actual: actual.nums,
+            prediction,
+            hits,
+            hitNums
+        });
     }
-  });
-  const sorted = Object.entries(pairFreq).sort((a,b) => b[1]-a[1]).slice(0, 12);
-  let html = `<div style="font-size:12px;color:var(--muted);margin-bottom:12px">號碼 ${String(n).padStart(2,'0')} 共出現 ${totalAppear} 次，以下為最常同期出現的號碼：</div>`;
-  html += '<table class="pair-table"><thead><tr><th>伴隨號</th><th>同期次數</th><th>伴隨率</th><th>強度</th></tr></thead><tbody>';
-  const maxCnt = sorted[0] ? sorted[0][1] : 1;
-  sorted.forEach(([m, cnt]) => {
-    const rate = totalAppear > 0 ? (cnt/totalAppear*100).toFixed(1) : 0;
-    const bar = Math.round(cnt / maxCnt * 80);
-    html += `<tr>
-      <td>${String(m).padStart(2,'0')}</td>
-      <td>${cnt} 次</td>
-      <td>${rate}%</td>
-      <td><div style="width:${bar}px;height:5px;background:var(--blue-dark);border-radius:3px"></div></td>
-    </tr>`;
-  });
-  html += '</tbody></table>';
-  document.getElementById('pairResult').innerHTML = html;
+
+    const divisor = results.length || 1;
+    const metrics = {
+        rate2: (hit2 / divisor) * 100,
+        rate3: (hit3 / divisor) * 100,
+        rate4: (hit4 / divisor) * 100,
+        rate5: (hit5 / divisor) * 100,
+        objective: ((hit2 / divisor) * 10) + ((hit3 / divisor) * 50) + ((hit4 / divisor) * 200),
+        testCount: results.length
+    };
+
+    return { results, metrics };
 }
-</script>
+
+function buildPrediction(train, config, stats) {
+    const combinedScores = buildCombinedScores(train, config);
+    const candidatePool = [...combinedScores.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0] - b[0])
+        .slice(0, config.candidatePool)
+        .map(([num]) => num);
+
+    return selectBestCombination(candidatePool, combinedScores, train, stats, config);
+}
+
+function buildCombinedScores(train, config) {
+    const recencyScores = scoreRecencyModel(train, config.recency);
+    const cooccurrenceScores = scoreCooccurrenceModel(train, config.cooccurrence);
+    const patternScores = scorePatternModel(train, config.pattern);
+    const omissionScores = scoreOmissionModel(train, config.recency.omitThreshold, config.recency.omitWeight);
+
+    const normalizedRecency = normalizeScores(recencyScores);
+    const normalizedCooccurrence = normalizeScores(cooccurrenceScores);
+    const normalizedPattern = normalizeScores(patternScores);
+    const normalizedOmission = normalizeScores(omissionScores);
+
+    const combined = new Map();
+    for (let n = 1; n <= BALL_COUNT; n += 1) {
+        const total =
+            (normalizedRecency.get(n) * config.scoreWeights.recency) +
+            (normalizedCooccurrence.get(n) * config.scoreWeights.cooccurrence) +
+            (normalizedPattern.get(n) * config.scoreWeights.pattern) +
+            (normalizedOmission.get(n) * config.scoreWeights.omission);
+        combined.set(n, total);
+    }
+    return combined;
+}
+
+function scoreRecencyModel(train, cfg) {
+    const scores = createScoreMap();
+    const omitMap = getOmissions(train);
+    const recent = train.slice(0, Math.min(cfg.depth, train.length));
+
+    recent.forEach((draw, index) => {
+        const weight = (recent.length - index) / Math.max(1, recent.length);
+        const zoneCount = [0, 0, 0, 0];
+
+        draw.nums.forEach((num) => {
+            scores.set(num, scores.get(num) + (cfg.hotWeight * weight));
+            if (num > 1) scores.set(num - 1, scores.get(num - 1) + (cfg.nearWeight * weight));
+            if (num < BALL_COUNT) scores.set(num + 1, scores.get(num + 1) + (cfg.nearWeight * weight));
+            zoneCount[getZoneIndex(num)] += 1;
+        });
+
+        zoneCount.forEach((count, zoneIndex) => {
+            if (count >= 2) {
+                getZoneNumbers(zoneIndex).forEach((num) => {
+                    scores.set(num, scores.get(num) + (cfg.zoneWeight * weight));
+                });
+            }
+        });
+    });
+
+    for (let n = 1; n <= BALL_COUNT; n += 1) {
+        if (omitMap[n] >= cfg.omitThreshold) {
+            scores.set(n, scores.get(n) + (omitMap[n] * cfg.omitWeight));
+        }
+    }
+
+    return scores;
+}
+
+function scoreCooccurrenceModel(train, cfg) {
+    const scores = createScoreMap();
+    const recentUnion = new Set(train.slice(0, cfg.recentDepth).flatMap((draw) => draw.nums));
+    const recentTails = new Set([...recentUnion].map((num) => num % 10));
+    const recentNumbers = train[0]?.nums || [];
+
+    for (let i = 1; i < Math.min(cfg.depth, train.length); i += 1) {
+        const draw = train[i];
+        const overlap = draw.nums.filter((num) => recentUnion.has(num)).length;
+        if (!overlap) continue;
+
+        const prevDraw = train[i - 1];
+        if (!prevDraw) continue;
+
+        prevDraw.nums.forEach((num) => {
+            scores.set(num, scores.get(num) + (overlap * cfg.overlapWeight));
+            if (recentTails.has(num % 10)) {
+                scores.set(num, scores.get(num) + cfg.tailWeight);
+            }
+            const minDistance = Math.min(...recentNumbers.map((value) => Math.abs(value - num)));
+            if (minDistance <= 2) {
+                scores.set(num, scores.get(num) + cfg.neighborWeight);
+            }
+        });
+    }
+
+    return scores;
+}
+
+function scorePatternModel(train, cfg) {
+    const scores = createScoreMap();
+    const recentSegment = train.slice(0, cfg.segment);
+    if (recentSegment.length < cfg.segment) return scores;
+
+    let matches = 0;
+    for (let start = 1; start + cfg.segment <= train.length && matches < cfg.maxMatches; start += 1) {
+        const candidateSegment = train.slice(start, start + cfg.segment);
+        const similarity = compareSegments(recentSegment, candidateSegment);
+        if (similarity < cfg.minSimilarity) continue;
+
+        const followDraw = train[start - 1];
+        if (!followDraw) continue;
+
+        followDraw.nums.forEach((num) => {
+            scores.set(num, scores.get(num) + (cfg.reward * similarity));
+        });
+
+        const latest = recentSegment[0].nums;
+        followDraw.nums.forEach((num) => {
+            const near = Math.min(...latest.map((value) => Math.abs(value - num)));
+            scores.set(num, scores.get(num) + ((3 - Math.min(near, 3)) * cfg.offsetWeight));
+        });
+
+        matches += 1;
+    }
+
+    return scores;
+}
+
+function scoreOmissionModel(train, omitThreshold, omitWeight) {
+    const scores = createScoreMap();
+    const omitMap = getOmissions(train);
+    for (let n = 1; n <= BALL_COUNT; n += 1) {
+        const velocity = getOmissionVelocity(n, train);
+        if (omitMap[n] >= omitThreshold) {
+            scores.set(n, scores.get(n) + (omitMap[n] * omitWeight));
+        }
+        scores.set(n, scores.get(n) + velocity);
+    }
+    return scores;
+}
+
+function selectBestCombination(candidatePool, combinedScores, train, stats, config) {
+    const ordered = candidatePool.slice().sort((a, b) => (combinedScores.get(b) - combinedScores.get(a)) || a - b);
+    const combos = choose(ordered, 5);
+    let bestCombo = ordered.slice(0, 5).sort((a, b) => a - b);
+    let bestScore = -Infinity;
+
+    combos.forEach((combo) => {
+        const sorted = combo.slice().sort((a, b) => a - b);
+        const base = sorted.reduce((sum, num) => sum + combinedScores.get(num), 0);
+        const penalty = evaluateComboPenalty(sorted, train, stats, config.combo);
+        const total = base - penalty;
+        if (total > bestScore) {
+            bestScore = total;
+            bestCombo = sorted;
+        }
+    });
+
+    return bestCombo;
+}
+
+function evaluateComboPenalty(combo, train, stats, comboCfg) {
+    const sum = combo.reduce((acc, num) => acc + num, 0);
+    const oddCount = combo.filter((num) => num % 2 !== 0).length;
+    const spread = combo[combo.length - 1] - combo[0];
+    const overlapWithRecent = train[0].nums.filter((num) => combo.includes(num)).length;
+    const repeatOverlap = maxHistoricalOverlap(combo, train);
+
+    let penalty = 0;
+    penalty += deviationPenalty(sum, stats.sum.mean, stats.sum.stdev) * comboCfg.sumWeight;
+    penalty += deviationPenalty(oddCount, stats.odd.mean, stats.odd.stdev) * comboCfg.oddWeight;
+    penalty += deviationPenalty(spread, stats.spread.mean, stats.spread.stdev) * comboCfg.spreadWeight;
+    if (overlapWithRecent >= 4) penalty += (overlapWithRecent - 3) * comboCfg.overlapWeight;
+    if (repeatOverlap >= 4) penalty += (repeatOverlap - 3) * 1.2;
+
+    return penalty;
+}
+
+function deviationPenalty(value, mean, stdev) {
+    const safeStdev = Math.max(stdev, 1);
+    return Math.abs(value - mean) / safeStdev;
+}
+
+function compareSegments(a, b) {
+    const aFlat = a.flatMap((draw) => draw.nums);
+    const bFlat = b.flatMap((draw) => draw.nums);
+    const directOverlap = aFlat.filter((num) => bFlat.includes(num)).length / Math.max(1, aFlat.length);
+    const tailOverlap = aFlat.filter((num) => bFlat.some((candidate) => candidate % 10 === num % 10)).length / Math.max(1, aFlat.length);
+    const zoneOverlap = aFlat.filter((num) => bFlat.some((candidate) => getZoneIndex(candidate) === getZoneIndex(num))).length / Math.max(1, aFlat.length);
+    return (directOverlap * 0.5) + (tailOverlap * 0.2) + (zoneOverlap * 0.3);
+}
+
+function maxHistoricalOverlap(combo, train) {
+    let maxOverlap = 0;
+    train.forEach((draw) => {
+        const overlap = draw.nums.filter((num) => combo.includes(num)).length;
+        if (overlap > maxOverlap) maxOverlap = overlap;
+    });
+    return maxOverlap;
+}
+
+function createScoreMap() {
+    const scores = new Map();
+    for (let n = 1; n <= BALL_COUNT; n += 1) {
+        scores.set(n, 0);
+    }
+    return scores;
+}
+
+function normalizeScores(scoreMap) {
+    const values = [...scoreMap.values()];
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = Math.max(max - min, 1e-9);
+    const normalized = new Map();
+    scoreMap.forEach((value, key) => {
+        normalized.set(key, (value - min) / range);
+    });
+    return normalized;
+}
+
+function getOmissions(history) {
+    const omit = {};
+    for (let n = 1; n <= BALL_COUNT; n += 1) omit[n] = 0;
+    for (let n = 1; n <= BALL_COUNT; n += 1) {
+        let gap = 0;
+        for (const draw of history) {
+            if (draw.nums.includes(n)) break;
+            gap += 1;
+        }
+        omit[n] = gap;
+    }
+    return omit;
+}
+
+function getOmissionVelocity(num, history) {
+    const gaps = [];
+    let currentGap = 0;
+
+    for (const draw of history) {
+        if (draw.nums.includes(num)) {
+            gaps.push(currentGap);
+            currentGap = 0;
+        } else {
+            currentGap += 1;
+        }
+    }
+
+    if (!gaps.length) return 0;
+    const avgGap = gaps.reduce((sum, value) => sum + value, 0) / gaps.length;
+    const delta = currentGap - avgGap;
+    if (Math.abs(delta) <= 1) return 1.4;
+    if (delta > 1) return 0.8;
+    return 0.2;
+}
+
+function calcStats(values) {
+    if (!values.length) return { mean: 0, stdev: 1 };
+    const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+    const variance = values.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / values.length;
+    return { mean, stdev: Math.sqrt(variance) };
+}
+
+function getZoneIndex(num) {
+    if (num <= 10) return 0;
+    if (num <= 20) return 1;
+    if (num <= 30) return 2;
+    return 3;
+}
+
+function getZoneNumbers(zoneIndex) {
+    const ranges = [
+        [1, 10],
+        [11, 20],
+        [21, 30],
+        [31, 39]
+    ];
+    const [start, end] = ranges[zoneIndex];
+    const nums = [];
+    for (let value = start; value <= end; value += 1) nums.push(value);
+    return nums;
+}
+
+function choose(items, count) {
+    const results = [];
+    const path = [];
+
+    function backtrack(start) {
+        if (path.length === count) {
+            results.push(path.slice());
+            return;
+        }
+        for (let i = start; i <= items.length - (count - path.length); i += 1) {
+            path.push(items[i]);
+            backtrack(i + 1);
+            path.pop();
+        }
+    }
+
+    backtrack(0);
+    return results.length ? results : [items.slice(0, count)];
+}
+
+function summarizeConfig(config) {
+    return [
+        `Window ${config.windowSize}`,
+        `Pool ${config.candidatePool}`,
+        `R/C/P ${config.scoreWeights.recency.toFixed(1)}/${config.scoreWeights.cooccurrence.toFixed(1)}/${config.scoreWeights.pattern.toFixed(1)}`,
+        `Seg ${config.pattern.segment}`
+    ].join(" | ");
+}
+    </script>
+
+    <script>
+        const API_URL = "https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec";
+        let worker = null;
+
+        function addLog(message, color = "gray-500") {
+            const logBox = document.getElementById("logBox");
+            const span = document.createElement("span");
+            span.className = `text-${color}`;
+            span.innerHTML = `&gt; ${message}<br>`;
+            logBox.appendChild(span);
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        function formatNumber(num) {
+            return String(num).padStart(2, "0");
+        }
+
+        function setStatus(mode, dotClass) {
+            document.getElementById("strategyMode").innerText = mode;
+            document.getElementById("statusDot").className = dotClass;
+        }
+
+        function ensureWorker() {
+            if (worker) return worker;
+
+            const source = document.getElementById("worker-source").textContent;
+            const blob = new Blob([source], { type: "application/javascript" });
+            const url = URL.createObjectURL(blob);
+            worker = new Worker(url);
+
+            worker.onmessage = (event) => {
+                const { type, payload } = event.data || {};
+                if (type === "log") {
+                    addLog(payload.message, payload.color || "gray-500");
+                    return;
+                }
+                if (type === "analysis") {
+                    updateUI(payload);
+                }
+            };
+
+            worker.onerror = (event) => {
+                addLog(`Worker 執行錯誤：${event.message || "未知錯誤"}`, "red-500");
+                setStatus("ERROR", "w-2 h-2 bg-red-500 rounded-full mr-1");
+            };
+
+            worker.onmessageerror = () => {
+                addLog("Worker 訊息解析失敗。", "red-500");
+                setStatus("ERROR", "w-2 h-2 bg-red-500 rounded-full mr-1");
+            };
+
+            addLog("Worker 已建立。", "green-500");
+            return worker;
+        }
+
+        async function fetchSheetData() {
+            addLog("開始同步 Google Sheet 資料...", "orange-500");
+            setStatus("SYNC", "w-2 h-2 bg-orange-500 rounded-full mr-1 animate-pulse");
+
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+                const rawData = typeof result === "string" ? result : (typeof result.data === "string" ? result.data : "");
+                if (!rawData.trim()) {
+                    throw new Error("API 沒有回傳可用資料。");
+                }
+
+                const lines = rawData.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+                const draws = lines
+                    .map((line) => {
+                        const tokens = line.split(/\s+/);
+                        const nums = tokens.slice(-5).map(Number);
+                        if (nums.length !== 5 || nums.some((num) => !Number.isInteger(num) || num < 1 || num > 39)) {
+                            return null;
+                        }
+                        if (new Set(nums).size !== 5) {
+                            return null;
+                        }
+                        return { nums };
+                    })
+                    .filter(Boolean)
+                    .reverse()
+                    .map((draw, index) => ({
+                        label: `第 ${String(index + 1).padStart(3, "0")} 期`,
+                        nums: draw.nums
+                    }));
+
+                if (draws.length < 36) {
+                    throw new Error("有效資料不足 36 期。");
+                }
+
+                addLog(`同步完成，共載入 ${draws.length} 期。`, "green-500");
+                ensureWorker().postMessage({ type: "analyze", payload: { draws } });
+            } catch (error) {
+                addLog(`同步失敗：${error.message}`, "red-500");
+                setStatus("ERROR", "w-2 h-2 bg-red-500 rounded-full mr-1");
+            }
+        }
+
+        function updateUI(payload) {
+            const { modelName, configSummary, filterSummary, nextPrediction, metrics, visibleResults } = payload;
+
+            nextPrediction.forEach((num, index) => {
+                document.getElementById(`p${index + 1}`).innerText = num ? formatNumber(num) : "--";
+            });
+
+            document.getElementById("hitRate").innerText =
+                `2星/3星/4星/5星：${metrics.rate2.toFixed(1)} / ${metrics.rate3.toFixed(1)} / ${metrics.rate4.toFixed(1)} / ${metrics.rate5.toFixed(1)}`;
+
+            if (metrics.rate2 < 100) {
+                setStatus("警戒", "w-2 h-2 bg-red-500 rounded-full mr-1");
+            } else if (metrics.rate2 === 100 && metrics.rate3 > 50) {
+                setStatus("穩定", "w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse");
+            } else {
+                setStatus("優化中", "w-2 h-2 bg-orange-500 rounded-full mr-1 animate-pulse");
+            }
+
+            document.getElementById("modelMeta").innerText =
+                `${modelName} | ${configSummary} | ${filterSummary} | 回測樣本 ${metrics.testCount} 期`;
+
+            const rows = visibleResults.length
+                ? visibleResults.map((result) => {
+                    const hitSet = new Set(result.hitNums);
+                    const predictionHtml = result.prediction
+                        .map((num) => hitSet.has(num) ? `<span class="hit-num">${formatNumber(num)}</span>` : formatNumber(num))
+                        .join(" ");
+                    const dotHtml = result.prediction
+                        .map((num) => `<span class="slot-dot ${hitSet.has(num) ? "slot-hit" : "slot-miss"}">${hitSet.has(num) ? "●" : "○"}</span>`)
+                        .join("");
+                    return `
+                        <tr class="border-b border-white/5">
+                            <td class="py-3 text-gray-500 font-mono">${result.label}</td>
+                            <td class="font-mono text-white">${result.actual.map(formatNumber).join(" ")}</td>
+                            <td class="text-[11px] text-gray-400 font-mono">${predictionHtml}</td>
+                            <td>${dotHtml}</td>
+                            <td class="text-right font-black ${result.hits >= 3 ? "text-orange-500" : result.hits >= 2 ? "text-white" : "text-gray-500"}">${result.hits}</td>
+                        </tr>
+                    `;
+                }).join("")
+                : `<tr><td colspan="5" class="text-center py-10 text-gray-600 font-mono italic">沒有可顯示的回測資料</td></tr>`;
+
+            document.getElementById("historyTable").innerHTML = rows;
+            addLog(`回測完成：2星 ${metrics.rate2.toFixed(1)}%，3星 ${metrics.rate3.toFixed(1)}%。`, "green-500");
+            addLog(`下一期推薦：${nextPrediction.map(formatNumber).join(" ")}`, "orange-400");
+        }
+
+        ensureWorker();
+    </script>
 </body>
 </html>
