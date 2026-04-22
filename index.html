@@ -97,6 +97,7 @@
     <script id="worker-source" type="text/plain">
 const DISPLAY_ROWS = 10;
 const BALL_COUNT = 39;
+const MIN_DRAW_COUNT = 48;
 
 self.onmessage = (event) => {
     const { type, payload } = event.data || {};
@@ -104,8 +105,8 @@ self.onmessage = (event) => {
 
     try {
         const draws = Array.isArray(payload?.draws) ? payload.draws : [];
-        if (draws.length < 48) {
-            throw new Error("資料不足，至少需要 48 期才能分析。");
+        if (draws.length < MIN_DRAW_COUNT) {
+            throw new Error(`資料不足，至少需要 ${MIN_DRAW_COUNT} 期才能分析。`);
         }
 
         log("Worker 已啟動，開始進行 39 號逐一打分。", "orange-500");
@@ -426,6 +427,13 @@ function scoreOmissionModel(train, omitThreshold, omitWeight) {
 
 function selectBestCombination(candidatePool, combinedScores, train, stats, config) {
     const ordered = candidatePool.slice().sort((a, b) => (combinedScores.get(b) - combinedScores.get(a)) || a - b);
+    if (ordered.length < 5) {
+        return [...combinedScores.entries()]
+            .sort((a, b) => (b[1] - a[1]) || a[0] - b[0])
+            .slice(0, 5)
+            .map(([num]) => num)
+            .sort((a, b) => a - b);
+    }
     const combos = choose(ordered, 5);
     let bestCombo = ordered.slice(0, 5).sort((a, b) => a - b);
     let bestScore = -Infinity;
@@ -598,6 +606,7 @@ function summarizeConfig(config) {
 
     <script>
         const API_URL = "https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec";
+        const MIN_DRAW_COUNT = 48;
         let worker = null;
 
         function addLog(message, color = "gray-500") {
@@ -687,8 +696,8 @@ function summarizeConfig(config) {
                         nums: draw.nums
                     }));
 
-                if (draws.length < 36) {
-                    throw new Error("有效資料不足 36 期。");
+                if (draws.length < MIN_DRAW_COUNT) {
+                    throw new Error(`有效資料不足 ${MIN_DRAW_COUNT} 期。`);
                 }
 
                 addLog(`同步完成，共載入 ${draws.length} 期。`, "green-500");
