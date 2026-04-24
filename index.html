@@ -1,1161 +1,902 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTIMATE EVO v9.20</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        :root { --ios-orange: #f97316; --ios-bg: #000000; --ios-panel: #1c1c1e; }
-        body { background-color: var(--ios-bg); color: #fff; font-family: -apple-system, system-ui, sans-serif; overflow-x: hidden; }
-        .ios-panel { background: var(--ios-panel); border-radius: 12px; }
-        .orange-glow { box-shadow: 0 0 35px rgba(249, 115, 22, 0.3); }
-        .btn-active { background: var(--ios-orange); color: #000; font-weight: 700; }
-        #logBox { font-variant-numeric: tabular-nums; scrollbar-width: none; }
-        #logBox::-webkit-scrollbar { display: none; }
-        .hit-num { color: #fff; font-weight: 900; background: var(--ios-orange); padding: 1px 4px; border-radius: 4px; }
-        .grid-val { text-shadow: 0 0 10px rgba(249, 115, 22, 0.5); }
-        .slot-dot { display: inline-flex; width: 18px; height: 18px; align-items: center; justify-content: center; border-radius: 999px; font-size: 10px; font-weight: 800; margin-right: 4px; }
-        .slot-hit { background: rgba(34, 197, 94, 0.18); color: #4ade80; }
-        .slot-miss { background: rgba(255, 255, 255, 0.08); color: #6b7280; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>板路分析</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0b0f;
+  --card: #111318;
+  --card2: #181b23;
+  --border: rgba(255,255,255,0.06);
+  --border2: rgba(255,255,255,0.12);
+  --gold: #f0c060;
+  --gold2: #ffd980;
+  --teal: #3de8c8;
+  --red: #ff5f6d;
+  --blue: #4fa3ff;
+  --text: #e8eaf2;
+  --muted: #5a6070;
+  --muted2: #8890a0;
+  --radius: 18px;
+  --mono: 'Space Mono', monospace;
+  --sans: 'Noto Sans TC', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  overflow: hidden;
+}
+
+/* ── top bar ── */
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  padding: env(safe-area-inset-top, 44px) 16px 0;
+  background: rgba(10,11,15,0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  z-index: 100;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.topbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0 12px;
+}
+
+.topbar-title {
+  font-family: var(--mono);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.08em;
+}
+
+.refresh-btn {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: var(--card2);
+  border: 0.5px solid var(--border2);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  color: var(--muted2);
+  font-size: 14px;
+  transition: all 0.2s;
+  -webkit-user-select: none;
+}
+.refresh-btn:active { transform: scale(0.9); background: var(--gold); color: #000; }
+.refresh-btn.spinning { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── tab nav ── */
+.tabnav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  padding-bottom: env(safe-area-inset-bottom, 20px);
+  background: rgba(10,11,15,0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 0.5px solid var(--border);
+  z-index: 100;
+  display: flex;
+}
+
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0 6px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  transition: all 0.15s;
+}
+
+.tab-icon {
+  width: 26px; height: 26px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  margin-bottom: 4px;
+  transition: all 0.2s;
+}
+
+.tab-label {
+  font-size: 0.6rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  transition: color 0.2s;
+}
+
+.tab-item.active .tab-icon { background: var(--gold); }
+.tab-item.active .tab-label { color: var(--gold); }
+.tab-item:active { opacity: 0.6; }
+
+/* ── content area ── */
+.content {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  padding-top: calc(env(safe-area-inset-top, 44px) + 56px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 20px) + 52px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.panel { display: none; padding: 12px 14px; }
+.panel.active { display: block; animation: fadeUp 0.3s ease; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── card base ── */
+.card {
+  background: var(--card);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.card-title {
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted2);
+}
+
+.dot { width: 6px; height: 6px; border-radius: 50%; }
+.dot-green { background: #3de88a; animation: pulse 2s ease-in-out infinite; }
+.dot-gold { background: var(--gold); }
+.dot-blue { background: var(--blue); }
+.dot-red { background: var(--red); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* ── PANEL 1: LOG ── */
+.log-box {
+  padding: 12px 14px;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  line-height: 1.9;
+  min-height: 200px;
+  max-height: 360px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.log-line { display: flex; gap: 10px; }
+.log-time { color: var(--muted); flex-shrink: 0; }
+.log-msg { }
+.log-ok { color: var(--teal); }
+.log-warn { color: var(--gold); }
+.log-err { color: var(--red); }
+.log-info { color: var(--muted2); }
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+}
+.pill-ok { background: rgba(61,232,138,0.1); color: #3de88a; border: 0.5px solid rgba(61,232,138,0.2); }
+.pill-loading { background: rgba(240,192,96,0.1); color: var(--gold); border: 0.5px solid rgba(240,192,96,0.2); }
+.pill-err { background: rgba(255,95,109,0.1); color: var(--red); border: 0.5px solid rgba(255,95,109,0.2); }
+
+/* ── PANEL 2: PREDICTION ── */
+.date-row {
+  padding: 14px 16px 6px;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--muted2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.date-badge {
+  background: rgba(240,192,96,0.1);
+  border: 0.5px solid rgba(240,192,96,0.25);
+  color: var(--gold);
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.65rem;
+  font-family: var(--mono);
+}
+
+.pred-section {
+  padding: 8px 16px 18px;
+}
+
+.pred-label {
+  font-size: 0.62rem;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.balls-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.ball {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono);
+  font-size: 1rem;
+  font-weight: 700;
+  position: relative;
+  animation: ballPop 0.4s cubic-bezier(0.34,1.56,0.64,1) backwards;
+}
+
+@keyframes ballPop {
+  from { opacity:0; transform: scale(0.4); }
+  to   { opacity:1; transform: scale(1); }
+}
+
+.ball-gold {
+  background: radial-gradient(circle at 35% 35%, #ffe9a0, #d4922a);
+  color: #2a1a00;
+  box-shadow: 0 2px 12px rgba(240,192,96,0.35);
+}
+.ball-ghost {
+  background: var(--card2);
+  border: 1.5px solid var(--border2);
+  color: var(--muted2);
+}
+
+.score-strip {
+  margin: 14px 16px 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.score-item {
+  background: var(--card2);
+  border-radius: 10px;
+  padding: 10px 12px;
+  text-align: center;
+}
+
+.score-num {
+  font-family: var(--mono);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--teal);
+}
+
+.score-sub {
+  font-size: 0.6rem;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.due-list { padding: 4px 16px 14px; }
+.due-row {
+  display: flex;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 0.5px solid var(--border);
+  gap: 10px;
+}
+.due-row:last-child { border-bottom: none; }
+.due-rank { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); width: 20px; flex-shrink: 0; }
+.due-num { font-family: var(--mono); font-size: 0.9rem; font-weight: 700; width: 28px; color: var(--gold); }
+.due-bar-wrap { flex: 1; height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+.due-bar { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--gold), var(--teal)); }
+.due-score { font-family: var(--mono); font-size: 0.65rem; color: var(--muted2); width: 36px; text-align: right; }
+
+/* ── PANEL 3: RECENT ── */
+.recent-table { width: 100%; border-collapse: collapse; }
+.recent-table th {
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-align: center;
+  padding: 8px 4px;
+  border-bottom: 0.5px solid var(--border);
+  font-weight: 500;
+}
+.recent-table td {
+  text-align: center;
+  padding: 9px 4px;
+  border-bottom: 0.5px solid rgba(255,255,255,0.03);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+}
+.recent-table tr:last-child td { border-bottom: none; }
+.recent-table .date-col { font-size: 0.62rem; color: var(--muted2); text-align: left; padding-left: 12px; }
+.recent-table .num-cell {
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.num-hi { background: rgba(240,192,96,0.15); color: var(--gold); }
+.num-lo { background: rgba(61,232,200,0.1); color: var(--teal); }
+.num-mid { color: var(--muted2); }
+.sum-col { font-size: 0.65rem; color: var(--muted); padding-right: 12px; }
+
+/* ── PANEL 4: 板路 ── */
+.road-grid {
+  padding: 10px 14px;
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 3px;
+}
+
+.road-cell {
+  aspect-ratio: 1;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  position: relative;
+}
+
+.rc-high { background: rgba(240,192,96,0.18); color: var(--gold); border: 0.5px solid rgba(240,192,96,0.25); }
+.rc-low  { background: rgba(61,232,200,0.12); color: var(--teal); border: 0.5px solid rgba(61,232,200,0.2); }
+.rc-empty{ background: rgba(255,255,255,0.03); color: var(--muted); border: 0.5px solid var(--border); }
+
+.road-legend {
+  display: flex;
+  gap: 16px;
+  padding: 0 14px 10px;
+  font-size: 0.62rem;
+  color: var(--muted2);
+  align-items: center;
+}
+.legend-swatch { width: 10px; height: 10px; border-radius: 3px; }
+
+.freq-heatmap {
+  padding: 10px 14px;
+  display: grid;
+  grid-template-columns: repeat(13, 1fr);
+  gap: 4px;
+}
+
+.hm-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.hm-bar-wrap {
+  width: 100%;
+  height: 40px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.hm-bar {
+  width: 100%;
+  border-radius: 2px 2px 0 0;
+  min-height: 2px;
+}
+
+.hm-num {
+  font-family: var(--mono);
+  font-size: 0.55rem;
+  color: var(--muted);
+}
+
+.odd-even-row {
+  display: flex;
+  gap: 10px;
+  padding: 0 14px 12px;
+}
+
+.oe-card {
+  flex: 1;
+  background: var(--card2);
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+}
+
+.oe-pct {
+  font-family: var(--mono);
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.oe-label { font-size: 0.62rem; color: var(--muted); margin-top: 3px; }
+
+.oe-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  margin-top: 10px;
+  overflow: hidden;
+  position: relative;
+}
+.oe-fill { height: 100%; border-radius: 2px; }
+
+.range-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 0 14px 14px;
+}
+
+.range-card {
+  background: var(--card2);
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+}
+
+.range-pct {
+  font-family: var(--mono);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.range-label { font-size: 0.58rem; color: var(--muted); margin-top: 3px; }
+
+/* empty state */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.8;
+}
+.empty-icon { font-size: 2rem; margin-bottom: 12px; opacity: 0.4; }
+</style>
 </head>
-<body class="min-h-screen flex flex-col p-4">
-    <div class="flex justify-between items-center mb-5">
-        <h1 class="text-2xl font-black italic tracking-tighter text-orange-500">
-            ULTIMATE <span class="text-white">EVO 9.20</span>
-        </h1>
-        <div class="flex bg-[#2c2c2e] p-1 rounded-xl flex-nowrap shrink-0">
-            <button id="btnSync" onclick="fetchSheetData()" class="px-4 py-1.5 rounded-lg text-sm btn-active whitespace-nowrap">開始同步</button>
+<body>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="topbar-title">◈ LOTTERY RADAR</div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <div id="statusPill" class="status-pill pill-loading">
+        <div class="dot dot-gold"></div>
+        <span>等待資料</span>
+      </div>
+      <div class="refresh-btn" id="refreshBtn" onclick="loadData()">↻</div>
+    </div>
+  </div>
+</div>
+
+<!-- Content -->
+<div class="content">
+
+  <!-- PANEL 1: LOG -->
+  <div class="panel active" id="panel-1">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">系統日誌</span>
+        <div class="dot dot-green"></div>
+      </div>
+      <div class="log-box" id="logBox">
+        <div class="log-line"><span class="log-time">--:--:--</span><span class="log-info">系統初始化...</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">API 端點</span>
+      </div>
+      <div style="padding:12px 14px;">
+        <input id="apiInput" type="url" value="https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec"
+          style="width:100%;background:#0d0f14;border:0.5px solid rgba(255,255,255,0.12);border-radius:10px;color:#8890a0;font-family:'Space Mono',monospace;font-size:0.62rem;padding:10px 12px;outline:none;-webkit-appearance:none;" />
+        <button onclick="loadData()" style="margin-top:10px;width:100%;background:var(--gold);color:#000;border:none;border-radius:10px;padding:12px;font-family:'Noto Sans TC',sans-serif;font-size:0.85rem;font-weight:700;cursor:pointer;">
+          重新載入
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL 2: PREDICTION -->
+  <div class="panel" id="panel-2">
+    <div id="pred-empty" class="card">
+      <div style="padding:40px 20px;text-align:center;color:var(--muted);font-size:0.78rem;">
+        <div style="font-size:2rem;opacity:0.3;margin-bottom:12px;">◎</div>
+        請先在「日誌」頁載入資料
+      </div>
+    </div>
+    <div id="pred-content" style="display:none;">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">最後一期</span>
+          <div id="lastDateBadge" class="date-badge">—</div>
         </div>
+        <div class="pred-section">
+          <div class="pred-label">實際號碼</div>
+          <div class="balls-row" id="lastBalls"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">D+1 預測號碼</span>
+          <div class="dot dot-gold"></div>
+        </div>
+        <div class="pred-section">
+          <div class="pred-label">補償邏輯 — 超期最高</div>
+          <div class="balls-row" id="predBalls"></div>
+        </div>
+        <div class="score-strip" id="scoreStrip">
+          <div class="score-item"><div class="score-num" id="sc-sum">—</div><div class="score-sub">預測總和</div></div>
+          <div class="score-item"><div class="score-num" id="sc-mid">—</div><div class="score-sub">預測中位</div></div>
+          <div class="score-item"><div class="score-num" id="sc-avg">—</div><div class="score-sub">歷史均和</div></div>
+        </div>
+        <div style="padding:14px 16px 6px;font-size:0.62rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;">補償分數排行</div>
+        <div class="due-list" id="dueList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL 3: RECENT -->
+  <div class="panel" id="panel-3">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">近 10 期記錄</span>
+        <div class="dot dot-blue"></div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="recent-table">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding-left:12px;">日期</th>
+              <th>N1</th><th>N2</th><th>N3</th><th>N4</th><th>N5</th>
+              <th style="padding-right:12px;">和</th>
+            </tr>
+          </thead>
+          <tbody id="recentBody">
+            <tr><td colspan="7" style="padding:30px;text-align:center;color:var(--muted);font-size:0.75rem;">尚無資料</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL 4: 板路 -->
+  <div class="panel" id="panel-4">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">高低板路圖</span>
+        <div class="dot dot-red"></div>
+      </div>
+      <div class="road-legend">
+        <div style="display:flex;align-items:center;gap:5px;"><div class="legend-swatch" style="background:rgba(240,192,96,0.4);border:0.5px solid rgba(240,192,96,0.5);"></div>高區 ≥20</div>
+        <div style="display:flex;align-items:center;gap:5px;"><div class="legend-swatch" style="background:rgba(61,232,200,0.3);border:0.5px solid rgba(61,232,200,0.4);"></div>低區 &lt;20</div>
+      </div>
+      <div class="road-grid" id="roadGrid"></div>
     </div>
 
-    <div class="ios-panel p-4 mb-4 orange-glow border border-orange-500/50">
-        <div class="flex justify-between items-end mb-2">
-            <label class="text-[10px] text-orange-400 font-bold uppercase tracking-widest">Panel 1: Engine Status</label>
-            <div class="flex items-center text-[10px] text-orange-500 font-bold uppercase">
-                <span id="statusDot" class="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></span>
-                v9.20 <span id="strategyMode" class="ml-1 text-white">READY</span>
-            </div>
-        </div>
-        <div id="logBox" class="bg-black/50 p-3 rounded-lg text-[11px] h-24 overflow-y-auto font-mono border border-white/5 leading-relaxed">
-            <span class="text-gray-500">&gt; Worker 已準備，等待開始同步...</span><br>
-            <span class="text-gray-500">&gt; 模式：誠實回測 + 可解釋預測</span>
-        </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">頻率熱力圖</span>
+      </div>
+      <div class="freq-heatmap" id="freqHeatmap"></div>
+      <div style="padding:4px 14px 12px;font-size:0.6rem;color:var(--muted);">號碼 1–39 出現次數分布</div>
     </div>
 
-    <div class="ios-panel p-4 mb-4 border-t-2 border-orange-600">
-        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-3">Panel 2: Prediction Grid (固定 5 碼)</label>
-        <div class="grid grid-cols-5 gap-2" id="predictionGrid">
-            <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
-                <div class="text-[9px] text-orange-500 font-bold">第 1 碼</div>
-                <div class="text-lg font-black text-white grid-val" id="p1">--</div>
-            </div>
-            <div class="bg-orange-500/20 p-2 rounded-lg text-center border border-orange-500/40">
-                <div class="text-[9px] text-orange-500 font-bold">第 2 碼</div>
-                <div class="text-lg font-black text-white grid-val" id="p2">--</div>
-            </div>
-            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
-                <div class="text-[9px] text-gray-400 font-bold">第 3 碼</div>
-                <div class="text-lg font-black text-white" id="p3">--</div>
-            </div>
-            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
-                <div class="text-[9px] text-gray-400 font-bold">第 4 碼</div>
-                <div class="text-lg font-black text-white" id="p4">--</div>
-            </div>
-            <div class="bg-white/5 p-2 rounded-lg text-center border border-white/10">
-                <div class="text-[9px] text-gray-400 font-bold">第 5 碼</div>
-                <div class="text-lg font-black text-white" id="p5">--</div>
-            </div>
-        </div>
-        <div id="modelMeta" class="mt-3 text-[11px] text-gray-500 leading-6">等待同步資料...</div>
-        <div class="mt-3 rounded-lg bg-black/40 border border-white/5 p-3">
-            <div class="text-[10px] text-orange-400 font-bold uppercase tracking-widest mb-2">Debug Trace</div>
-            <pre id="debugTrace" class="text-[10px] text-gray-400 font-mono whitespace-pre-wrap leading-5 max-h-56 overflow-y-auto">等待同步後顯示 39 碼總分排名、candidate pool、各模型貢獻與組合勝出原因...</pre>
-        </div>
-        <div class="mt-2 text-[11px] text-gray-500">以上為統計參考，基於歷史規律，不保證未來結果。</div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">奇偶分布</span></div>
+      <div class="odd-even-row" id="oddEvenRow"></div>
     </div>
 
-    <div class="ios-panel p-4 flex-grow overflow-hidden flex flex-col">
-        <div class="flex justify-between items-center mb-2">
-            <label class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Panel 3: Backtest</label>
-            <div id="hitRate" class="text-[10px] font-black text-orange-500">測試集 2★ / 3★ / 4★ / 5★：0.0 / 0.0 / 0.0 / 0.0</div>
-        </div>
-        <div class="ios-panel bg-black/40 border border-white/5 p-3 mb-3">
-            <div class="text-[10px] text-orange-400 font-bold uppercase tracking-widest mb-2">誠實指標</div>
-            <div class="grid grid-cols-2 gap-3 text-[11px]">
-                <div class="rounded-lg bg-white/5 p-2 border border-white/5">
-                    <div class="text-gray-400 mb-1">訓練集命中率</div>
-                    <div id="trainRate" class="font-mono text-white">2★ 0.0% / 3★ 0.0%</div>
-                </div>
-                <div class="rounded-lg bg-white/5 p-2 border border-white/5">
-                    <div class="text-gray-400 mb-1">測試集命中率</div>
-                    <div id="testRate" class="font-mono text-white">2★ 0.0% / 3★ 0.0%</div>
-                </div>
-            </div>
-            <div id="overfitWarning" class="mt-2 text-[11px] text-gray-500">等待同步資料後顯示過擬合警告。</div>
-        </div>
-        <div class="overflow-y-auto flex-grow">
-            <table class="w-full text-[12px]">
-                <thead class="sticky top-0 bg-[#1c1c1e] text-gray-500 z-10">
-                    <tr class="text-left border-b border-white/10">
-                        <th class="pb-2">期別</th>
-                        <th class="pb-2">實際開獎</th>
-                        <th class="pb-2">預測號碼</th>
-                        <th class="pb-2">命中點</th>
-                        <th class="pb-2 text-right">命中</th>
-                    </tr>
-                </thead>
-                <tbody id="historyTable" class="divide-y divide-white/5">
-                    <tr><td colspan="5" class="text-center py-10 text-gray-600 font-mono italic">尚未同步資料</td></tr>
-                </tbody>
-            </table>
-        </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">區段分布</span></div>
+      <div class="range-row" id="rangeRow"></div>
     </div>
+  </div>
 
-    <script id="worker-source" type="text/plain">
-const DISPLAY_ROWS = 10;
-const BALL_COUNT = 39;
-const MIN_DRAW_COUNT = 30;
+</div>
 
-self.onmessage = async (event) => {
-    const { type, payload } = event.data || {};
-    if (type !== "analyze") return;
+<!-- Tab Nav -->
+<div class="tabnav">
+  <div class="tab-item active" onclick="switchTab(1)" id="tab-1">
+    <div class="tab-icon" style="font-size:16px;">◧</div>
+    <div class="tab-label">日誌</div>
+  </div>
+  <div class="tab-item" onclick="switchTab(2)" id="tab-2">
+    <div class="tab-icon" style="font-size:16px;">◈</div>
+    <div class="tab-label">預測</div>
+  </div>
+  <div class="tab-item" onclick="switchTab(3)" id="tab-3">
+    <div class="tab-icon" style="font-size:16px;">≡</div>
+    <div class="tab-label">近期</div>
+  </div>
+  <div class="tab-item" onclick="switchTab(4)" id="tab-4">
+    <div class="tab-icon" style="font-size:16px;">▦</div>
+    <div class="tab-label">板路</div>
+  </div>
+</div>
 
-    try {
-        const draws = Array.isArray(payload?.draws) ? payload.draws : [];
-        if (draws.length < MIN_DRAW_COUNT) {
-            throw new Error(`資料不足，至少需要 ${MIN_DRAW_COUNT} 期才能分析`);
-        }
+<script>
+const API_URL = () => document.getElementById('apiInput').value.trim();
+const MAX_N = 39;
+let allRows = [];
 
-        log("Worker 開始分析：嚴格 Train / Validation / Test 切割", "orange-500");
-        const chronological = draws.slice().reverse();
-        const split = splitDraws(chronological);
-        const trainStats = buildHistoricalStats(split.train);
-        const best = await heuristicSearch(split, trainStats);
+/* ── utils ── */
+function ts() {
+  return new Date().toTimeString().slice(0,8);
+}
 
-        const validationMetrics = evaluateChronologicalSegment(
-            split.validation,
-            split.train,
-            best.config,
-            trainStats
-        ).metrics;
+function log(msg, type='info') {
+  const box = document.getElementById('logBox');
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="log-time">${ts()}</span><span class="log-${type}">${msg}</span>`;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
 
-        const testHistoryBefore = split.train.concat(split.validation);
-        const testEvaluation = evaluateChronologicalSegment(
-            split.test,
-            testHistoryBefore,
-            best.config,
-            trainStats
-        );
+function setStatus(text, type) {
+  const p = document.getElementById('statusPill');
+  const dotClass = type === 'ok' ? 'dot-green' : type === 'err' ? 'dot-red' : 'dot-gold';
+  p.className = `status-pill pill-${type}`;
+  p.innerHTML = `<div class="dot ${dotClass}"></div><span>${text}</span>`;
+}
 
-        const nextHistory = chronological.slice(-best.config.windowSize).reverse();
-        const debugBundle = explainPrediction(nextHistory, best.config, trainStats);
-        const honestyGap = Math.max(
-            Math.abs(best.trainingMetrics.rate2 - testEvaluation.metrics.rate2),
-            Math.abs(best.trainingMetrics.rate3 - testEvaluation.metrics.rate3)
-        );
+function parseRows(data) {
+  if (Array.isArray(data)) return data;
+  if (data.values) return data.values;
+  if (data.data) return data.data;
+  if (data.rows) return data.rows;
+  return [];
+}
 
-        self.postMessage({
-            type: "analysis",
-            payload: {
-                modelName: "v9.51 誠實回測模型",
-                configSummary: summarizeConfig(best.config),
-                filterSummary: "Train 60% / Validation 20% / Test 20%",
-                nextPrediction: debugBundle.prediction,
-                debug: debugBundle,
-                metrics: testEvaluation.metrics,
-                visibleResults: testEvaluation.results.slice(-DISPLAY_ROWS).reverse(),
-                honesty: {
-                    training: best.trainingMetrics,
-                    validation: validationMetrics,
-                    test: testEvaluation.metrics,
-                    gap: honestyGap,
-                    warning: honestyGap > 15
-                }
-            }
-        });
-    } catch (error) {
-        log(`Worker 分析失敗：${error.message}`, "red-500");
-        self.postMessage({
-            type: "analysis",
-            payload: {
-                modelName: "v9.51 誠實回測模型",
-                configSummary: "使用預設參數",
-                filterSummary: "Worker 失敗",
-                nextPrediction: [0, 0, 0, 0, 0],
-                debug: null,
-                metrics: { rate2: 0, rate3: 0, rate4: 0, rate5: 0, objective: 0, testCount: 0 },
-                visibleResults: [],
-                honesty: {
-                    training: { rate2: 0, rate3: 0, rate4: 0, rate5: 0, objective: 0, testCount: 0 },
-                    validation: { rate2: 0, rate3: 0, rate4: 0, rate5: 0, objective: 0, testCount: 0 },
-                    test: { rate2: 0, rate3: 0, rate4: 0, rate5: 0, objective: 0, testCount: 0 },
-                    gap: 0,
-                    warning: false
-                }
-            }
-        });
+function extractNums(row) {
+  let nums = [];
+  if (Array.isArray(row)) {
+    nums = row.slice(1).map(Number).filter(n => n >= 1 && n <= MAX_N);
+  } else if (typeof row === 'object') {
+    for (const k of Object.keys(row)) {
+      const v = Number(row[k]);
+      if (!isNaN(v) && v >= 1 && v <= MAX_N) nums.push(v);
     }
+  }
+  return nums.slice(0, 5);
+}
+
+function extractDate(row) {
+  if (Array.isArray(row)) return String(row[0]);
+  if (typeof row === 'object') {
+    const k = Object.keys(row)[0];
+    return String(row['date'] || row['Date'] || row[k] || '');
+  }
+  return '';
+}
+
+/* ── data load ── */
+async function loadData() {
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('spinning');
+  setStatus('載入中', 'loading');
+  log('開始連接 API...', 'warn');
+
+  try {
+    const res = await fetch(API_URL());
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const raw = await res.json();
+    log(`API 回應成功`, 'ok');
+
+    const rows = parseRows(raw);
+    log(`解析到 ${rows.length} 列原始資料`, 'info');
+
+    const valid = rows.filter(r => extractNums(r).length === 5);
+    if (!valid.length) throw new Error('無法解析出有效號碼（需 5 個 1–39 數字）');
+
+    allRows = valid;
+    log(`有效期數：${valid.length} 期`, 'ok');
+    log(`最後一期：${extractDate(valid[valid.length - 1])}`, 'ok');
+
+    setStatus(`${valid.length} 期`, 'ok');
+    renderAll();
+    log('全部面板渲染完成 ✓', 'ok');
+  } catch(e) {
+    log(`錯誤：${e.message}`, 'err');
+    setStatus('錯誤', 'err');
+  }
+
+  btn.classList.remove('spinning');
+}
+
+/* ── compute due scores ── */
+function computeDue(rows) {
+  const total = rows.length;
+  const freq = new Array(MAX_N + 1).fill(0);
+  const lastSeen = new Array(MAX_N + 1).fill(-1);
+
+  rows.forEach((row, idx) => {
+    extractNums(row).forEach(n => { freq[n]++; lastSeen[n] = idx; });
+  });
+
+  return Array.from({length: MAX_N}, (_, i) => {
+    const n = i + 1;
+    const gap = lastSeen[n] === -1 ? total : (total - 1) - lastSeen[n];
+    const expected = freq[n] > 0 ? total / freq[n] : total;
+    return { n, freq: freq[n], gap, expected, score: gap / expected };
+  }).sort((a, b) => b.score - a.score);
+}
+
+/* ── render all ── */
+function renderAll() {
+  renderPrediction();
+  renderRecent();
+  renderRoad();
+}
+
+/* ── panel 2 ── */
+function renderPrediction() {
+  if (!allRows.length) return;
+  document.getElementById('pred-empty').style.display = 'none';
+  document.getElementById('pred-content').style.display = 'block';
+
+  const last = allRows[allRows.length - 1];
+  const lastDate = extractDate(last);
+  const lastNums = extractNums(last).sort((a,b)=>a-b);
+
+  document.getElementById('lastDateBadge').textContent = lastDate;
+
+  document.getElementById('lastBalls').innerHTML = lastNums.map((n,i) =>
+    `<div class="ball ball-ghost" style="animation-delay:${i*0.06}s">${n}</div>`
+  ).join('');
+
+  const due = computeDue(allRows);
+  const top5 = due.slice(0, 5).map(x => x.n).sort((a,b)=>a-b);
+
+  document.getElementById('predBalls').innerHTML = top5.map((n,i) =>
+    `<div class="ball ball-gold" style="animation-delay:${i*0.07}s">${n}</div>`
+  ).join('');
+
+  const sum = top5.reduce((a,b)=>a+b,0);
+  const mid = top5[2];
+  const allSums = allRows.map(r => extractNums(r).reduce((a,b)=>a+b,0));
+  const avgSum = Math.round(allSums.reduce((a,b)=>a+b,0)/allSums.length);
+
+  document.getElementById('sc-sum').textContent = sum;
+  document.getElementById('sc-mid').textContent = mid;
+  document.getElementById('sc-avg').textContent = avgSum;
+
+  const maxScore = due[0].score;
+  document.getElementById('dueList').innerHTML = due.slice(0, 8).map((d, i) => {
+    const pct = Math.round(d.score / maxScore * 100);
+    const isTop = i < 5;
+    return `<div class="due-row">
+      <div class="due-rank">#${i+1}</div>
+      <div class="due-num" style="${isTop?'color:var(--gold)':'color:var(--muted2)'}">${d.n}</div>
+      <div class="due-bar-wrap"><div class="due-bar" style="width:${pct}%"></div></div>
+      <div class="due-score">${d.score.toFixed(2)}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ── panel 3 ── */
+function renderRecent() {
+  if (!allRows.length) return;
+  const recent = allRows.slice(-10).reverse();
+
+  const allNums = allRows.flatMap(r => extractNums(r));
+  const freq = {};
+  allNums.forEach(n => { freq[n] = (freq[n]||0)+1; });
+  const sorted = Object.entries(freq).sort((a,b)=>b[1]-a[1]);
+  const hotSet = new Set(sorted.slice(0,8).map(x=>+x[0]));
+  const coldSet = new Set(sorted.slice(-8).map(x=>+x[0]));
+
+  document.getElementById('recentBody').innerHTML = recent.map(row => {
+    const date = extractDate(row);
+    const nums = extractNums(row).sort((a,b)=>a-b);
+    const sum = nums.reduce((a,b)=>a+b,0);
+    const cells = nums.map(n => {
+      const cls = hotSet.has(n) ? 'num-hi' : coldSet.has(n) ? 'num-lo' : 'num-mid';
+      return `<td><span class="num-cell ${cls}">${n}</span></td>`;
+    }).join('');
+    return `<tr><td class="date-col">${date.slice(5)||date}</td>${cells}<td class="sum-col">${sum}</td></tr>`;
+  }).join('');
+}
+
+/* ── panel 4 ── */
+function renderRoad() {
+  if (!allRows.length) return;
+
+  // road map: each number in each draw classified high/low
+  const allFlat = allRows.flatMap(r => extractNums(r));
+  const roadGrid = document.getElementById('roadGrid');
+  roadGrid.innerHTML = allFlat.slice(-60).map(n => {
+    const hi = n >= 20;
+    return `<div class="road-cell ${hi?'rc-high':'rc-low'}">${n}</div>`;
+  }).join('');
+
+  // heatmap
+  const freq = new Array(MAX_N+1).fill(0);
+  allFlat.forEach(n => freq[n]++);
+  const maxF = Math.max(...freq.slice(1));
+  document.getElementById('freqHeatmap').innerHTML = Array.from({length:MAX_N},(_,i)=>{
+    const n = i+1;
+    const h = maxF>0 ? Math.round(freq[n]/maxF*38):0;
+    const alpha = 0.15 + (freq[n]/maxF)*0.65;
+    return `<div class="hm-cell">
+      <div class="hm-bar-wrap"><div class="hm-bar" style="height:${h}px;background:rgba(240,192,96,${alpha.toFixed(2)});"></div></div>
+      <div class="hm-num">${n}</div>
+    </div>`;
+  }).join('');
+
+  // odd/even
+  const odd = allFlat.filter(n=>n%2===1).length;
+  const even = allFlat.length - odd;
+  const oddPct = Math.round(odd/allFlat.length*100);
+  const evenPct = 100 - oddPct;
+  document.getElementById('oddEvenRow').innerHTML = `
+    <div class="oe-card">
+      <div class="oe-pct" style="color:var(--gold)">${oddPct}%</div>
+      <div class="oe-label">奇數</div>
+      <div class="oe-bar"><div class="oe-fill" style="width:${oddPct}%;background:var(--gold);"></div></div>
+    </div>
+    <div class="oe-card">
+      <div class="oe-pct" style="color:var(--teal)">${evenPct}%</div>
+      <div class="oe-label">偶數</div>
+      <div class="oe-bar"><div class="oe-fill" style="width:${evenPct}%;background:var(--teal);"></div></div>
+    </div>
+  `;
+
+  // range
+  const r1 = allFlat.filter(n=>n<=13).length;
+  const r2 = allFlat.filter(n=>n>=14&&n<=26).length;
+  const r3 = allFlat.filter(n=>n>=27).length;
+  const tot = allFlat.length;
+  document.getElementById('rangeRow').innerHTML = [
+    {label:'1–13 低區', val:r1, color:'var(--teal)'},
+    {label:'14–26 中區', val:r2, color:'var(--gold)'},
+    {label:'27–39 高區', val:r3, color:'var(--red)'},
+  ].map(({label,val,color})=>`
+    <div class="range-card">
+      <div class="range-pct" style="color:${color}">${Math.round(val/tot*100)}%</div>
+      <div class="range-label">${label}</div>
+    </div>
+  `).join('');
+}
+
+/* ── tab switch ── */
+function switchTab(n) {
+  [1,2,3,4].forEach(i => {
+    document.getElementById(`panel-${i}`).classList.toggle('active', i===n);
+    document.getElementById(`tab-${i}`).classList.toggle('active', i===n);
+  });
+}
+
+/* ── init ── */
+window.onload = () => {
+  log('Lottery Radar 啟動', 'ok');
+  log('點擊「重新載入」或至日誌頁按鈕開始', 'info');
+  loadData();
 };
-
-function log(message, color) {
-    self.postMessage({ type: "log", payload: { message, color } });
-}
-
-function defaultConfig() {
-    return {
-        windowSize: 30,
-        candidatePool: 8,
-        scoreWeights: { recency: 1.2, cooccurrence: 1.0, pattern: 0.9, omission: 0.7, tail: 0.45, zone: 0.40, consistency: 0.45 },
-        recency: { depth: 14, hotWeight: 1.7, omitThreshold: 5, omitWeight: 0.12, nearWeight: 0.14, zoneWeight: 0.12 },
-        cooccurrence: { depth: 32, recentDepth: 3, overlapWeight: 0.50, tailWeight: 0.20, neighborWeight: 0.15 },
-        pattern: { segment: 3, minSimilarity: 0.56, reward: 1.8, maxMatches: 6, offsetWeight: 0.35 },
-        tailCycle: { depth: 30, hotWeight: 0.35, missWeight: 0.45 },
-        zoneBalance: { depth: 20, reward: 0.55 },
-        combo: { sumWeight: 0.12, oddWeight: 0.45, overlapWeight: 0.65, spreadWeight: 0.40, tailPenaltyWeight: 0.60, zonePenaltyWeight: 1.50 }
-    };
-}
-
-function splitDraws(chronological) {
-    const total = chronological.length;
-    const minWindow = 30;
-    const trainEnd = Math.max(minWindow + 10, Math.floor(total * 0.6));
-    const validationEnd = Math.max(trainEnd + 5, Math.floor(total * 0.8));
-    const train = chronological.slice(0, trainEnd);
-    const validation = chronological.slice(trainEnd, validationEnd);
-    const test = chronological.slice(validationEnd);
-
-    if (!train.length || !validation.length || test.length < 3) {
-        throw new Error("資料不足，測試集少於 3 期");
-    }
-
-    return { train, validation, test };
-}
-
-function calcStats(values) {
-    if (!values.length) return { mean: 0, stdev: 1 };
-    const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
-    const variance = values.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / values.length;
-    return { mean, stdev: Math.max(1, Math.sqrt(variance)) };
-}
-
-function buildHistoricalStats(draws) {
-    const sums = [];
-    const oddCounts = [];
-    const spreads = [];
-
-    draws.forEach((draw) => {
-        const sorted = draw.nums.slice().sort((a, b) => a - b);
-        sums.push(sorted.reduce((sum, num) => sum + num, 0));
-        oddCounts.push(sorted.filter((num) => num % 2 !== 0).length);
-        spreads.push(sorted[sorted.length - 1] - sorted[0]);
-    });
-
-    return {
-        sum: calcStats(sums),
-        odd: calcStats(oddCounts),
-        spread: calcStats(spreads)
-    };
-}
-
-async function heuristicSearch(split, stats) {
-    const isSmall = split.train.length < 120;
-    const windowSets = isSmall ? [30, 36] : [30, 36, 48];
-    const scoreSets = isSmall
-        ? [
-            { recency: 1.35, cooccurrence: 0.95, pattern: 0.75, omission: 0.95, tail: 0.40, zone: 0.35, consistency: 0.75 },
-            { recency: 1.15, cooccurrence: 1.05, pattern: 0.80, omission: 0.85, tail: 0.60, zone: 0.35, consistency: 0.65 }
-        ]
-        : [
-            { recency: 1.2, cooccurrence: 1.0, pattern: 0.9, omission: 0.7, tail: 0.45, zone: 0.40, consistency: 0.45 },
-            { recency: 1.0, cooccurrence: 1.2, pattern: 1.0, omission: 0.6, tail: 0.55, zone: 0.45, consistency: 0.50 },
-            { recency: 1.35, cooccurrence: 0.95, pattern: 0.75, omission: 0.95, tail: 0.40, zone: 0.35, consistency: 0.75 }
-        ];
-    const recencySets = isSmall
-        ? [
-            { depth: 18, hotWeight: 1.9, omitThreshold: 6, omitWeight: 0.14, nearWeight: 0.18, zoneWeight: 0.16 },
-            { depth: 24, hotWeight: 1.6, omitThreshold: 7, omitWeight: 0.20, nearWeight: 0.12, zoneWeight: 0.10 }
-        ]
-        : [
-            { depth: 14, hotWeight: 1.7, omitThreshold: 5, omitWeight: 0.12, nearWeight: 0.14, zoneWeight: 0.12 },
-            { depth: 18, hotWeight: 1.9, omitThreshold: 6, omitWeight: 0.14, nearWeight: 0.18, zoneWeight: 0.16 },
-            { depth: 24, hotWeight: 1.6, omitThreshold: 7, omitWeight: 0.20, nearWeight: 0.12, zoneWeight: 0.10 }
-        ];
-    const cooccurrenceSets = isSmall
-        ? [
-            { depth: 24, recentDepth: 2, overlapWeight: 0.45, tailWeight: 0.20, neighborWeight: 0.10 },
-            { depth: 32, recentDepth: 3, overlapWeight: 0.50, tailWeight: 0.20, neighborWeight: 0.15 }
-        ]
-        : [
-            { depth: 24, recentDepth: 2, overlapWeight: 0.45, tailWeight: 0.20, neighborWeight: 0.10 },
-            { depth: 32, recentDepth: 3, overlapWeight: 0.50, tailWeight: 0.20, neighborWeight: 0.15 },
-            { depth: 40, recentDepth: 4, overlapWeight: 0.60, tailWeight: 0.15, neighborWeight: 0.18 }
-        ];
-    const patternSets = isSmall
-        ? [
-            { segment: 2, minSimilarity: 0.60, reward: 1.6, maxMatches: 4, offsetWeight: 0.25 },
-            { segment: 3, minSimilarity: 0.56, reward: 1.8, maxMatches: 6, offsetWeight: 0.35 }
-        ]
-        : [
-            { segment: 2, minSimilarity: 0.60, reward: 1.6, maxMatches: 4, offsetWeight: 0.25 },
-            { segment: 3, minSimilarity: 0.56, reward: 1.8, maxMatches: 6, offsetWeight: 0.35 },
-            { segment: 4, minSimilarity: 0.52, reward: 1.4, maxMatches: 5, offsetWeight: 0.25 }
-        ];
-    const tailCycleSets = isSmall
-        ? [{ depth: 30, hotWeight: 0.35, missWeight: 0.45 }]
-        : [
-            { depth: 30, hotWeight: 0.35, missWeight: 0.45 },
-            { depth: 36, hotWeight: 0.25, missWeight: 0.60 }
-        ];
-    const zoneBalanceSets = isSmall
-        ? [{ depth: 20, reward: 0.55 }]
-        : [
-            { depth: 20, reward: 0.55 },
-            { depth: 24, reward: 0.70 }
-        ];
-    const poolSizes = isSmall ? [8, 10] : [8, 10, 12];
-    const comboSets = isSmall
-        ? [{ sumWeight: 0.08, oddWeight: 0.30, overlapWeight: 0.30, spreadWeight: 0.20, tailPenaltyWeight: 0.35, zonePenaltyWeight: 0.90 }]
-        : [
-            { sumWeight: 0.12, oddWeight: 0.45, overlapWeight: 0.65, spreadWeight: 0.40, tailPenaltyWeight: 0.60, zonePenaltyWeight: 1.50 },
-            { sumWeight: 0.08, oddWeight: 0.30, overlapWeight: 0.30, spreadWeight: 0.20, tailPenaltyWeight: 0.35, zonePenaltyWeight: 0.90 }
-        ];
-
-    const eligibleWindows = windowSets.filter((windowSize) => (split.train.length - windowSize) >= 5);
-    let best = null;
-    let tested = 0;
-    const totalTests =
-        eligibleWindows.length *
-        scoreSets.length *
-        recencySets.length *
-        cooccurrenceSets.length *
-        patternSets.length *
-        tailCycleSets.length *
-        zoneBalanceSets.length *
-        poolSizes.length *
-        comboSets.length;
-
-    for (const windowSize of eligibleWindows) {
-        for (const scoreWeights of scoreSets) {
-            for (const recency of recencySets) {
-                for (const cooccurrence of cooccurrenceSets) {
-                    for (const pattern of patternSets) {
-                        for (const tailCycle of tailCycleSets) {
-                            for (const zoneBalance of zoneBalanceSets) {
-                                for (const candidatePool of poolSizes) {
-                                    for (const combo of comboSets) {
-                                        const config = {
-                                            windowSize,
-                                            candidatePool,
-                                            scoreWeights: { ...scoreWeights },
-                                            recency: { ...recency },
-                                            cooccurrence: { ...cooccurrence },
-                                            pattern: { ...pattern },
-                                            tailCycle: { ...tailCycle },
-                                            zoneBalance: { ...zoneBalance },
-                                            combo: { ...combo }
-                                        };
-
-                                        const trainingEvaluation = evaluateChronologicalSegment(split.train, [], config, stats);
-                                        if (trainingEvaluation.metrics.testCount < 5) continue;
-
-                                        const validationEvaluation = evaluateChronologicalSegment(split.validation, split.train, config, stats);
-                                        const overfitGap = Math.max(
-                                            Math.abs(trainingEvaluation.metrics.rate2 - validationEvaluation.metrics.rate2),
-                                            Math.abs(trainingEvaluation.metrics.rate3 - validationEvaluation.metrics.rate3)
-                                        );
-                                        const score = (validationEvaluation.metrics.rate2 * 2.6) + (validationEvaluation.metrics.rate3 * 2.0) - (overfitGap * 0.45);
-
-                                        tested += 1;
-                                        if (tested > 0 && tested % 50 === 0) {
-                                            await new Promise((resolve) => setTimeout(resolve, 0));
-                                        }
-                                        if (tested % 200 === 0) {
-                                            const progress = ((tested / Math.max(1, totalTests)) * 100).toFixed(1);
-                                            const bestRate2 = best ? best.validationMetrics.rate2.toFixed(1) : "0.0";
-                                            const bestRate3 = best ? best.validationMetrics.rate3.toFixed(1) : "0.0";
-                                            log(`搜尋進度 ${progress}% (${tested}/${totalTests})，目前最佳驗證 2★ ${bestRate2}% / 3★ ${bestRate3}%`, "gray-400");
-                                        }
-
-                                        if (!best || score > best.score) {
-                                            best = {
-                                                config,
-                                                score,
-                                                overfitGap,
-                                                trainingMetrics: trainingEvaluation.metrics,
-                                                validationMetrics: validationEvaluation.metrics
-                                            };
-                                        }
-
-                                        if (best && best.validationMetrics.rate3 > 55) {
-                                            log(`提前停止：驗證集 3★ 已達 ${best.validationMetrics.rate3.toFixed(1)}%`, "green-500");
-                                            return best;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if (!best) {
-        throw new Error("找不到可用參數組合");
-    }
-
-    log(`搜尋完成，共測試 ${tested} 組`, "green-500");
-    log(`最佳驗證集：2★ ${best.validationMetrics.rate2.toFixed(1)}% / 3★ ${best.validationMetrics.rate3.toFixed(1)}%`, "orange-400");
-    return best;
-}
-
-function evaluateChronologicalSegment(segment, historyBefore, config, stats) {
-    const results = [];
-    let hit2 = 0;
-    let hit3 = 0;
-    let hit4 = 0;
-    let hit5 = 0;
-
-    for (let i = 0; i < segment.length; i += 1) {
-        const actual = segment[i];
-        const historyPool = historyBefore.concat(segment.slice(0, i));
-        const minRequired = historyBefore.length === 0 ? Math.min(config.windowSize, 20) : config.windowSize;
-        if (historyPool.length < minRequired) continue;
-
-        const effectiveWindow = Math.min(config.windowSize, historyPool.length);
-        const train = historyPool.slice(-effectiveWindow).reverse();
-        const prediction = buildPrediction(train, config, stats, false);
-        const hitNums = prediction.filter((num) => actual.nums.includes(num));
-        const hits = hitNums.length;
-
-        if (hits >= 2) hit2 += 1;
-        if (hits >= 3) hit3 += 1;
-        if (hits >= 4) hit4 += 1;
-        if (hits >= 5) hit5 += 1;
-
-        results.push({
-            label: actual.label,
-            actual: actual.nums,
-            prediction,
-            hits,
-            hitNums
-        });
-    }
-
-    const divisor = results.length || 1;
-    return {
-        results,
-        metrics: {
-            rate2: (hit2 / divisor) * 100,
-            rate3: (hit3 / divisor) * 100,
-            rate4: (hit4 / divisor) * 100,
-            rate5: (hit5 / divisor) * 100,
-            objective: ((hit2 / divisor) * 10) + ((hit3 / divisor) * 50) + ((hit4 / divisor) * 200),
-            testCount: results.length
-        }
-    };
-}
-
-function buildBaseNormalizedScores(train, config) {
-    return {
-        recency: normalizeScores(scoreRecencyModel(train, config.recency)),
-        cooccurrence: normalizeScores(scoreCooccurrenceModel(train, config.cooccurrence)),
-        pattern: normalizeScores(scorePatternModel(train, config.pattern)),
-        omission: normalizeScores(scoreOmissionModel(train, config.recency.omitThreshold, config.recency.omitWeight)),
-        tail: normalizeScores(scoreTailCycleModel(train, config.tailCycle)),
-        zone: normalizeScores(scoreZoneBalanceModel(train, config.zoneBalance))
-    };
-}
-
-function buildPrediction(train, config, stats, useFullCombo = false) {
-    const combinedScores = buildCombinedScores(train, config);
-    const candidatePool = [...combinedScores.entries()]
-        .sort((a, b) => b[1] - a[1] || a[0] - b[0])
-        .slice(0, config.candidatePool)
-        .map(([num]) => num);
-
-    if (!useFullCombo) {
-        return selectGreedyPrediction(candidatePool, combinedScores, train, stats, config);
-    }
-
-    return selectBestCombination(candidatePool, combinedScores, train, stats, config);
-}
-
-function buildScoringSnapshot(train, config) {
-    const baseScores = buildBaseNormalizedScores(train, config);
-    const consistencyScores = normalizeScores(scoreConsistencyModel(train, config));
-    const combined = new Map();
-    const contributions = new Map();
-
-    for (let n = 1; n <= BALL_COUNT; n += 1) {
-        const detail = {
-            recency: baseScores.recency.get(n) * config.scoreWeights.recency,
-            cooccurrence: baseScores.cooccurrence.get(n) * config.scoreWeights.cooccurrence,
-            pattern: baseScores.pattern.get(n) * config.scoreWeights.pattern,
-            omission: baseScores.omission.get(n) * config.scoreWeights.omission,
-            tail: baseScores.tail.get(n) * config.scoreWeights.tail,
-            zone: baseScores.zone.get(n) * config.scoreWeights.zone,
-            consistency: consistencyScores.get(n) * config.scoreWeights.consistency
-        };
-        detail.total =
-            detail.recency +
-            detail.cooccurrence +
-            detail.pattern +
-            detail.omission +
-            detail.tail +
-            detail.zone +
-            detail.consistency;
-        combined.set(n, detail.total);
-        contributions.set(n, detail);
-    }
-
-    return { combined, contributions };
-}
-
-function buildCombinedScores(train, config) {
-    return buildScoringSnapshot(train, config).combined;
-}
-
-function scoreRecencyModel(train, cfg) {
-    const scores = createScoreMap();
-    const omitMap = getOmissions(train);
-    const recent = train.slice(0, Math.min(cfg.depth, train.length));
-
-    recent.forEach((draw, index) => {
-        const weight = (recent.length - index) / Math.max(1, recent.length);
-        const zoneCounts = [0, 0, 0, 0];
-
-        draw.nums.forEach((num) => {
-            scores.set(num, scores.get(num) + (cfg.hotWeight * weight));
-            if (num > 1) scores.set(num - 1, scores.get(num - 1) + (cfg.nearWeight * weight));
-            if (num < BALL_COUNT) scores.set(num + 1, scores.get(num + 1) + (cfg.nearWeight * weight));
-            zoneCounts[getZoneIndex(num)] += 1;
-        });
-
-        zoneCounts.forEach((count, zoneIndex) => {
-            if (count >= 2) {
-                getZoneNumbers(zoneIndex).forEach((num) => {
-                    scores.set(num, scores.get(num) + (cfg.zoneWeight * weight));
-                });
-            }
-        });
-    });
-
-    for (let n = 1; n <= BALL_COUNT; n += 1) {
-        if (omitMap[n] >= cfg.omitThreshold) {
-            scores.set(n, scores.get(n) + (omitMap[n] * cfg.omitWeight));
-        }
-    }
-
-    return scores;
-}
-
-function scoreCooccurrenceModel(train, cfg) {
-    const scores = createScoreMap();
-    const recentUnion = new Set(train.slice(0, cfg.recentDepth).flatMap((draw) => draw.nums));
-    const recentTails = new Set([...recentUnion].map((num) => num % 10));
-    const recentNumbers = train[0]?.nums || [];
-
-    for (let i = 1; i < Math.min(cfg.depth, train.length); i += 1) {
-        const draw = train[i];
-        const overlap = draw.nums.filter((num) => recentUnion.has(num)).length;
-        if (!overlap) continue;
-
-        const prevDraw = train[i - 1];
-        if (!prevDraw) continue;
-
-        prevDraw.nums.forEach((num) => {
-            scores.set(num, scores.get(num) + (overlap * cfg.overlapWeight));
-            if (recentTails.has(num % 10)) {
-                scores.set(num, scores.get(num) + cfg.tailWeight);
-            }
-            const minDistance = recentNumbers.length ? Math.min(...recentNumbers.map((value) => Math.abs(value - num))) : 99;
-            if (minDistance <= 2) {
-                scores.set(num, scores.get(num) + cfg.neighborWeight);
-            }
-        });
-    }
-
-    return scores;
-}
-
-function scorePatternModel(train, cfg) {
-    const scores = createScoreMap();
-    const recentSegment = train.slice(0, cfg.segment);
-    if (recentSegment.length < cfg.segment) return scores;
-
-    let matches = 0;
-    for (let start = 1; start + cfg.segment <= train.length && matches < cfg.maxMatches; start += 1) {
-        const candidateSegment = train.slice(start, start + cfg.segment);
-        const similarity = compareSegments(recentSegment, candidateSegment);
-        if (similarity < cfg.minSimilarity) continue;
-
-        const followDraw = train[start - 1];
-        if (!followDraw) continue;
-
-        followDraw.nums.forEach((num) => {
-            scores.set(num, scores.get(num) + (cfg.reward * similarity));
-            const near = Math.min(...recentSegment[0].nums.map((value) => Math.abs(value - num)));
-            scores.set(num, scores.get(num) + ((3 - Math.min(near, 3)) * cfg.offsetWeight));
-        });
-
-        matches += 1;
-    }
-
-    return scores;
-}
-
-function scoreOmissionModel(train, omitThreshold, omitWeight) {
-    const scores = createScoreMap();
-    const omitMap = getOmissions(train);
-    for (let n = 1; n <= BALL_COUNT; n += 1) {
-        const velocity = getOmissionVelocity(n, train);
-        if (omitMap[n] >= omitThreshold) {
-            scores.set(n, scores.get(n) + (omitMap[n] * omitWeight));
-        }
-        scores.set(n, scores.get(n) + velocity);
-    }
-    return scores;
-}
-
-function scoreTailCycleModel(train, cfg) {
-    const scores = createScoreMap();
-    const recent = train.slice(0, Math.min(cfg.depth, train.length));
-    const tailFreq = Array(10).fill(0);
-    const tailMiss = Array(10).fill(0);
-
-    recent.forEach((draw) => {
-        draw.nums.forEach((num) => {
-            tailFreq[num % 10] += 1;
-        });
-    });
-
-    for (let tail = 0; tail < 10; tail += 1) {
-        let miss = 0;
-        for (const draw of train) {
-            if (draw.nums.some((num) => num % 10 === tail)) break;
-            miss += 1;
-        }
-        tailMiss[tail] = miss;
-    }
-
-    const meanFreq = tailFreq.reduce((sum, value) => sum + value, 0) / 10;
-    const meanMiss = tailMiss.reduce((sum, value) => sum + value, 0) / 10;
-
-    for (let n = 1; n <= BALL_COUNT; n += 1) {
-        const tail = n % 10;
-        const freqGap = Math.max(0, meanFreq - tailFreq[tail]);
-        const missBoost = Math.max(0, tailMiss[tail] - meanMiss);
-        scores.set(n, scores.get(n) + (freqGap * cfg.hotWeight) + (missBoost * cfg.missWeight));
-    }
-
-    return scores;
-}
-
-function scoreZoneBalanceModel(train, cfg) {
-    const scores = createScoreMap();
-    const recent = train.slice(0, Math.min(cfg.depth, train.length));
-    const zoneCounts = [0, 0, 0, 0];
-
-    recent.forEach((draw) => {
-        draw.nums.forEach((num) => {
-            zoneCounts[getZoneIndex(num)] += 1;
-        });
-    });
-
-    const meanCount = zoneCounts.reduce((sum, value) => sum + value, 0) / zoneCounts.length;
-    for (let n = 1; n <= BALL_COUNT; n += 1) {
-        const zoneIndex = getZoneIndex(n);
-        const deficit = Math.max(0, meanCount - zoneCounts[zoneIndex]);
-        scores.set(n, scores.get(n) + (deficit * cfg.reward));
-    }
-
-    return scores;
-}
-
-function scoreConsistencyModel(train, config) {
-    const scores = createScoreMap();
-    const windows = [20, 25, 30, 35, 40];
-    const maxWindow = Math.min(40, train.length);
-    const baseTrain = train.slice(0, maxWindow);
-    if (baseTrain.length < 10) return scores;
-
-    const base = buildBaseNormalizedScores(baseTrain, config);
-    const ranked = [];
-    for (let n = 1; n <= BALL_COUNT; n += 1) {
-        ranked.push({
-            num: n,
-            score:
-                (base.recency.get(n) * config.scoreWeights.recency) +
-                (base.cooccurrence.get(n) * config.scoreWeights.cooccurrence) +
-                (base.pattern.get(n) * config.scoreWeights.pattern) +
-                (base.omission.get(n) * config.scoreWeights.omission) +
-                (base.tail.get(n) * config.scoreWeights.tail) +
-                (base.zone.get(n) * config.scoreWeights.zone)
-        });
-    }
-    ranked.sort((a, b) => b.score - a.score || a.num - b.num);
-
-    windows.forEach((windowSize, index) => {
-        const subset = train.slice(0, Math.min(windowSize, train.length));
-        if (subset.length < 10) return;
-
-        const appeared = new Set(subset.flatMap((draw) => draw.nums));
-        const decay = 1.25 - (index * 0.1);
-        let picked = 0;
-
-        for (const item of ranked) {
-            if (!appeared.has(item.num)) continue;
-            scores.set(item.num, scores.get(item.num) + decay);
-            picked += 1;
-            if (picked >= config.candidatePool) break;
-        }
-    });
-
-    return scores;
-}
-
-function selectBestCombination(candidatePool, combinedScores, train, stats, config) {
-    const ordered = candidatePool.slice().sort((a, b) => (combinedScores.get(b) - combinedScores.get(a)) || a - b);
-    if (ordered.length < 5) {
-        return [...combinedScores.entries()]
-            .sort((a, b) => (b[1] - a[1]) || a[0] - b[0])
-            .slice(0, 5)
-            .map(([num]) => num)
-            .sort((a, b) => a - b);
-    }
-
-    const combos = choose(ordered, 5);
-    let bestCombo = ordered.slice(0, 5).sort((a, b) => a - b);
-    let bestScore = -Infinity;
-
-    combos.forEach((combo) => {
-        const sorted = combo.slice().sort((a, b) => a - b);
-        const base = sorted.reduce((sum, num) => sum + combinedScores.get(num), 0);
-        const penalty = evaluateComboPenalty(sorted, train, stats, config.combo);
-        const total = base - penalty;
-        if (total > bestScore) {
-            bestScore = total;
-            bestCombo = sorted;
-        }
-    });
-
-    return bestCombo;
-}
-
-function selectGreedyPrediction(candidatePool, combinedScores, train, stats, config) {
-    const ordered = candidatePool.slice().sort((a, b) => (combinedScores.get(b) - combinedScores.get(a)) || a - b);
-    const picked = [];
-
-    for (const num of ordered) {
-        const trial = picked.concat(num).sort((a, b) => a - b);
-        const penalty = evaluateComboPenalty(trial, train, stats, config.combo);
-        if (picked.length === 0 || penalty <= 3.2 || picked.length < 3) {
-            picked.push(num);
-        }
-        if (picked.length >= 5) break;
-    }
-
-    if (picked.length < 5) {
-        for (const num of ordered) {
-            if (!picked.includes(num)) picked.push(num);
-            if (picked.length >= 5) break;
-        }
-    }
-
-    return picked.slice(0, 5).sort((a, b) => a - b);
-}
-
-function selectBestCombinationDetailed(candidatePool, combinedScores, train, stats, config) {
-    const ordered = candidatePool.slice().sort((a, b) => (combinedScores.get(b) - combinedScores.get(a)) || a - b);
-    const combos = choose(ordered, 5);
-    const scored = combos.map((combo) => {
-        const sorted = combo.slice().sort((a, b) => a - b);
-        const base = sorted.reduce((sum, num) => sum + combinedScores.get(num), 0);
-        const penalty = evaluateComboPenalty(sorted, train, stats, config.combo);
-        return { combo: sorted, base, penalty, total: base - penalty };
-    }).sort((a, b) => b.total - a.total);
-
-    return {
-        bestCombo: scored[0]?.combo || ordered.slice(0, 5).sort((a, b) => a - b),
-        bestScore: scored[0]?.total || 0,
-        alternatives: scored.slice(0, 5)
-    };
-}
-
-function explainPrediction(train, config, stats) {
-    const snapshot = buildScoringSnapshot(train, config);
-    const ranking = [...snapshot.combined.entries()]
-        .map(([num, total]) => ({ num, total, ...snapshot.contributions.get(num) }))
-        .sort((a, b) => b.total - a.total || a.num - b.num);
-    const candidatePool = ranking.slice(0, config.candidatePool).map((item) => item.num);
-    const combinationDecision = selectBestCombinationDetailed(candidatePool, snapshot.combined, train, stats, config);
-    const selectedDetails = combinationDecision.bestCombo.map((num) => ({ num, ...snapshot.contributions.get(num) }));
-
-    return {
-        prediction: combinationDecision.bestCombo,
-        ranking,
-        candidatePool,
-        selectedDetails,
-        combinationDecision
-    };
-}
-
-function evaluateComboPenalty(combo, train, stats, comboCfg) {
-    const sum = combo.reduce((acc, num) => acc + num, 0);
-    const oddCount = combo.filter((num) => num % 2 !== 0).length;
-    const spread = combo[combo.length - 1] - combo[0];
-    const overlapWithRecent = (train[0]?.nums || []).filter((num) => combo.includes(num)).length;
-    const repeatOverlap = maxHistoricalOverlap(combo, train);
-    const tailCounts = Array(10).fill(0);
-    const zoneCounts = [0, 0, 0, 0];
-
-    combo.forEach((num) => {
-        tailCounts[num % 10] += 1;
-        zoneCounts[getZoneIndex(num)] += 1;
-    });
-
-    let penalty = 0;
-    penalty += deviationPenalty(sum, stats.sum.mean, stats.sum.stdev) * comboCfg.sumWeight;
-    penalty += deviationPenalty(oddCount, stats.odd.mean, stats.odd.stdev) * comboCfg.oddWeight;
-    penalty += deviationPenalty(spread, stats.spread.mean, stats.spread.stdev) * comboCfg.spreadWeight;
-    if (overlapWithRecent >= 5) penalty += (overlapWithRecent - 4) * comboCfg.overlapWeight;
-    if (repeatOverlap >= 5) penalty += (repeatOverlap - 4) * 1.0;
-    const maxTailCount = Math.max(...tailCounts);
-    if (maxTailCount > 3) penalty += (maxTailCount - 3) * comboCfg.tailPenaltyWeight;
-    if (zoneCounts.some((count) => count === combo.length)) penalty += comboCfg.zonePenaltyWeight;
-
-    let longestRun = 1;
-    let currentRun = 1;
-    for (let i = 1; i < combo.length; i += 1) {
-        if (combo[i] === combo[i - 1] + 1) {
-            currentRun += 1;
-            longestRun = Math.max(longestRun, currentRun);
-        } else {
-            currentRun = 1;
-        }
-    }
-    if (longestRun >= 4) penalty += 0.5;
-
-    return penalty;
-}
-
-function compareSegments(a, b) {
-    const aFlat = a.flatMap((draw) => draw.nums);
-    const bFlat = b.flatMap((draw) => draw.nums);
-    const directOverlap = aFlat.filter((num) => bFlat.includes(num)).length / Math.max(1, aFlat.length);
-    const tailOverlap = aFlat.filter((num) => bFlat.some((candidate) => candidate % 10 === num % 10)).length / Math.max(1, aFlat.length);
-    const zoneOverlap = aFlat.filter((num) => bFlat.some((candidate) => getZoneIndex(candidate) === getZoneIndex(num))).length / Math.max(1, aFlat.length);
-    return (directOverlap * 0.5) + (tailOverlap * 0.2) + (zoneOverlap * 0.3);
-}
-
-function deviationPenalty(value, mean, stdev) {
-    const safeStdev = Math.max(stdev, 1);
-    return Math.abs(value - mean) / safeStdev;
-}
-
-function maxHistoricalOverlap(combo, train) {
-    let maxOverlap = 0;
-    train.forEach((draw) => {
-        const overlap = draw.nums.filter((num) => combo.includes(num)).length;
-        if (overlap > maxOverlap) maxOverlap = overlap;
-    });
-    return maxOverlap;
-}
-
-function createScoreMap() {
-    const scores = new Map();
-    for (let n = 1; n <= BALL_COUNT; n += 1) scores.set(n, 0);
-    return scores;
-}
-
-function normalizeScores(scoreMap) {
-    const values = [...scoreMap.values()];
-    const max = Math.max(...values, 1);
-    const min = Math.min(...values, 0);
-    const normalized = new Map();
-    for (let n = 1; n <= BALL_COUNT; n += 1) {
-        normalized.set(n, max === min ? 0 : (scoreMap.get(n) - min) / (max - min));
-    }
-    return normalized;
-}
-
-function getOmissions(train) {
-    const omit = {};
-    for (let n = 1; n <= BALL_COUNT; n += 1) {
-        let count = 0;
-        for (const draw of train) {
-            if (draw.nums.includes(n)) break;
-            count += 1;
-        }
-        omit[n] = count;
-    }
-    return omit;
-}
-
-function getOmissionVelocity(num, train) {
-    const gaps = [];
-    let currentGap = 0;
-    for (const draw of train) {
-        if (draw.nums.includes(num)) {
-            gaps.push(currentGap);
-            currentGap = 0;
-        } else {
-            currentGap += 1;
-        }
-    }
-    if (gaps.length < 2) return currentGap * 0.03;
-    const latest = gaps[0];
-    const mean = gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length;
-    return Math.max(0, latest - mean) * 0.05;
-}
-
-function getZoneIndex(num) {
-    if (num <= 10) return 0;
-    if (num <= 20) return 1;
-    if (num <= 30) return 2;
-    return 3;
-}
-
-function getZoneNumbers(zoneIndex) {
-    if (zoneIndex === 0) return Array.from({ length: 10 }, (_, i) => i + 1);
-    if (zoneIndex === 1) return Array.from({ length: 10 }, (_, i) => i + 11);
-    if (zoneIndex === 2) return Array.from({ length: 10 }, (_, i) => i + 21);
-    return Array.from({ length: 9 }, (_, i) => i + 31);
-}
-
-function choose(array, size) {
-    const results = [];
-    const path = [];
-
-    function walk(start) {
-        if (path.length === size) {
-            results.push(path.slice());
-            return;
-        }
-        for (let i = start; i < array.length; i += 1) {
-            path.push(array[i]);
-            walk(i + 1);
-            path.pop();
-        }
-    }
-
-    if (array.length >= size) walk(0);
-    return results;
-}
-
-function summarizeConfig(config) {
-    return [
-        `Window ${config.windowSize}`,
-        `Pool ${config.candidatePool}`,
-        `R/C/P ${config.scoreWeights.recency.toFixed(1)}/${config.scoreWeights.cooccurrence.toFixed(1)}/${config.scoreWeights.pattern.toFixed(1)}`,
-        `T/Z/K ${config.scoreWeights.tail.toFixed(1)}/${config.scoreWeights.zone.toFixed(1)}/${config.scoreWeights.consistency.toFixed(1)}`,
-        `Seg ${config.pattern.segment}`
-    ].join(" | ");
-}
-    </script>
-
-    <script>
-        const API_URL = "https://script.google.com/macros/s/AKfycbwjugTRKA4Jiq6YXSzV-ZWUVS97R6LzL2L7amWb2WOmKEWBlHS8NW90IIPxIaCAnUfH/exec";
-        const MIN_DRAW_COUNT = 30;
-        let worker = null;
-
-        function addLog(message, color = "gray-500") {
-            const logBox = document.getElementById("logBox");
-            const span = document.createElement("span");
-            span.className = `text-${color}`;
-            span.innerHTML = `&gt; ${message}<br>`;
-            logBox.appendChild(span);
-            logBox.scrollTop = logBox.scrollHeight;
-        }
-
-        function formatNumber(num) {
-            return String(num).padStart(2, "0");
-        }
-
-        function setStatus(mode, dotClass) {
-            document.getElementById("strategyMode").innerText = mode;
-            document.getElementById("statusDot").className = dotClass;
-        }
-
-        function ensureWorker() {
-            if (worker) return worker;
-
-            const source = document.getElementById("worker-source").textContent;
-            const blob = new Blob([source], { type: "application/javascript" });
-            const url = URL.createObjectURL(blob);
-            worker = new Worker(url);
-
-            worker.onmessage = (event) => {
-                const { type, payload } = event.data || {};
-                if (type === "log") {
-                    addLog(payload.message, payload.color || "gray-500");
-                    return;
-                }
-                if (type === "analysis") {
-                    updateUI(payload);
-                }
-            };
-
-            worker.onerror = (event) => {
-                addLog(`Worker 執行錯誤：${event.message || "未知錯誤"}`, "red-500");
-                setStatus("ERROR", "w-2 h-2 bg-red-500 rounded-full mr-1");
-            };
-
-            worker.onmessageerror = () => {
-                addLog("Worker 訊息解析失敗。", "red-500");
-                setStatus("ERROR", "w-2 h-2 bg-red-500 rounded-full mr-1");
-            };
-
-            addLog("Worker 已建立。", "green-500");
-            return worker;
-        }
-
-        async function fetchSheetData() {
-            addLog("開始同步 Google Sheet 資料...", "orange-500");
-            setStatus("SYNC", "w-2 h-2 bg-orange-500 rounded-full mr-1 animate-pulse");
-
-            try {
-                const response = await fetch(API_URL);
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-
-                const result = await response.json();
-                const rawData = typeof result === "string" ? result : (typeof result.data === "string" ? result.data : "");
-                if (!rawData.trim()) {
-                    throw new Error("API 沒有回傳可用資料");
-                }
-
-                const lines = rawData.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-                const draws = lines
-                    .map((line) => {
-                        const tokens = line.split(/\s+/);
-                        const nums = tokens.slice(-5).map(Number);
-                        if (nums.length !== 5 || nums.some((num) => !Number.isInteger(num) || num < 1 || num > 39)) {
-                            return null;
-                        }
-                        if (new Set(nums).size !== 5) {
-                            return null;
-                        }
-                        return { nums };
-                    })
-                    .filter(Boolean)
-                    .reverse()
-                    .map((draw, index) => ({
-                        label: `第 ${String(index + 1).padStart(3, "0")} 期`,
-                        nums: draw.nums
-                    }));
-
-                if (draws.length < MIN_DRAW_COUNT) {
-                    throw new Error(`資料不足，至少需要 ${MIN_DRAW_COUNT} 期`);
-                }
-
-                addLog(`同步完成，共載入 ${draws.length} 期`, "green-500");
-                ensureWorker().postMessage({ type: "analyze", payload: { draws } });
-            } catch (error) {
-                addLog(`同步失敗：${error.message}`, "red-500");
-                setStatus("ERROR", "w-2 h-2 bg-red-500 rounded-full mr-1");
-            }
-        }
-
-        function formatDebugTrace(debug) {
-            if (!debug) {
-                return "目前沒有可顯示的 debug 資料。";
-            }
-
-            const selectedLines = debug.selectedDetails.map((item) =>
-                `${formatNumber(item.num)} | total ${item.total.toFixed(3)} | R ${item.recency.toFixed(3)} C ${item.cooccurrence.toFixed(3)} P ${item.pattern.toFixed(3)} O ${item.omission.toFixed(3)} T ${item.tail.toFixed(3)} Z ${item.zone.toFixed(3)} K ${item.consistency.toFixed(3)}`
-            );
-
-            const comboLines = debug.combinationDecision.alternatives.map((item, index) =>
-                `${index + 1}. ${item.combo.map(formatNumber).join(" ")} | base ${item.base.toFixed(3)} | penalty ${item.penalty.toFixed(3)} | total ${item.total.toFixed(3)}`
-            );
-
-            const rankingLines = debug.ranking.map((item, index) =>
-                `${String(index + 1).padStart(2, "0")}. ${formatNumber(item.num)} | total ${item.total.toFixed(3)} | R ${item.recency.toFixed(3)} C ${item.cooccurrence.toFixed(3)} P ${item.pattern.toFixed(3)} O ${item.omission.toFixed(3)} T ${item.tail.toFixed(3)} Z ${item.zone.toFixed(3)} K ${item.consistency.toFixed(3)}`
-            );
-
-            return [
-                `candidatePool: ${debug.candidatePool.map(formatNumber).join(" ")}`,
-                `final prediction: ${debug.prediction.map(formatNumber).join(" ")}`,
-                "",
-                "選中這 5 碼的模型貢獻：",
-                ...selectedLines,
-                "",
-                "最後組合為什麼勝出（Top 5 組合比較）：",
-                ...comboLines,
-                "",
-                "39 個號碼總分排名：",
-                ...rankingLines
-            ].join("\n");
-        }
-
-        function updateUI(payload) {
-            const { modelName, configSummary, filterSummary, nextPrediction, debug, metrics, visibleResults, honesty } = payload;
-
-            nextPrediction.forEach((num, index) => {
-                document.getElementById(`p${index + 1}`).innerText = num ? formatNumber(num) : "--";
-            });
-
-            document.getElementById("hitRate").innerText =
-                `測試集 2★ / 3★ / 4★ / 5★：${metrics.rate2.toFixed(1)} / ${metrics.rate3.toFixed(1)} / ${metrics.rate4.toFixed(1)} / ${metrics.rate5.toFixed(1)}`;
-
-            document.getElementById("trainRate").innerText =
-                `2★ ${honesty.training.rate2.toFixed(1)}% / 3★ ${honesty.training.rate3.toFixed(1)}%`;
-            document.getElementById("testRate").innerText =
-                `2★ ${honesty.test.rate2.toFixed(1)}% / 3★ ${honesty.test.rate3.toFixed(1)}%`;
-
-            const warningEl = document.getElementById("overfitWarning");
-            if (honesty.warning) {
-                warningEl.className = "mt-2 text-[11px] text-red-400 font-bold";
-                warningEl.innerText = `過擬合警告：訓練集與測試集差距 ${honesty.gap.toFixed(1)}%，請優先參考測試集數字。`;
-            } else {
-                warningEl.className = "mt-2 text-[11px] text-green-400";
-                warningEl.innerText = `誠實回測通過，訓練/測試差距 ${honesty.gap.toFixed(1)}%。`;
-            }
-
-            if (honesty.warning) {
-                setStatus("WARNING", "w-2 h-2 bg-red-500 rounded-full mr-1 animate-pulse");
-            } else {
-                setStatus("READY", "w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse");
-            }
-
-            document.getElementById("modelMeta").innerText =
-                `${modelName} | ${configSummary} | ${filterSummary} | 測試樣本 ${metrics.testCount} 期`;
-            document.getElementById("debugTrace").innerText = formatDebugTrace(debug);
-
-            const rows = visibleResults.length
-                ? visibleResults.map((result) => {
-                    const hitSet = new Set(result.hitNums);
-                    const predictionHtml = result.prediction
-                        .map((num) => hitSet.has(num) ? `<span class="hit-num">${formatNumber(num)}</span>` : formatNumber(num))
-                        .join(" ");
-                    const dotHtml = result.prediction
-                        .map((num) => `<span class="slot-dot ${hitSet.has(num) ? "slot-hit" : "slot-miss"}">${hitSet.has(num) ? "●" : "○"}</span>`)
-                        .join("");
-                    return `
-                        <tr class="border-b border-white/5">
-                            <td class="py-3 text-gray-500 font-mono">${result.label}</td>
-                            <td class="font-mono text-white">${result.actual.map(formatNumber).join(" ")}</td>
-                            <td class="text-[11px] text-gray-400 font-mono">${predictionHtml}</td>
-                            <td>${dotHtml}</td>
-                            <td class="text-right font-black ${result.hits >= 3 ? "text-orange-500" : result.hits >= 2 ? "text-white" : "text-gray-500"}">${result.hits}</td>
-                        </tr>
-                    `;
-                }).join("")
-                : `<tr><td colspan="5" class="text-center py-10 text-gray-600 font-mono italic">沒有可顯示的回測資料</td></tr>`;
-
-            document.getElementById("historyTable").innerHTML = rows;
-
-            addLog(`訓練集：2★ ${honesty.training.rate2.toFixed(1)}% / 3★ ${honesty.training.rate3.toFixed(1)}%`, "green-500");
-            addLog(`測試集：2★ ${honesty.test.rate2.toFixed(1)}% / 3★ ${honesty.test.rate3.toFixed(1)}%`, honesty.warning ? "red-500" : "orange-400");
-            addLog(`下一期預測：${nextPrediction.map(formatNumber).join(" ")}`, "orange-400");
-        }
-
-        ensureWorker();
-    </script>
+</script>
 </body>
 </html>
