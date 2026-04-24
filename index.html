@@ -313,37 +313,99 @@ html, body {
 .due-bar { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--gold), var(--teal)); }
 .due-score { font-family: var(--mono); font-size: 0.65rem; color: var(--muted2); width: 36px; text-align: right; }
 
-/* ── PANEL 3: RECENT ── */
-.recent-table { width: 100%; border-collapse: collapse; }
-.recent-table th {
-  font-size: 0.6rem;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-  text-align: center;
-  padding: 8px 4px;
+/* ── PANEL 3: BACKTEST ── */
+.bt-row {
+  padding: 12px 14px;
   border-bottom: 0.5px solid var(--border);
-  font-weight: 500;
 }
-.recent-table td {
-  text-align: center;
-  padding: 9px 4px;
-  border-bottom: 0.5px solid rgba(255,255,255,0.03);
+.bt-row:last-child { border-bottom: none; }
+
+.bt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.bt-date {
   font-family: var(--mono);
-  font-size: 0.78rem;
+  font-size: 0.62rem;
+  color: var(--muted2);
 }
-.recent-table tr:last-child td { border-bottom: none; }
-.recent-table .date-col { font-size: 0.62rem; color: var(--muted2); text-align: left; padding-left: 12px; }
-.recent-table .num-cell {
-  width: 32px; height: 32px;
-  display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 50%;
-  font-size: 0.72rem;
+
+.bt-hits {
+  font-family: var(--mono);
+  font-size: 0.68rem;
   font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 20px;
 }
-.num-hi { background: rgba(240,192,96,0.15); color: var(--gold); }
-.num-lo { background: rgba(61,232,200,0.1); color: var(--teal); }
-.num-mid { color: var(--muted2); }
-.sum-col { font-size: 0.65rem; color: var(--muted); padding-right: 12px; }
+.hits-0 { background: rgba(255,255,255,0.05); color: var(--muted); }
+.hits-1 { background: rgba(79,163,255,0.12); color: var(--blue); }
+.hits-2 { background: rgba(61,232,200,0.12); color: var(--teal); }
+.hits-3 { background: rgba(240,192,96,0.15); color: var(--gold); }
+.hits-4 { background: rgba(240,192,96,0.25); color: var(--gold2); }
+.hits-5 { background: rgba(255,215,0,0.3); color: #fff; }
+
+.bt-section-label {
+  font-size: 0.55rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+
+.bt-balls {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.bt-ball {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  transition: transform 0.18s, box-shadow 0.18s;
+  cursor: default;
+  -webkit-user-select: none;
+  position: relative;
+}
+
+.bt-ball:active { transform: scale(1.25); }
+
+.bt-ball-actual { background: var(--card2); border: 0.5px solid var(--border2); color: var(--muted2); }
+.bt-ball-hit {
+  background: radial-gradient(circle at 35% 35%, #ffe9a0, #d4922a);
+  color: #1a0e00;
+  box-shadow: 0 0 10px rgba(240,192,96,0.4);
+  border: none;
+}
+.bt-ball-pred-only { background: rgba(61,232,200,0.1); border: 0.5px solid rgba(61,232,200,0.3); color: var(--teal); }
+
+.bt-divider { width: 0.5px; height: 30px; background: var(--border2); margin: 0 4px; flex-shrink: 0; }
+
+.bt-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 0.5px solid var(--border);
+}
+.bt-sum-card { background: var(--card2); border-radius: 10px; padding: 10px; text-align: center; }
+.bt-sum-num { font-family: var(--mono); font-size: 1.2rem; font-weight: 700; }
+.bt-sum-label { font-size: 0.58rem; color: var(--muted); margin-top: 3px; }
+
+.bt-accuracy-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border);
+  margin: 8px 14px;
+  overflow: hidden;
+}
+.bt-accuracy-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--gold), var(--teal)); transition: width 0.6s ease; }
 
 /* ── PANEL 4: 板路 ── */
 .road-grid {
@@ -559,26 +621,26 @@ html, body {
     </div>
   </div>
 
-  <!-- PANEL 3: RECENT -->
+  <!-- PANEL 3: BACKTEST -->
   <div class="panel" id="panel-3">
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">近 10 期記錄</span>
-        <div class="dot dot-blue"></div>
+    <div class="card" id="bt-empty-card">
+      <div style="padding:40px 20px;text-align:center;color:var(--muted);font-size:0.78rem;">
+        <div style="font-size:2rem;opacity:0.3;margin-bottom:12px;">◎</div>
+        請先在「日誌」頁載入資料
       </div>
-      <div style="overflow-x:auto;">
-        <table class="recent-table">
-          <thead>
-            <tr>
-              <th style="text-align:left;padding-left:12px;">日期</th>
-              <th>N1</th><th>N2</th><th>N3</th><th>N4</th><th>N5</th>
-              <th style="padding-right:12px;">和</th>
-            </tr>
-          </thead>
-          <tbody id="recentBody">
-            <tr><td colspan="7" style="padding:30px;text-align:center;color:var(--muted);font-size:0.75rem;">尚無資料</td></tr>
-          </tbody>
-        </table>
+    </div>
+    <div id="bt-content" style="display:none;">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">近 10 期滾動回測</span>
+          <div class="dot dot-blue"></div>
+        </div>
+        <div class="bt-summary" id="btSummary"></div>
+        <div class="bt-accuracy-bar"><div class="bt-accuracy-fill" id="btAccBar" style="width:0%"></div></div>
+        <div style="padding:4px 14px 10px;font-size:0.6rem;color:var(--muted);">
+          ◎ 金球 = 命中　◈ 青色 = 預測未中　灰球 = 實際未被預測　點球可放大
+        </div>
+        <div id="btRows"></div>
       </div>
     </div>
   </div>
@@ -702,10 +764,21 @@ async function loadData() {
   log('開始連接 API...', 'warn');
 
   try {
-    const res = await fetch(API_URL());
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const raw = await res.json();
-    log(`API 回應成功`, 'ok');
+    const res = await fetch(API_URL(), {
+  method: 'GET',
+  cache: 'no-cache'
+});
+
+if (!res) throw new Error('無回應（fetch 失敗 / CORS / blocked）');
+
+const text = await res.text();
+
+let raw;
+try {
+  raw = JSON.parse(text);
+} catch (e) {
+  throw new Error('API 非 JSON 回應：' + text.slice(0, 100));
+}
 
     const rows = parseRows(raw);
     log(`解析到 ${rows.length} 列原始資料`, 'info');
@@ -798,27 +871,95 @@ function renderPrediction() {
   }).join('');
 }
 
-/* ── panel 3 ── */
+/* ── panel 3: rolling backtest (NO lookahead) ── */
 function renderRecent() {
-  if (!allRows.length) return;
-  const recent = allRows.slice(-10).reverse();
+  if (allRows.length < 2) return;
+  document.getElementById('bt-empty-card').style.display = 'none';
+  document.getElementById('bt-content').style.display = 'block';
 
-  const allNums = allRows.flatMap(r => extractNums(r));
-  const freq = {};
-  allNums.forEach(n => { freq[n] = (freq[n]||0)+1; });
-  const sorted = Object.entries(freq).sort((a,b)=>b[1]-a[1]);
-  const hotSet = new Set(sorted.slice(0,8).map(x=>+x[0]));
-  const coldSet = new Set(sorted.slice(-8).map(x=>+x[0]));
+  // We test on the last 10 periods.
+  // For each period i, prediction is built from rows[0..i-1] (no lookahead).
+  const testCount = Math.min(10, allRows.length - 1);
+  const startIdx = allRows.length - testCount; // first index we predict
 
-  document.getElementById('recentBody').innerHTML = recent.map(row => {
-    const date = extractDate(row);
-    const nums = extractNums(row).sort((a,b)=>a-b);
-    const sum = nums.reduce((a,b)=>a+b,0);
-    const cells = nums.map(n => {
-      const cls = hotSet.has(n) ? 'num-hi' : coldSet.has(n) ? 'num-lo' : 'num-mid';
-      return `<td><span class="num-cell ${cls}">${n}</span></td>`;
+  let totalHits = 0;
+  const rows = [];
+
+  for (let i = startIdx; i < allRows.length; i++) {
+    // training data = everything BEFORE this period
+    const trainRows = allRows.slice(0, i);
+    const due = computeDue(trainRows);
+    const predicted = new Set(due.slice(0, 5).map(x => x.n));
+    const predNums = [...predicted].sort((a,b)=>a-b);
+
+    const actual = extractNums(allRows[i]).sort((a,b)=>a-b);
+    const actualSet = new Set(actual);
+    const hits = actual.filter(n => predicted.has(n)).length;
+    totalHits += hits;
+
+    rows.push({
+      date: extractDate(allRows[i]),
+      actual,
+      actualSet,
+      predicted,
+      predNums,
+      hits,
+      trainSize: trainRows.length
+    });
+  }
+
+  const avgHits = (totalHits / testCount).toFixed(2);
+  const hitRate = Math.round(totalHits / (testCount * 5) * 100);
+
+  // summary
+  document.getElementById('btSummary').innerHTML = `
+    <div class="bt-sum-card">
+      <div class="bt-sum-num" style="color:var(--gold)">${testCount}</div>
+      <div class="bt-sum-label">回測期數</div>
+    </div>
+    <div class="bt-sum-card">
+      <div class="bt-sum-num" style="color:var(--teal)">${avgHits}</div>
+      <div class="bt-sum-label">平均命中</div>
+    </div>
+    <div class="bt-sum-card">
+      <div class="bt-sum-num" style="color:var(--blue)">${hitRate}%</div>
+      <div class="bt-sum-label">號碼命中率</div>
+    </div>
+  `;
+  setTimeout(() => {
+    document.getElementById('btAccBar').style.width = hitRate + '%';
+  }, 100);
+
+  // each row — newest first
+  document.getElementById('btRows').innerHTML = rows.reverse().map(r => {
+    const hitsClass = `hits-${Math.min(r.hits, 5)}`;
+
+    // actual balls: gold if hit, gray if not
+    const actualBalls = r.actual.map(n => {
+      const hit = r.predicted.has(n);
+      return `<div class="bt-ball ${hit ? 'bt-ball-hit' : 'bt-ball-actual'}" title="${hit ? '命中' : '未命中'}">${n}</div>`;
     }).join('');
-    return `<tr><td class="date-col">${date.slice(5)||date}</td>${cells}<td class="sum-col">${sum}</td></tr>`;
+
+    // predicted balls: show only the ones NOT in actual (to avoid double-show)
+    const predOnly = r.predNums.filter(n => !r.actualSet.has(n));
+    const predBalls = predOnly.map(n =>
+      `<div class="bt-ball bt-ball-pred-only" title="預測未中">${n}</div>`
+    ).join('');
+
+    const trainLabel = `基於前 ${r.trainSize} 期預測`;
+
+    return `<div class="bt-row">
+      <div class="bt-header">
+        <div>
+          <div class="bt-date">${r.date}</div>
+          <div style="font-size:0.55rem;color:var(--muted);margin-top:2px;">${trainLabel}</div>
+        </div>
+        <div class="bt-hits ${hitsClass}">命中 ${r.hits}/5</div>
+      </div>
+      <div class="bt-section-label">實際號碼</div>
+      <div class="bt-balls" style="margin-bottom:8px;">${actualBalls}</div>
+      ${predOnly.length ? `<div class="bt-section-label">預測未中</div><div class="bt-balls">${predBalls}</div>` : '<div style="font-size:0.6rem;color:var(--teal);margin-top:2px;">預測號碼全部命中或部分命中</div>'}
+    </div>`;
   }).join('');
 }
 
