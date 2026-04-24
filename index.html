@@ -764,21 +764,10 @@ async function loadData() {
   log('開始連接 API...', 'warn');
 
   try {
-    const res = await fetch(API_URL(), {
-  method: 'GET',
-  cache: 'no-cache'
-});
-
-if (!res) throw new Error('無回應（fetch 失敗 / CORS / blocked）');
-
-const text = await res.text();
-
-let raw;
-try {
-  raw = JSON.parse(text);
-} catch (e) {
-  throw new Error('API 非 JSON 回應：' + text.slice(0, 100));
-}
+    const res = await fetch(API_URL());
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const raw = await res.json();
+    log(`API 回應成功`, 'ok');
 
     const rows = parseRows(raw);
     log(`解析到 ${rows.length} 列原始資料`, 'info');
